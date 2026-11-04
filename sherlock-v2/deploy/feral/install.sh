@@ -90,7 +90,6 @@ GCC_INCLUDE="$(gcc -print-file-name=include 2>/dev/null || true)"
 BINDGEN_GCC_ARGS="-I$GCC_INCLUDE"
 export BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS:+$BINDGEN_EXTRA_CLANG_ARGS }$BINDGEN_GCC_ARGS"
 export BINDGEN_EXTRA_CLANG_ARGS_x86_64_unknown_linux_gnu="$BINDGEN_GCC_ARGS"
-export BINDGEN_EXTRA_CLANG_ARGS_x86_64-unknown-linux-gnu="$BINDGEN_GCC_ARGS"
 
 # Pass libpq paths explicitly to the pg gem instead of relying on pg_config's
 # autodetection (which can fail on non-standard, rootless prefixes).
