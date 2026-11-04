@@ -14,6 +14,7 @@ DB_USER=sherlockdb_prod_write
 PG_VERSION=18
 RUBY_PREFIX_BASE=/opt/rubies
 NODE_PREFIX=/opt/node
+BUNDLE_PATH=/var/lib/sherlock/bundle
 NODE_DIST_BASE=https://nodejs.org/dist
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
@@ -115,6 +116,7 @@ PG_PORT=$(pg_lsclusters --no-header | awk -v v="$PG_VERSION" '$1 == v && $2 == "
 log 'Preparing dedicated application account and directories'
 getent group "$APP_GROUP" >/dev/null || groupadd --system "$APP_GROUP"
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --gid "$APP_GROUP" --home-dir /var/lib/sherlock --create-home --shell /usr/sbin/nologin "$APP_USER"
+install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$BUNDLE_PATH"
 install -d -o root -g "$APP_GROUP" -m 0750 "$ETC_DIR"
 
 STAGING_DIR=
@@ -183,8 +185,8 @@ TMP_NODE_DIR=
 
 export PATH="$RUBY_PREFIX/bin:$NODE_PREFIX/bin:$PATH"
 log 'Installing Ruby and JavaScript application dependencies'
-runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT='development:test' bash -c \
-  "cd '$APP_DIR' && bundle config set --local deployment true && bundle config set --local without 'development test' && bundle install --jobs 2 --retry 3 && npm ci && npm run build"
+runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT='development:test' bash -c \
+  "cd '$APP_DIR' && bundle config set --local deployment true && bundle config set --local path '$BUNDLE_PATH' && bundle config set --local without 'development test' && bundle install --jobs 2 --retry 3 && npm ci && npm run build"
 
 log 'Creating encrypted production credentials'
 install -d -o "$APP_USER" -g "$APP_GROUP" -m 0700 "$APP_DIR/config/credentials"
@@ -231,6 +233,7 @@ DB_PORT=$PG_PORT
 DB_NAME=$DB_NAME
 DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASSWORD
+BUNDLE_PATH=$BUNDLE_PATH
 RAILS_MAX_THREADS=3
 DB_POOL=10
 APP_GIT_BRANCH=$BRANCH
@@ -245,7 +248,7 @@ chmod 0640 "$ETC_DIR/sherlock.env"
 
 log 'Preparing database and compiling production assets'
 runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production APP_HOST="$DOMAIN" RAILS_MASTER_KEY="$MASTER_KEY" \
-  DB_HOST=127.0.0.1 DB_PORT="$PG_PORT" DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DB_POOL=10 \
+  DB_HOST=127.0.0.1 DB_PORT="$PG_PORT" DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" BUNDLE_PATH="$BUNDLE_PATH" DB_POOL=10 \
   SECRET_KEY_BASE_DUMMY=1 bash -c "cd '$APP_DIR' && bundle exec rails db:prepare db:seed && bundle exec rails assets:precompile && rm -rf node_modules"
 
 install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$APP_DIR/tmp" "$APP_DIR/log" "$APP_DIR/storage"
@@ -262,6 +265,8 @@ WorkingDirectory=$APP_DIR
 EnvironmentFile=$ETC_DIR/sherlock.env
 Environment=PATH=$RUBY_PREFIX/bin:$NODE_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 Environment=WEB_CONCURRENCY=1
+Environment=BUNDLE_DEPLOYMENT=1
+Environment=BUNDLE_WITHOUT=development:test
 ExecStart=/usr/bin/env bundle exec puma -C config/puma.rb
 Restart=on-failure
 RestartSec=5
