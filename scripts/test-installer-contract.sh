@@ -42,6 +42,10 @@ grep -Fq 'chmod 0755 bin/*' "$ROOT/.github/workflows/ci.yml" || {
   echo "ERROR: CI must restore executable permissions before running Rails binstubs." >&2
   exit 1
 }
+grep -Fq 'RUN chmod 0755 bin/*' "$ROOT/sherlock-v2/Dockerfile" || {
+  echo "ERROR: Docker image must restore executable Rails binstubs before invoking them." >&2
+  exit 1
+}
 grep -Fq 'find "$INSTALL_DIR/bin" -maxdepth 1 -type f -exec chmod 0755 {} +' "$BUNDLED_INSTALLER" || {
   echo "ERROR: bundled installer must restore executable Rails binstubs after copying the app." >&2
   exit 1
