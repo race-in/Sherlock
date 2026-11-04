@@ -122,7 +122,7 @@ grep -Fq 'echo "SINGLE_USER_MODE=false"' "$BUNDLED_INSTALLER" || {
 if grep -Fq 'check_single_user_database' "$BUNDLED_INSTALLER"; then
   echo "ERROR: native installer must not reject databases with multiple accounts." >&2
   exit 1
-}
+fi
 grep -Fq 'prepare_first_run_token' "$BUNDLED_INSTALLER" || {
   echo "ERROR: native installer must create or retain the first-run token." >&2
   exit 1
