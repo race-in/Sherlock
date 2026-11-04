@@ -57,6 +57,8 @@ RUN npm ci
 
 # Copy application code
 COPY . .
+# GitHub API-imported upstream files may not retain executable mode on Rails binstubs.
+RUN chmod 0755 bin/*
 
 # Precompile bootsnap code for faster boot times.
 # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
