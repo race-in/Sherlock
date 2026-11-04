@@ -102,6 +102,7 @@ Do not expose port 3000 publicly. Nginx is the public entry point and proxies to
 - `/etc/sherlock/sherlock.env` is root-owned and readable only by the application group.
 - Back up `config/credentials/production.key` securely; without it, encrypted credentials and saved API keys cannot be decrypted.
 - Puma is patched to listen only on `127.0.0.1:3000`; Nginx is the only public web entry point.
+- The Solid Queue worker's Prometheus exporter is patched to listen only on `127.0.0.1:9394` by default, preventing tracker/poll metrics from being exposed on every network interface.
 - The database connection pool uses `DB_POOL=10` independently from Puma's `RAILS_MAX_THREADS=3`, leaving room for Solid Queue jobs.
 - Never commit production keys, API keys, database passwords, or `sherlock.env`.
 - Store the database dump and credential archive separately and securely.
