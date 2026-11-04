@@ -71,8 +71,13 @@ CURRENT_BRANCH="$(git -C "$SRC_DIR" branch --show-current 2>/dev/null || true)"
 
 info "Checking rootless runtime prerequisites"
 [[ -x "$RUNTIME_PREFIX/bin/ruby" ]] || die "Private runtime missing. Run bash ./deploy/feral/bootstrap-runtime.sh first."
-export PATH="$RUNTIME_PREFIX/bin:$NODE_BIN:$PATH"
+export RUSTUP_HOME="$RUNTIME_PREFIX/rustup" CARGO_HOME="$RUNTIME_PREFIX/cargo"
+export PATH="$RUNTIME_PREFIX/bin:$NODE_BIN:$CARGO_HOME/bin:$PATH"
 export LD_LIBRARY_PATH="$RUNTIME_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export CARGO_BUILD_JOBS="${SHERLOCK_BUILD_JOBS:-2}"
+command -v cargo >/dev/null || die "Private Rust/Cargo runtime missing. Re-run bootstrap-runtime.sh."
+LIBCLANG_PATH="$(ruby -rlibclang -e 'puts File.dirname(Libclang.path)' 2>/dev/null)" || die "Private libclang gem missing. Re-run bootstrap-runtime.sh."
+export LIBCLANG_PATH
 export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 command -v ruby >/dev/null || die "Ruby >= 3.2 is required. Debian 9 system Ruby is too old; install a private runtime first."
 ruby -e 'require "rubygems"; abort "Ruby >= 3.2 required" if Gem::Version.new(RUBY_VERSION) < Gem::Version.new("3.2.0")' ||
