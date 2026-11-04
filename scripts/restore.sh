@@ -12,7 +12,7 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 
 validate_environment_file() {
   local file=$1
-  local key value line
+  local key value
   declare -A seen=()
   while IFS='=' read -r key value || [[ -n ${key:-} ]]; do
     [[ -n "$key" && "$key" =~ ^[A-Z_]+$ ]] || die "Invalid setting in archived environment file."
