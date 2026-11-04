@@ -11,6 +11,7 @@ cat > "$TMP/etc/apt/sources.list" <<'LIST'
 deb https://deb.debian.org/debian bullseye main
 deb [arch=amd64] https://deb.debian.org/debian bullseye-updates main
 deb https://security.debian.org/debian-security bullseye-security main
+deb [arch=arm64] https://deb.debian.org/debian bullseye-security main
 deb https://deb.debian.org/debian bullseye-backports main
 deb https://download.docker.com/linux/debian bullseye stable
 LIST
@@ -44,6 +45,7 @@ APT_SOURCE_ROOT="$TMP" bash "$PREPARER"
 grep -Fq 'http://archive.debian.org/debian bullseye main' "$TMP/etc/apt/sources.list"
 grep -Fq 'http://archive.debian.org/debian bullseye-updates main' "$TMP/etc/apt/sources.list"
 grep -Fq 'http://archive.debian.org/debian-security bullseye-security main' "$TMP/etc/apt/sources.list"
+grep -Fxq 'deb [arch=arm64 check-valid-until=no] http://archive.debian.org/debian-security bullseye-security main' "$TMP/etc/apt/sources.list"
 grep -Fq 'deb [check-valid-until=no] https://download.docker.com/linux/debian bullseye stable' "$TMP/etc/apt/sources.list" && {
   echo "ERROR: third-party APT source was rewritten." >&2
   exit 1
