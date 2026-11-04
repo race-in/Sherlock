@@ -15,6 +15,7 @@ PG_VERSION=18
 RUBY_PREFIX_BASE=/opt/rubies
 NODE_PREFIX=/opt/node
 NODE_DIST_BASE=https://nodejs.org/dist
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 log() { printf '\n[%s] %s\n' "$(date '+%F %T')" "$*"; }
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -61,6 +62,7 @@ WARNING
 fi
 
 [[ ! -e "$APP_DIR" ]] || die "$APP_DIR already exists; refusing to overwrite an existing installation."
+[[ -x "$SCRIPT_DIR/scripts/patch-native-app.sh" ]] || die "Missing deployment patcher: $SCRIPT_DIR/scripts/patch-native-app.sh"
 read -r -p "Let's Encrypt email: " LE_EMAIL
 [[ "$LE_EMAIL" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || die 'A valid email address is required.'
 
@@ -72,7 +74,7 @@ apt-get install -y --no-install-recommends \
   libssl-dev libyaml-dev libreadline-dev zlib1g-dev libffi-dev libgdbm-dev \
   libncurses-dev libgmp-dev libdb-dev libpq-dev pkg-config python3 make gcc g++ \
   libjemalloc2 libatomic1 postgresql-common nginx certbot python3-certbot-nginx \
-  ufw openssl xz-utils
+  ufw openssl xz-utils iproute2
 
 log "Configuring PostgreSQL ${PG_VERSION} package repository"
 install -d -m 0755 /usr/share/postgresql-common/pgdg
@@ -110,6 +112,9 @@ NODE_VERSION=$(tr -d '\r\n' < "$APP_DIR/.node-version")
 [[ "$RUBY_VERSION" == 4.0.9 ]] || die "Unsupported application Ruby version: $RUBY_VERSION (installer is pinned for 4.0.9)."
 [[ "$NODE_VERSION" == 26.12.0 ]] || die "Unsupported application Node.js version: $NODE_VERSION (installer is pinned for 26.12.0)."
 RUBY_PREFIX="$RUBY_PREFIX_BASE/$RUBY_VERSION"
+install -d -m 0755 /usr/local/libexec/sherlock
+install -o root -g root -m 0755 "$SCRIPT_DIR/scripts/patch-native-app.sh" /usr/local/libexec/sherlock/patch-native-app.sh
+runuser -u "$APP_USER" -- /usr/local/libexec/sherlock/patch-native-app.sh "$APP_DIR"
 
 log "Building Ruby ${RUBY_VERSION} against the host OpenSSL (>= 1.1.1)"
 if [[ ! -x /usr/local/bin/ruby-build ]]; then
@@ -168,19 +173,20 @@ fi
 chown "$APP_USER:$APP_GROUP" "$APP_DIR/config/credentials/production.key" "$APP_DIR/config/credentials/production.yml.enc"
 chmod 0600 "$APP_DIR/config/credentials/production.key" "$APP_DIR/config/credentials/production.yml.enc"
 
-log 'Creating PostgreSQL database, role, and required sherlockdb schema'
+log 'Creating PostgreSQL database and role'
 DB_PASSWORD=$(openssl rand -hex 32)
 if runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
   die "Database role $DB_USER already exists; refusing to alter it."
+fi
+if runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+  die "Database $DB_NAME already exists; refusing to modify it."
 fi
 runuser -u postgres -- psql -v ON_ERROR_STOP=1 <<SQL
 CREATE ROLE ${DB_USER} LOGIN PASSWORD '${DB_PASSWORD}';
 CREATE DATABASE ${DB_NAME} OWNER ${DB_USER} ENCODING 'UTF8';
 SQL
-runuser -u postgres -- psql -v ON_ERROR_STOP=1 -d "$DB_NAME" <<SQL
-CREATE SCHEMA sherlockdb AUTHORIZATION ${DB_USER};
-ALTER ROLE ${DB_USER} SET search_path = 'sherlockdb', 'public';
-SQL
+# Rails db:prepare loads db/structure.sql, which creates and owns the sherlockdb schema.
+# Do not pre-create the schema here or structure:load will fail on a fresh database.
 
 MASTER_KEY=$(tr -d '\r\n' < "$APP_DIR/config/credentials/production.key")
 cat > "$ETC_DIR/sherlock.env" <<ENV
@@ -193,6 +199,8 @@ DB_NAME=$DB_NAME
 DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASSWORD
 RAILS_MAX_THREADS=3
+DB_POOL=10
+APP_GIT_BRANCH=$BRANCH
 PORT=3000
 FORCE_SSL=true
 SOLID_QUEUE_IN_PUMA=true
@@ -203,8 +211,8 @@ chmod 0640 "$ETC_DIR/sherlock.env"
 
 log 'Preparing database and compiling production assets'
 runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production APP_HOST="$DOMAIN" RAILS_MASTER_KEY="$MASTER_KEY" \
-  DB_HOST=127.0.0.1 DB_PORT="$PG_PORT" DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" \
-  SECRET_KEY_BASE_DUMMY=1 bash -c "cd '$APP_DIR' && bundle exec rails db:prepare db:seed && bundle exec rails assets:precompile"
+  DB_HOST=127.0.0.1 DB_PORT="$PG_PORT" DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DB_POOL=10 \
+  SECRET_KEY_BASE_DUMMY=1 bash -c "cd '$APP_DIR' && bundle exec rails db:prepare db:seed && bundle exec rails assets:precompile && rm -rf node_modules"
 
 install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$APP_DIR/tmp" "$APP_DIR/log" "$APP_DIR/storage"
 cat > /etc/systemd/system/sherlock.service <<UNIT
