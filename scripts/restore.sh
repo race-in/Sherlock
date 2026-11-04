@@ -6,7 +6,7 @@ APP_DIR=/opt/sherlock
 ETC_DIR=/etc/sherlock
 APP_USER=sherlock
 APP_GROUP=sherlock
-PG_BINDIR=/usr/lib/postgresql/18/bin
+PG_BINDIR=${PG_BINDIR:-/usr/lib/postgresql/18/bin}
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
@@ -56,6 +56,17 @@ if [[ ${1:-} == --verify ]]; then
   exit 0
 fi
 
+if [[ ${1:-} == --verify-dump ]]; then
+  [[ $# -eq 2 ]] || die "Usage: $0 --verify-dump <database.dump>"
+  [[ -x "$PG_BINDIR/pg_restore" ]] || die "PostgreSQL pg_restore is missing at $PG_BINDIR/pg_restore."
+  VERIFY_DUMP=$(realpath -- "$2")
+  [[ -f "$VERIFY_DUMP" && -s "$VERIFY_DUMP" ]] || die "Database dump is missing or empty: $VERIFY_DUMP"
+  "$PG_BINDIR/pg_restore" --list "$VERIFY_DUMP" >/dev/null ||
+    die "PostgreSQL dump is invalid or unreadable: $VERIFY_DUMP"
+  echo "PASS: PostgreSQL dump archive is readable."
+  exit 0
+fi
+
 [[ $EUID -eq 0 ]] || die "Run as root."
 [[ $# -eq 2 ]] || die "Usage: $0 <database.dump> <secrets-archive.tar.gz>"
 [[ -d "$APP_DIR" && -d "$APP_DIR/config/credentials" ]] || die "Sherlock application is not installed at $APP_DIR."
@@ -65,7 +76,10 @@ getent group "$APP_GROUP" >/dev/null || die "Service group $APP_GROUP does not e
 
 DB_DUMP=$(realpath -- "$1")
 SECRETS_ARCHIVE=$(realpath -- "$2")
-[[ -s "$DB_DUMP" ]] || die "Database dump is missing or empty: $DB_DUMP"
+[[ -f "$DB_DUMP" && -s "$DB_DUMP" ]] || die "Database dump is missing or empty: $DB_DUMP"
+[[ -x "$PG_BINDIR/pg_restore" ]] || die "PostgreSQL 18 pg_restore is missing."
+"$PG_BINDIR/pg_restore" --list "$DB_DUMP" >/dev/null ||
+  die "PostgreSQL dump is invalid or unreadable; the live database has not been changed."
 verify_secrets_archive "$SECRETS_ARCHIVE"
 
 RESTORE_TMP=$(mktemp -d /tmp/sherlock-restore.XXXXXX)
