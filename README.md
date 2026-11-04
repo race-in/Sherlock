@@ -141,6 +141,10 @@ This assumes the PostgreSQL role, database environment file, and service account
 
 See [SECURITY.md](SECURITY.md) for private vulnerability reporting and deployment safety guidance.
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the agreed Custom Edition implementation plan and release gates.
+
 ## Current scope
 
 This repository is a **native deployment scaffold**, not yet the complete Sherlock Custom Edition. It does not implement single-user-only enforcement, manual statistics entry, CSV/JSON import/export workflows, or additional tracker adapters. The upstream app may still retain its existing multi-user/invite behavior.
