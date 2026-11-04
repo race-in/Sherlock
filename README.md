@@ -82,9 +82,10 @@ It refuses to overwrite an existing `/opt/sherlock` directory or an existing dat
 ## Deployment helper scripts
 
 - `scripts/patch-native-app.sh`: applies the local-only Puma loopback bind and database-pool patches; fails closed if the expected upstream source lines change.
+- `scripts/check-nginx-host-conflict.sh`: refuses an existing exact `server_name` collision before adding the Sherlock virtual host; existing/default Nginx sites are left intact.
 - `scripts/prepare-bullseye-archive.sh`: backs up and adapts official Debian 11 APT source entries after EOL consent.
 - `scripts/compatibility-check.sh`: reports supported Debian releases, CPU architecture, and glibc compatibility.
-- `scripts/test-native-patches.sh` and `scripts/test-bullseye-archive.sh`: regression tests run in CI, including Ruby/ERB syntax checks for deployment patches.
+- `scripts/test-native-patches.sh` `, `scripts/test-bullseye-archive.sh`, `scripts/test-nginx-host-conflict.sh`, and `scripts/test-installer-contract.sh`: regression tests run in CI, including Ruby/ERB syntax checks for deployment patches.
 - `scripts/test-apt-dependencies.sh`: verifies that the native installer dependency set and PostgreSQL 18 packages resolve from each Debian release's configured APT repositories.
 - `scripts/test-node-runtime.sh`: downloads the selected official Node.js runtime, verifies its published SHA-256 checksum, runs Node.js/npm, shallow-clones the upstream Sherlock source from Codeberg, and runs its actual `npm ci` and `npm run build` on each Debian image.
 
