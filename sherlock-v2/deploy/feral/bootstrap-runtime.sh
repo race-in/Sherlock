@@ -20,7 +20,7 @@ mkdir -p "$PREFIX" "$WORK/src" "$WORK/build" "$LOG_DIR"
 . /etc/os-release
 [[ "${ID:-}" == debian && "${VERSION_ID:-}" == 9* ]] || die "Only Debian 9 is supported."
 [[ "$(uname -m)" == x86_64 ]] || die "Only x86_64 is supported in this first Feral build."
-for c in gcc make curl tar sha256sum pkg-config perl gzip xz git patch awk sed ar ranlib nm ld nproc; do need "$c"; done
+for c in gcc make curl tar sha256sum pkg-config perl gzip xz bzip2 git patch awk sed ar ranlib nm ld nproc; do need "$c"; done
 (( $(gcc -dumpversion | cut -d. -f1) >= 6 )) || die "GCC 6+ required."
 PREFIX="$(cd "$PREFIX" && pwd -P)"
 export PATH="$PREFIX/bin:/usr/bin:/bin"
@@ -47,7 +47,7 @@ step "Build OpenSSL 3.5.9 LTS"
 if [[ ! -x "$PREFIX/bin/openssl" ]] || ! "$PREFIX/bin/openssl" version | grep -Fq 'OpenSSL 3.5.9'; then
  fetch https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz "$WORK/src/openssl-3.5.9.tar.gz" f482705825eb43b47ce08d5cf4287ae062cdbada1a142d728a8d89c387300bf0
  rm -rf "$WORK/build/openssl-3.5.9"; tar -xf "$WORK/src/openssl-3.5.9.tar.gz" -C "$WORK/build"
- (cd "$WORK/build/openssl-3.5.9" && ./Configure linux-x86_64 --prefix="$PREFIX" --openssldir="$PREFIX/ssl" shared zlib -I"$PREFIX/include" -L"$PREFIX/lib" && make -j"$JOBS" && make install_sw) >"$LOG_DIR/openssl-build.log" 2>&1 || { tail -n 60 "$LOG_DIR/openssl-build.log" >&2; die "OpenSSL build failed; see $LOG_DIR/openssl-build.log"; }
+ (cd "$WORK/build/openssl-3.5.9" && ./Configure linux-x86_64 --prefix="$PREFIX" --libdir=lib --openssldir="$PREFIX/ssl" shared zlib -I"$PREFIX/include" -L"$PREFIX/lib" && make -j"$JOBS" && make install_sw) >"$LOG_DIR/openssl-build.log" 2>&1 || { tail -n 60 "$LOG_DIR/openssl-build.log" >&2; die "OpenSSL build failed; see $LOG_DIR/openssl-build.log"; }
 fi
 "$PREFIX/bin/openssl" version | grep -F 'OpenSSL 3.5.9' >/dev/null || die "OpenSSL verification failed."
 
