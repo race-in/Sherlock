@@ -24,7 +24,7 @@ dpkg --compare-versions "$GLIBC" ge "$MIN_GLIBC" || {
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl xz-utils libatomic1
+apt-get install -y --no-install-recommends ca-certificates curl xz-utils libatomic1 git
 
 NODE_DIST_BASE=https://nodejs.org/dist
 NODE_TARBALL="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
@@ -47,4 +47,17 @@ ACTUAL_NODE=$(node --version)
 }
 node -e 'const v = process.versions; if (!v.v8 || !v.modules) process.exit(1); console.log("Node runtime OK:", process.version, "V8", v.v8)'
 npm --version
-printf 'PASS: Debian %s runs official Node.js %s (%s) with glibc %s.\n' "$MAJOR" "$NODE_VERSION" "$NODE_ARCH" "$GLIBC"
+
+APP_SOURCE_URL=${APP_SOURCE_URL:-https://codeberg.org/whatstatus/sherlock-v2.git}
+git clone --depth 1 --no-tags "$APP_SOURCE_URL" "$TMP_DIR/sherlock"
+APP_NODE_PIN=$(tr -d '\r\n' < "$TMP_DIR/sherlock/.node-version")
+[[ "$APP_NODE_PIN" == 26.12.0 ]] || {
+  echo "Unexpected upstream .node-version: $APP_NODE_PIN (expected 26.12.0)." >&2
+  exit 1
+}
+(
+  cd "$TMP_DIR/sherlock"
+  npm ci --no-audit --no-fund
+  npm run build
+)
+printf 'PASS: Debian %s runs official Node.js %s (%s) and builds Sherlock frontend with glibc %s.\n' "$MAJOR" "$NODE_VERSION" "$NODE_ARCH" "$GLIBC"
