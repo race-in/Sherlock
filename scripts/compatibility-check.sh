@@ -13,13 +13,20 @@ esac
 ARCH=$(dpkg --print-architecture)
 case "$ARCH" in amd64|arm64) ;; *) echo "Unsupported architecture: $ARCH; amd64/arm64 required." >&2; exit 1 ;; esac
 case "$MAJOR" in
-  11) NODE_VERSION=24.22.2; MIN_GLIBC=2.28 ;;
-  12|13) NODE_VERSION=26.12.0; MIN_GLIBC=2.34 ;;
+  11) NODE_VERSION=24.22.2; MIN_GLIBC=2.28; MIN_KERNEL=4.18 ;;
+  12|13) NODE_VERSION=26.12.0; MIN_GLIBC=2.34; MIN_KERNEL=5.14 ;;
 esac
 GLIBC=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
-dpkg --compare-versions "$GLIBC" ge "$MIN_GLIBC" \
-  || { echo "glibc $GLIBC is below Node.js $NODE_VERSION minimum $MIN_GLIBC." >&2; exit 1; }
-printf 'PASS: Debian %s (%s), architecture %s, glibc %s; Node.js build runtime %s\n' "$MAJOR" "$CODENAME" "$ARCH" "$GLIBC" "$NODE_VERSION"
+KERNEL=$(uname -r | cut -d- -f1)
+dpkg --compare-versions "$GLIBC" ge "$MIN_GLIBC" || {
+  echo "glibc $GLIBC is below Node.js $NODE_VERSION minimum $MIN_GLIBC." >&2
+  exit 1
+}
+dpkg --compare-versions "$KERNEL" ge "$MIN_KERNEL" || {
+  echo "Kernel $KERNEL is below Node.js $NODE_VERSION minimum $MIN_KERNEL." >&2
+  exit 1
+}
+printf 'PASS: Debian %s (%s), architecture %s, glibc %s, kernel %s; Node.js build runtime %s\n' "$MAJOR" "$CODENAME" "$ARCH" "$GLIBC" "$KERNEL" "$NODE_VERSION"
 printf 'INFO: %s\n' "$STATUS"
 if [[ "$MAJOR" == 11 ]]; then
   echo 'WARNING: PostgreSQL 18 is fetched from the frozen PGDG Bullseye archive; OS and package updates are not guaranteed.'
