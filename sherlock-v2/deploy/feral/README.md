@@ -43,9 +43,7 @@ before replacing an existing application. It requires the database to be provisi
 outside this installer; the configured DB user must be able to create the
 `sherlockdb` schema and run migrations.
 
-Set these variables in the private environment file created by the installer:
-`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`,
-`RAILS_MASTER_KEY`, and `APP_HOST`. Keep that file mode 0600.
+The installer creates private `RAILS_MASTER_KEY` and `SECRET_KEY_BASE` values automatically. Database settings and `APP_HOST` are written to the private environment file (mode 0600). Do not publish or share this file.
 
 ## Process controls
 
