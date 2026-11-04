@@ -65,7 +65,7 @@ cd sherlock-v2
 sudo bash ./deploy/install.sh
 ```
 
-For an existing install, the installer first verifies database connectivity and creates a timestamped PostgreSQL custom-format dump plus a matching archive of the environment and encrypted Rails credentials under `/var/backups/sherlock`. The dump is checked with `pg_restore --list`. It then stops the running service before replacing files and preparing migrations. If backup creation fails, the update aborts before application files are changed. If a later upgrade step fails, the service is deliberately left stopped; inspect the error and backup before retrying. Check `sudo sherlock-ctl status` and the local `/up` health endpoint after success. Keep backup files private.
+For an existing install, the installer first verifies database connectivity and stops the running service, then creates a timestamped PostgreSQL custom-format dump plus a matching archive of the environment and encrypted Rails credentials under `/var/backups/sherlock`. This prevents application writes racing with the backup. The dump is checked with `pg_restore --list`; only then are files replaced and migrations prepared. If backup creation fails, the update aborts before application files are changed. If a later upgrade step fails, the service is deliberately left stopped; inspect the error and backup before retrying. Check `sudo sherlock-ctl status` and the local `/up` health endpoint after success. Keep backup files private.
 
 ## Application features
 
