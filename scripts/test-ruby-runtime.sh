@@ -134,7 +134,7 @@ SELECT format('CREATE DATABASE %I OWNER %I ENCODING %L',  :'multi_database_name'
 SQL
 
 runuser -u sherlock-runtime-test -- env \
-  HOME="$APP_HOME" PATH="$RUBY_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  HOME="$APP_HOME" PATH="$RUNTIME_PATH" \
   BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT=development \
   RAILS_ENV=test CI=true \
   TEST_DB_HOST=127.0.0.1 TEST_DB_PORT="$PG_PORT" TEST_DB_USER="$DB_ROLE" \
