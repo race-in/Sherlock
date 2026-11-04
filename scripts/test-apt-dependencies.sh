@@ -16,7 +16,7 @@ if [[ "$MAJOR" == 11 ]]; then
 fi
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl gnupg
+apt-get install -y --no-install-recommends ca-certificates curl
 install -d -m 0755 /usr/share/postgresql-common/pgdg
 curl -fsSLo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
   https://www.postgresql.org/media/keys/ACCC4CF8.asc
@@ -31,7 +31,7 @@ fi
 
 apt-get update
 apt-get install --simulate --no-install-recommends \
-  ca-certificates curl git gnupg build-essential autoconf bison \
+  ca-certificates curl git build-essential autoconf bison \
   libssl-dev libyaml-dev libreadline-dev zlib1g-dev libffi-dev libgdbm-dev \
   libncurses-dev libgmp-dev libdb-dev libpq-dev pkg-config python3 make gcc g++ \
   libjemalloc2 libatomic1 postgresql-common postgresql-18 postgresql-client-18 \
