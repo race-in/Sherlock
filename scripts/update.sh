@@ -20,7 +20,7 @@ set -a
 . /etc/sherlock/sherlock.env
 set +a
 APP_GIT_BRANCH=${APP_GIT_BRANCH:-main}
-PREVIOUS_COMMIT=$(git -C "$APP_DIR" rev-parse HEAD)
+PREVIOUS_COMMIT=$(runuser -u "$APP_USER" -- git -C "$APP_DIR" rev-parse HEAD)
 
 restore_service() {
   local status=$?
