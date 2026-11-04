@@ -20,7 +20,7 @@
   <% end %>
 </div>
 
-<% if !Rails.application.config.x.single_user_mode && Current.user.is_admin? && flash[:invite_code] && (invite = Invite.find_by(code: flash[:invite_code]))&.usable? %>
+<% if Current.user.is_admin? && flash[:invite_code] && (invite = Invite.find_by(code: flash[:invite_code]))&.usable? %>
   <% sites = invite.joinable_sites.map(&:name).to_sentence(last_word_connector: " or ", two_words_connector: " or ") %>
   <section class="card mb-6 border-accent p-6 sm:p-8" data-controller="clipboard scroll-top" data-clipboard-text-value="<%= join_url(invite.code) %>">
     <div class="flex items-start gap-4">
