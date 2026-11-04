@@ -63,14 +63,31 @@ rewrite_deb822_file() {
   awk '
     BEGIN { RS = ""; ORS = "" }
 
-    function is_official_debian_uri(uri) {
-      return uri ~ /^https?:\\/\\/(deb\\.debian\\.org|ftp\\.debian\\.org|httpredir\\.debian\\.org|security\\.debian\\.org)\\/debian(-security)?\\/?$/
+    function is_official_debian_uri(uri, normalized) {
+      normalized = uri
+      if (substr(normalized, length(normalized), 1) == "/") {
+        normalized = substr(normalized, 1, length(normalized) - 1)
+      }
+      return normalized == "https://deb.debian.org/debian" ||
+             normalized == "http://deb.debian.org/debian" ||
+             normalized == "https://ftp.debian.org/debian" ||
+             normalized == "http://ftp.debian.org/debian" ||
+             normalized == "https://httpredir.debian.org/debian" ||
+             normalized == "http://httpredir.debian.org/debian" ||
+             normalized == "https://security.debian.org/debian-security" ||
+             normalized == "http://security.debian.org/debian-security"
     }
 
-    function rewrite_uri_for_suite(uri, suite) {
+    function rewrite_uri_for_suite(uri, suite, normalized) {
       if (!is_official_debian_uri(uri)) return uri
-      if (suite == "bullseye-security") return "http://archive.debian.org/debian-security"
-      if (uri ~ /security\\.debian\\.org\\/debian-security/) return "http://archive.debian.org/debian-security"
+      normalized = uri
+      if (substr(normalized, length(normalized), 1) == "/") {
+        normalized = substr(normalized, 1, length(normalized) - 1)
+      }
+      if (suite == "bullseye-security" ||
+          index(normalized, "security.debian.org/debian-security") > 0) {
+        return "http://archive.debian.org/debian-security"
+      }
       return "http://archive.debian.org/debian"
     }
 
