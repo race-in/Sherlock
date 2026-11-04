@@ -11,108 +11,128 @@ BACKUP_DIR="$ROOT/var/backups/sherlock-apt-sources-$STAMP"
 mkdir -p "$BACKUP_DIR"
 chmod 0700 "$BACKUP_DIR"
 
-python3 - "$APT_DIR" "$BACKUP_DIR" "$ROOT" <<'PY'
-from pathlib import Path
-import re
-import shutil
-import sys
+rewrite_list_file() {
+  local source_file=$1
+  local temp_file
+  temp_file=$(mktemp)
+  awk '
+    function rewrite_uri(value) {
+      gsub(/https:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/http:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/https:\/\/ftp\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/http:\/\/ftp\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/https:\/\/httpredir\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/http:\/\/httpredir\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      return value
+    }
+    {
+      if ($0 ~ /^[[:space:]]*#/ || $0 !~ /^[[:space:]]*deb(-src)?[[:space:]]/) {
+        print
+        next
+      }
+      if ($0 ~ /security\.debian\.org/ || $0 ~ /bullseye-(security|backports(-sloppy)?)([[:space:]]|$)/) {
+        print "# Disabled after Debian 11 LTS EOL: " $0
+        next
+      }
+      print rewrite_uri($0)
+    }
+  ' "$source_file" > "$temp_file"
 
-apt_dir = Path(sys.argv[1])
-backup_dir = Path(sys.argv[2])
-root = Path(sys.argv[3])
+  if ! cmp -s "$source_file" "$temp_file"; then
+    cp -a "$source_file" "$BACKUP_DIR/$(basename "$source_file").bak"
+    cat "$temp_file" > "$source_file"
+    echo "Updated: $source_file"
+  fi
+  rm -f "$temp_file"
+}
 
-list_files = ([apt_dir / "sources.list"] if (apt_dir / "sources.list").exists() else [])
-list_files += sorted((apt_dir / "sources.list.d").glob("*.list")) if (apt_dir / "sources.list.d").exists() else []
-deb822_files = sorted((apt_dir / "sources.list.d").glob("*.sources")) if (apt_dir / "sources.list.d").exists() else []
+rewrite_deb822_file() {
+  local source_file=$1
+  local temp_file
+  temp_file=$(mktemp)
+  awk '
+    BEGIN { RS = ""; ORS = "\n\n" }
+    function rewrite_uri(value) {
+      gsub(/https:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/http:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/https:\/\/ftp\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/http:\/\/ftp\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/https:\/\/httpredir\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/http:\/\/httpredir\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      return value
+    }
+    {
+      count = split($0, lines, "\n")
+      uris = ""
+      for (i = 1; i <= count; i++) {
+        if (lines[i] ~ /^URIs:[[:space:]]*/) {
+          uris = lines[i]
+          sub(/^URIs:[[:space:]]*/, "", uris)
+        }
+      }
+      if (uris ~ /security\.debian\.org/) next
 
-replacements = (
-    ("https://deb.debian.org/debian", "https://archive.debian.org/debian"),
-    ("http://deb.debian.org/debian", "https://archive.debian.org/debian"),
-    ("https://ftp.debian.org/debian", "https://archive.debian.org/debian"),
-    ("http://ftp.debian.org/debian", "https://archive.debian.org/debian"),
-    ("https://httpredir.debian.org/debian", "https://archive.debian.org/debian"),
-    ("http://httpredir.debian.org/debian", "https://archive.debian.org/debian"),
-)
-removed_suites = {"bullseye-security", "bullseye-backports", "bullseye-backports-sloppy"}
+      drop_stanza = 0
+      for (i = 1; i <= count; i++) {
+        if (lines[i] ~ /^Suites:[[:space:]]*/) {
+          value = lines[i]
+          sub(/^Suites:[[:space:]]*/, "", value)
+          suite_count = split(value, suites, /[[:space:]]+/)
+          kept = ""
+          for (j = 1; j <= suite_count; j++) {
+            if (suites[j] == "" || suites[j] == "bullseye-security" ||
+                suites[j] == "bullseye-backports" || suites[j] == "bullseye-backports-sloppy") {
+              continue
+            }
+            kept = kept (kept == "" ? "" : " ") suites[j]
+          }
+          if (kept == "") {
+            drop_stanza = 1
+          } else {
+            lines[i] = "Suites: " kept
+          }
+        }
+      }
+      if (drop_stanza) next
+      for (i = 1; i <= count; i++) {
+        if (lines[i] ~ /^URIs:[[:space:]]*/) lines[i] = rewrite_uri(lines[i])
+        print lines[i]
+      }
+    }
+  ' "$source_file" > "$temp_file"
 
-def rewrite_uri(value: str) -> str:
-    for old, new in replacements:
-        value = value.replace(old, new)
-    return value
+  if ! cmp -s "$source_file" "$temp_file"; then
+    cp -a "$source_file" "$BACKUP_DIR/$(basename "$source_file").bak"
+    cat "$temp_file" > "$source_file"
+    echo "Updated: $source_file"
+  fi
+  rm -f "$temp_file"
+}
 
-changed = []
-for path in list_files:
-    original = path.read_text(encoding="utf-8")
-    lines = []
-    modified = False
-    for line in original.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            lines.append(line)
-            continue
-        if "security.debian.org" in stripped or re.search(r"\bbullseye-(security|backports(?:-sloppy)?)\b", stripped):
-            lines.append("# Disabled after Debian 11 LTS EOL: " + line)
-            modified = True
-            continue
-        updated = rewrite_uri(line)
-        if updated != line:
-            modified = True
-        lines.append(updated)
-    if modified:
-        shutil.copy2(path, backup_dir / (path.name + ".bak"))
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        changed.append(str(path))
+if [[ -f "$APT_DIR/sources.list" ]]; then
+  rewrite_list_file "$APT_DIR/sources.list"
+fi
+if [[ -d "$APT_DIR/sources.list.d" ]]; then
+  while IFS= read -r -d '' source_file; do
+    rewrite_list_file "$source_file"
+  done < <(find "$APT_DIR/sources.list.d" -maxdepth 1 -type f -name '*.list' -print0 | sort -z)
 
-for path in deb822_files:
-    original = path.read_text(encoding="utf-8")
-    stanzas = re.split(r"\n\s*\n", original.strip()) if original.strip() else []
-    output = []
-    modified = False
-    for stanza in stanzas:
-        lines = stanza.splitlines()
-        fields = {}
-        for line in lines:
-            if line and not line[0].isspace() and ":" in line:
-                key, value = line.split(":", 1)
-                fields[key.lower()] = value.strip()
-        uris = fields.get("uris", "")
-        suites = fields.get("suites", "").split()
-        if "security.debian.org" in uris or any(suite in removed_suites for suite in suites):
-            kept = [suite for suite in suites if suite not in removed_suites]
-            if not kept:
-                modified = True
-                continue
-            new_lines = []
-            for line in lines:
-                if line.lower().startswith("suites:"):
-                    new_lines.append("Suites: " + " ".join(kept))
-                else:
-                    new_lines.append(line)
-            lines = new_lines
-            modified = True
-        new_lines = [rewrite_uri(line) for line in lines]
-        if new_lines != lines:
-            modified = True
-        output.append("\n".join(new_lines))
-    if modified:
-        shutil.copy2(path, backup_dir / (path.name + ".bak"))
-        path.write_text("\n\n".join(output).rstrip() + "\n", encoding="utf-8")
-        changed.append(str(path))
+  while IFS= read -r -d '' source_file; do
+    rewrite_deb822_file "$source_file"
+  done < <(find "$APT_DIR/sources.list.d" -maxdepth 1 -type f -name '*.sources' -print0 | sort -z)
+fi
 
-apt_conf = apt_dir / "apt.conf.d" / "99sherlock-bullseye-archive"
-apt_conf.parent.mkdir(parents=True, exist_ok=True)
-conf = 'Acquire::Check-Valid-Until "false";\n'
-if not apt_conf.exists() or apt_conf.read_text(encoding="utf-8") != conf:
-    if apt_conf.exists():
-        shutil.copy2(apt_conf, backup_dir / (apt_conf.name + ".bak"))
-    apt_conf.write_text(conf, encoding="utf-8")
-    changed.append(str(apt_conf))
+APT_CONF="$APT_DIR/apt.conf.d/99sherlock-bullseye-archive"
+install -d -m 0755 "$(dirname "$APT_CONF")"
+if [[ ! -f "$APT_CONF" ]] || ! grep -Fxq 'Acquire::Check-Valid-Until "false";' "$APT_CONF"; then
+  if [[ -f "$APT_CONF" ]]; then
+    cp -a "$APT_CONF" "$BACKUP_DIR/$(basename "$APT_CONF").bak"
+  fi
+  printf '%s\n' 'Acquire::Check-Valid-Until "false";' > "$APT_CONF"
+  chmod 0644 "$APT_CONF"
+  echo "Updated: $APT_CONF"
+fi
 
-print("Bullseye APT sources now use archive.debian.org.")
-print("Disabled expired Bullseye security/backports suites (there are no further Debian LTS updates).")
-print("Backup:", backup_dir)
-for item in changed:
-    print("Updated:", item)
-PY
-
-echo "Bullseye archive source preparation complete. No Debian 11 security updates are available."
+echo "Bullseye APT sources now use archive.debian.org."
+echo "Expired Bullseye security/backports suites are disabled; no further Debian LTS security updates exist."
+echo "Original source backups: $BACKUP_DIR"
