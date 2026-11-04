@@ -81,4 +81,34 @@ grep -Fq 'RUBY_BUILD_COMMIT=b6a92c15f0df872047c74f7dfa0b92dfd4de8a92' "$BUNDLED_
   exit 1
 }
 
+
+grep -Fq 'EXISTING_INSTALL=0' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: bundled installer must distinguish fresh installs from managed updates." >&2
+  exit 1
+}
+grep -Fq 'if (( EXISTING_INSTALL == 0 )); then' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: bundled installer must refuse unrelated existing PostgreSQL roles/databases." >&2
+  exit 1
+}
+grep -Fq 'local metrics_bind=127.0.0.1' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: bundled worker metrics listener must remain private." >&2
+  exit 1
+}
+grep -Fq 'realpath -m "$INSTALL_DIR"' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: fresh install must support a not-yet-created app directory." >&2
+  exit 1
+}
+grep -Fq 'managed_by=sherlock-deploy/install.sh' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: managed install marker is missing." >&2
+  exit 1
+}
+grep -Fq 'check-nginx-host-conflict.sh' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: bundled installer must detect existing Nginx hostname conflicts." >&2
+  exit 1
+}
+grep -Fq 'prepare-bullseye-archive.sh' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: Debian 11 must use the tested APT archive migration helper." >&2
+  exit 1
+}
+
 echo "PASS: installer and updater contracts are safe"
