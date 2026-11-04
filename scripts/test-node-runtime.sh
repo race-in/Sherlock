@@ -39,11 +39,12 @@ grep -E "^[0-9a-f]{64}  ${NODE_TARBALL}$" "$TMP_DIR/SHASUMS256.txt" > "$TMP_DIR/
 (cd "$TMP_DIR" && sha256sum --check node.sha256)
 tar -xJf "$TMP_DIR/$NODE_TARBALL" -C "$TMP_DIR/node" --strip-components=1
 
-ACTUAL_NODE=$("$TMP_DIR/node/bin/node" --version)
+export PATH="$TMP_DIR/node/bin:$PATH"
+ACTUAL_NODE=$(node --version)
 [[ "$ACTUAL_NODE" == "v$NODE_VERSION" ]] || {
   echo "Node.js version mismatch: expected v$NODE_VERSION, got $ACTUAL_NODE." >&2
   exit 1
 }
-"$TMP_DIR/node/bin/node" -e 'const v = process.versions; if (!v.v8 || !v.modules) process.exit(1); console.log("Node runtime OK:", process.version, "V8", v.v8)'
-"$TMP_DIR/node/bin/npm" --version
+node -e 'const v = process.versions; if (!v.v8 || !v.modules) process.exit(1); console.log("Node runtime OK:", process.version, "V8", v.v8)'
+npm --version
 printf 'PASS: Debian %s runs official Node.js %s (%s) with glibc %s.\n' "$MAJOR" "$NODE_VERSION" "$NODE_ARCH" "$GLIBC"
