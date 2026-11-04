@@ -37,6 +37,12 @@ rewrite_list_file() {
         next
       }
       line = rewrite_uri($0)
+      # Some Bullseye source lists use deb.debian.org for bullseye-security.
+      # The security suite lives under the separate debian-security archive.
+      if (line ~ /bullseye-security([[:space:]]|$)/) {
+        gsub(/archive\.debian\.org\/debian([[:space:]]+)/,
+             "archive.debian.org/debian-security ", line)
+      }
       if (line ~ /archive\.debian\.org/ && line !~ /check-valid-until=/) {
         if (line ~ /^deb(-src)?[[:space:]]+\[[^]]*\]/) {
           sub(/\]/, " check-valid-until=no]", line)
