@@ -3,6 +3,20 @@ set -Eeuo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 RESTORE="$ROOT/scripts/restore.sh"
+
+python3 - "$RESTORE" <<'PY'
+from pathlib import Path
+import sys
+
+lines = Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+backup = next((i for i, line in enumerate(lines) if 'PRE_RESTORE_BACKUP_OUTPUT=$(bash "$SCRIPT_DIR/backup.sh")' in line), None)
+drop = next((i for i, line in enumerate(lines) if 'dropdb" --if-exists --force' in line), None)
+if backup is None or drop is None or backup >= drop:
+    raise SystemExit("ERROR: restore must complete a live-state backup before dropping the current database.")
+if not any("Pre-restore backup failed; refusing to replace the live database." in line for line in lines):
+    raise SystemExit("ERROR: restore does not fail closed when its pre-restore backup fails.")
+print("PASS: restore protects the current live database before replacement")
+PY
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/app/config/credentials" "$TMP/etc"
