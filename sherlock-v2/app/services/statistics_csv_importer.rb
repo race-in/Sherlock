@@ -27,11 +27,10 @@ class StatisticsCsvImporter
     csv_text = csv_text.dup.force_encoding(Encoding::UTF_8)
     raise ArgumentError, "CSV isn't valid UTF-8." unless csv_text.valid_encoding?
 
-    # Ruby does not expose "bom|utf-8" as a named Encoding on every supported build.
-    # Strip the optional UTF-8 BOM explicitly, then parse the already-validated UTF-8 string.
+    # Strip the optional UTF-8 BOM explicitly; Ruby's Encoding aliases vary by runtime.
     csv_text.delete_prefix!("\uFEFF")
-    table = CSV.parse(csv_text, headers: true)
-    headers = table.headers&.map(&:to_s)
+    parsed_rows = CSV.parse(csv_text, skip_blanks: true)
+    headers = parsed_rows.shift&.map(&:to_s)
     raise ArgumentError, "CSV needs a header row." if headers.blank?
     raise ArgumentError, "CSV contains blank column names." if headers.any?(&:blank?)
     raise ArgumentError, "CSV contains duplicate column names." unless headers.uniq == headers
@@ -40,21 +39,21 @@ class StatisticsCsvImporter
     raise ArgumentError, "CSV is missing required columns: #{missing.to_sentence}." if missing.any?
     unknown = headers - ALLOWED_HEADERS
     raise ArgumentError, "CSV has unsupported columns: #{unknown.to_sentence}." if unknown.any?
-    raise ArgumentError, "CSV has more than #{MAX_ROWS} rows." if table.size > MAX_ROWS
+    raise ArgumentError, "CSV has more than #{MAX_ROWS} rows." if parsed_rows.size > MAX_ROWS
 
     # Serialize imports for this connection. Two simultaneous uploads cannot both pass the
     # duplicate check and insert the same observation timestamp.
     connection.with_lock do
       known = connection.snapshots.pluck(:created_at).to_set(&:to_i)
       batch_id = SecureRandom.uuid
-      rows = table.each_with_index.filter_map do |record, index|
+      rows = parsed_rows.each_with_index.filter_map do |record, index|
         row_number = index + 2
-        unless record.fields.length == headers.length
+        unless record.length == headers.length
           raise ArgumentError, "CSV row #{row_number}: the number of values does not match the header."
         end
-        values = record.to_h
-        next if values.values.all?(&:blank?)
+        next if record.all?(&:blank?)
 
+        values = headers.zip(record).to_h
         begin
           timestamp = values["time"].to_s
           raise ArgumentError, "time is required" if timestamp.blank?
