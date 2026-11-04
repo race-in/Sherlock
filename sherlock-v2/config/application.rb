@@ -43,7 +43,8 @@ module Sherlock
     config.mission_control.jobs.base_controller_class = "Admin::BaseController"
     config.mission_control.jobs.http_basic_auth_enabled = false
 
-    # The native deployment defaults to a private, single-user installation.
+    # Native deployment keeps the upstream invite-based multi-user model enabled by default.
+    # Set SINGLE_USER_MODE=true only for an explicitly requested private single-account instance.
     config.x.single_user_mode = ENV["SINGLE_USER_MODE"] == "true"
 
     # The latest release tag, for the footer. Images get APP_VERSION at build time.
