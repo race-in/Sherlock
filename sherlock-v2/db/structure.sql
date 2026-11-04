@@ -667,6 +667,7 @@ CREATE TABLE sherlockdb.snapshots (
     source character varying DEFAULT 'api'::character varying NOT NULL,
     note text,
     created_by_user_id bigint,
+    import_batch_id character varying,
     CONSTRAINT snapshots_source_valid CHECK (((source)::text = ANY ((ARRAY['api'::character varying, 'manual'::character varying, 'csv_import'::character varying, 'json_import'::character varying])::text[]))),
     CONSTRAINT snapshots_note_length CHECK (((note IS NULL) OR (char_length(note) <= 500))),
     CONSTRAINT snapshots_bytes_range CHECK (((uploaded >= 0) AND (downloaded >= 0))),
