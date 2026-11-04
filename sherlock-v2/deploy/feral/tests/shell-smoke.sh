@@ -42,7 +42,50 @@ grep -q 'gem "pg", "~> 1.1", force_ruby_platform: true' "$ROOT/Gemfile"
 grep -q 'gem "prometheus-client-mmap", "~> 1.7.2", force_ruby_platform: true' "$ROOT/Gemfile"
 grep -q 'prometheus-client-mmap (~> 1.7.2)' "$ROOT/Gemfile.lock"
 ! grep -q 'BINDGEN_GCC_ARGS' "$INSTALL"
-grep -q '^bundle install$' "$INSTALL"
+grep -q '^bundle installgrep -q 'chmod 600' "$INSTALL"
+grep -q 'Validating rendered database configuration' "$INSTALL"
+grep -q 'Reuse the protected password' "$INSTALL"
+grep -q 'diff=rails_credentials' "$ROOT/.gitattributes"
+grep -q 'only that optional diff integration' "$INSTALL"
+grep -q 'SECRET_KEY_BASE=.*bundle exec rails secret' "$INSTALL"
+grep -q 'ENCRYPTION_KEYS=.*bundle exec rails db:encryption:init' "$INSTALL"
+grep -q 'nohup' "$CONTROL"
+grep -q 'deploy/feral/puma.rb' "$CONTROL"
+grep -q '127.0.0.1' "$CONTROL"
+grep -q 'JSON.generate(\[ENV.fetch("DB_PASSWORD")\])\[1\.\.\.-1\]' "$DATABASE"
+
+ruby -rjson -rerb -ryaml -e '
+  ENV["DB_HOST"] = "db.example.invalid"
+  ENV["DB_PORT"] = "5432"
+  ENV["DB_NAME"] = "postgres"
+  ENV["DB_USER"] = "postgres.example"
+  ENV["DB_PASSWORD"] = %q{p@ss: # [special] !tag &value "quoted" \ slash}
+  source = ERB.new(File.read(ARGV.fetch(0))).result
+  load_parameters = YAML.method(:load).parameters
+  supports_aliases_option = load_parameters.any? do |kind, name|
+    kind == :keyrest || name == :aliases
+  end
+  parsed = if supports_aliases_option
+    YAML.load(source, aliases: true)
+  else
+    YAML.load(source)
+  end
+  production = parsed.fetch("production")
+  abort "database YAML password escaping failed" unless production.fetch("password") == ENV.fetch("DB_PASSWORD")
+  abort "database YAML host interpolation failed" unless production.fetch("host") == ENV.fetch("DB_HOST")
+' "$DATABASE"
+
+if grep -Eq '(^|[[:space:]])(sudo|systemctl|apt-get)([[:space:]]|$)' "$INSTALL"; then
+  echo "Feral installer must not require root/system services." >&2
+  exit 1
+fi
+
+echo "Feral rootless shell smoke checks passed."
+ "$INSTALL"
+grep -q 'TAILWINDCSS_INSTALL_DIR=' "$INSTALL"
+grep -q 'gem fetch tailwindcss-ruby' "$INSTALL"
+grep -q -- '--platform x86_64-linux-gnu' "$INSTALL"
+grep -q 'native Tailwind executable cannot run' "$INSTALL"
 grep -q 'chmod 600' "$INSTALL"
 grep -q 'Validating rendered database configuration' "$INSTALL"
 grep -q 'Reuse the protected password' "$INSTALL"
