@@ -9,7 +9,7 @@ User=sherlock
 Group=sherlock
 WorkingDirectory=/opt/sherlock
 EnvironmentFile=/etc/sherlock/sherlock.env
-Environment=PATH=/opt/rubies/4.0.9/bin:/opt/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=PATH=/opt/rubies/4.0.9/bin:/opt/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=WEB_CONCURRENCY=1
 Environment=BUNDLE_DEPLOYMENT=1
 Environment=BUNDLE_WITHOUT=development:test
