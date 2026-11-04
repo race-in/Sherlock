@@ -109,11 +109,6 @@ mkdir -p "$BUNDLE_APP_CONFIG"
 bundle config set --local path "$HOME/.local/share/sherlock-feral/bundle"
 bundle install
 
-info "Building frontend assets"
-if [[ ! -d "$SRC_DIR/public/assets" || -z "$(find "$SRC_DIR/public/assets" -type f -print -quit 2>/dev/null)" ]]; then
-  (cd "$SRC_DIR" && npm ci --no-audit --no-fund && npm run build && SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid RAILS_ENV=production bundle exec rails assets:precompile)
-fi
-
 info "Preparing application directory"
 mkdir -p "$APP_DIR"
 # Preserve user data and env/config outside the app tree; replace only tracked application files.
@@ -171,6 +166,18 @@ if [[ ! -s "$CRED_DIR/production.yml.enc" || ! -s "$CRED_DIR/production.key" ]];
   rm -f "$CRED_TMP"
   [[ -s "$CRED_DIR/production.yml.enc" && -s "$CRED_DIR/production.key" ]] || die "Rails credentials files were not created."
   chmod 600 "$CRED_DIR/production.key" "$CRED_DIR/production.yml.enc"
+fi
+
+info "Building frontend assets"
+if [[ ! -d "$APP_DIR/public/assets" || -z "$(find "$APP_DIR/public/assets" -type f -print -quit 2>/dev/null)" ]]; then
+  (
+    cd "$APP_DIR"
+    npm ci --no-audit --no-fund
+    npm run build
+    set -a; . "$ENV_FILE"; set +a
+    SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid RAILS_ENV=production bundle exec rails assets:precompile
+  )
+  rm -rf "$APP_DIR/node_modules"
 fi
 
 info "Running database migrations"
