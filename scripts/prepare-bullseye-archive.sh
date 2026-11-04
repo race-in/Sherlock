@@ -23,6 +23,8 @@ rewrite_list_file() {
       gsub(/http:\/\/ftp\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
       gsub(/https:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
       gsub(/http:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/https:\/\/security\.debian\.org\/debian-security/, "http://archive.debian.org/debian-security", value)
+      gsub(/http:\/\/security\.debian\.org\/debian-security/, "http://archive.debian.org/debian-security", value)
       return value
     }
     {
@@ -30,7 +32,7 @@ rewrite_list_file() {
         print
         next
       }
-      if ($0 ~ /security\.debian\.org/ || $0 ~ /bullseye-(security|backports(-sloppy)?)([[:space:]]|$)/) {
+      if ($0 ~ /bullseye-backports(-sloppy)?([[:space:]]|$)/) {
         print "# Disabled after Debian 11 LTS EOL: " $0
         next
       }
@@ -70,8 +72,6 @@ rewrite_deb822_file() {
           sub(/^URIs:[[:space:]]*/, "", uris)
         }
       }
-      if (uris ~ /security\.debian\.org/) next
-
       drop_stanza = 0
       for (i = 1; i <= count; i++) {
         if (lines[i] ~ /^Suites:[[:space:]]*/) {
@@ -80,7 +80,7 @@ rewrite_deb822_file() {
           suite_count = split(value, suites, /[[:space:]]+/)
           kept = ""
           for (j = 1; j <= suite_count; j++) {
-            if (suites[j] == "" || suites[j] == "bullseye-security" ||
+            if (suites[j] == "" ||
                 suites[j] == "bullseye-backports" || suites[j] == "bullseye-backports-sloppy") {
               continue
             }
