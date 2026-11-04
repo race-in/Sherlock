@@ -223,7 +223,7 @@ info "Validating rendered database configuration"
   . "$ENV_FILE"
   set +a
   ruby -rjson -rerb -ryaml -e '
-    config = YAML.safe_load(ERB.new(File.read(ARGV.fetch(0))).result, aliases: true)
+    config = YAML.load(ERB.new(File.read(ARGV.fetch(0))).result)
     production = config.fetch("production")
     abort "production database host mismatch" unless production.fetch("host") == ENV.fetch("DB_HOST")
     abort "production database name mismatch" unless production.fetch("database") == ENV.fetch("DB_NAME")
