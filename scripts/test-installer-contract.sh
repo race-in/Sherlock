@@ -111,4 +111,21 @@ grep -Fq 'prepare-bullseye-archive.sh' "$BUNDLED_INSTALLER" || {
   exit 1
 }
 
+grep -Fq 'source_commit=%s' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: native install marker must record the bundled source revision." >&2
+  exit 1
+}
+grep -Fq 'PG_DUMP_BIN=${PG_DUMP_BIN:-$(command -v pg_dump || true)}' "$ROOT/scripts/backup.sh" || {
+  echo "ERROR: backups must use an installed PostgreSQL client, not a hard-coded PG18 path." >&2
+  exit 1
+}
+grep -Fq 'source_commit=' "$ROOT/scripts/backup.sh" || {
+  echo "ERROR: backups must record the native install source revision without requiring .git." >&2
+  exit 1
+}
+grep -Fq 'PG_BINDIR=$(pg_config --bindir 2>/dev/null || true)' "$ROOT/scripts/restore.sh" || {
+  echo "ERROR: restore must detect the installed PostgreSQL client directory." >&2
+  exit 1
+}
+
 echo "PASS: installer and updater contracts are safe"
