@@ -28,6 +28,12 @@ grep -Fq "bind \"tcp://127.0.0.1:#{ENV.fetch('PORT', 3000)}\"" "$TMP/app/config/
 grep -Fq 'pool: <%= ENV.fetch("DB_POOL") { ENV.fetch("RAILS_MAX_THREADS") { 10 } } %>' "$TMP/app/config/database.yml"
 grep -Fq 'Host: ENV.fetch("METRICS_HOST", "127.0.0.1")' "$TMP/app/config/initializers/yabeda.rb"
 
+# Check that the generated Ruby configuration remains syntactically valid.
+ruby -c "$TMP/app/config/puma.rb"
+ruby -c "$TMP/app/config/initializers/yabeda.rb"
+ruby -rerb -e 'RubyVM::InstructionSequence.compile(ERB.new(File.read(ARGV.fetch(0))).src)' \
+  "$TMP/app/config/database.yml"
+
 # Patching again must be idempotent.
 bash "$PATCHER" "$TMP/app"
 
