@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+ROOT=$PWD
 INSTALLER="$ROOT/install.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -33,14 +33,14 @@ done
   printf '%s\n' "$ENCRYPTION_YAML"
 } > "$TMP/credentials.yml"
 
-ruby -ryaml -e '
-  data = YAML.safe_load_file(ARGV.fetch(0))
-  abort "missing secret_key_base" unless data.fetch("secret_key_base").length == 64
-  encryption = data.fetch("active_record_encryption")
-  %w[primary_key deterministic_key key_derivation_salt].each do |key|
-    abort "missing #{key}" unless encryption.fetch(key).end_with?("-example")
-  end
-  abort "unexpected instruction key" if data.key?("Add this entry to the credentials of the target environment")
-' "$TMP/credentials.yml"
+ruby -ryaml - "$TMP/credentials.yml" <<'RUBY'
+data = YAML.safe_load_file(ARGV.fetch(0))
+abort "missing secret_key_base" unless data.fetch("secret_key_base").length == 64
+encryption = data.fetch("active_record_encryption")
+%w[primary_key deterministic_key key_derivation_salt].each do |key|
+  abort "missing #{key}" unless encryption.fetch(key).end_with?("-example")
+end
+abort "unexpected instruction key" if data.key?("Add this entry to the credentials of the target environment")
+RUBY
 
 echo "PASS: Rails encryption setup output is reduced to valid credentials YAML."
