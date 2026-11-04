@@ -54,6 +54,8 @@ class Invite < ApplicationRecord
   # Signs a new user up with this invite. The row lock stops two people taking its last use at once. An
   # open invite also saves the profile the new user checked (ProfileClaim), or nobody joins.
   def accept!(username:, password:, time_zone:, claim: nil)
+    raise Unusable, "This Sherlock instance is configured for one account only." if Rails.application.config.x.single_user_mode
+
     transaction do
       lock!
       raise Unusable unless usable?
