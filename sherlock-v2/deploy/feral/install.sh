@@ -150,6 +150,8 @@ ruby -e 'require "rubygems"; abort "Ruby >= 3.2 required" if Gem::Version.new(RU
   die "Ruby >= 3.2 is required."
 ruby -ropenssl -e 'v=Gem::Version.new(OpenSSL::OPENSSL_VERSION[/\d+\.\d+\.\d+/]); abort "OpenSSL >= 1.1.1 required" if v < Gem::Version.new("1.1.1")' ||
   die "Ruby must be linked against OpenSSL >= 1.1.1 (not Debian 9 system OpenSSL 1.0.2)."
+ruby -ropenssl -e 'store=OpenSSL::X509::Store.new; store.add_file(ENV.fetch("SSL_CERT_FILE")); puts "Ruby/OpenSSL trusted CA bundle loaded successfully."' ||
+  die "Ruby/OpenSSL could not load the configured SSL_CERT_FILE."
 command -v bundle >/dev/null || die "Bundler is missing for this Ruby."
 command -v pg_config >/dev/null || die "PostgreSQL development/client libraries (pg_config) are required."
 command -v pg_isready >/dev/null || die "pg_isready is required to verify the external database before changing files."
