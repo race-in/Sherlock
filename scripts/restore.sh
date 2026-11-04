@@ -23,7 +23,9 @@ validate_environment_file() {
   local key value
   declare -A seen=()
   while IFS='=' read -r key value || [[ -n ${key:-} ]]; do
-    [[ -z "$key" || "$key" == \#* ]] && continue
+    if [[ -z "$key" || "$key" == \#* ]]; then
+      continue
+    fi
     [[ "$key" =~ ^[A-Z_]+$ ]] || die "Invalid setting in archived environment file."
     [[ "$value" =~ ^[A-Za-z0-9_./:@+-]+$ ]] || die "Unsafe value in archived environment setting: $key"
     case "$key" in
@@ -155,10 +157,10 @@ systemctl stop sherlock
 install -d -o "$APP_USER" -g "$APP_GROUP" -m 0700 "$APP_DIR/config/credentials"
 install -o "$APP_USER" -g "$APP_GROUP" -m 0600 \
   "$RESTORE_TMP/config/credentials/production.key" \
-  "$APP_DIR/config/credentials/production.key"
+  "$ETC_DIR/credentials/production.key"
 install -o "$APP_USER" -g "$APP_GROUP" -m 0600 \
   "$RESTORE_TMP/config/credentials/production.yml.enc" \
-  "$APP_DIR/config/credentials/production.yml.enc"
+  "$ETC_DIR/credentials/production.yml.enc"
 install -o root -g "$APP_GROUP" -m 0640 \
   "$RESTORE_TMP/sherlock.env" "$ETC_DIR/sherlock.env"
 
