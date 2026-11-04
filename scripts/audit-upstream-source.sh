@@ -82,4 +82,19 @@ for directory in test spec; do
   fi
 done
 
+echo "--- Exact data columns for accounts, tracker connections and snapshots ---"
+if [[ -f "$APP_DIR/db/structure.sql" ]]; then
+  awk '
+    /^CREATE TABLE sherlockdb\\.(users|connections|snapshots) \\(/ { show = 1 }
+    show { print }
+    show && /^\\);$/ { show = 0; print "" }
+    /^CREATE (UNIQUE )?INDEX .*\\b(on users|on connections|on snapshots)/ { print }
+  ' "$APP_DIR/db/structure.sql"
+fi
+
+echo "--- User import/export contract ---"
+if [[ -f "$APP_DIR/app/models/user.rb" ]]; then
+  grep -n -E -A65 -B8 'IMPORT_COLUMNS|def export|def import!|def import_rows' "$APP_DIR/app/models/user.rb"
+fi
+
 echo "=== END UPSTREAM SOURCE AUDIT ==="
