@@ -36,6 +36,19 @@ grep -q 'GCC_INCLUDE=.*gcc -print-file-name=include' "$INSTALL"
 grep -q 'GCC_FIXED_INCLUDE=.*gcc -print-file-name=include-fixed' "$INSTALL"
 grep -q 'GCC_FIXED_INCLUDE.*limits.h' "$INSTALL"
 grep -q 'BUNDLE_FORCE_RUBY_PLATFORM=true' "$INSTALL"
+! grep -q 'BINDGEN_GCC_ARGS' "$INSTALL"
+grep -q '^bundle installgrep -q 'chmod 600' "$INSTALL"
+grep -q 'nohup' "$CONTROL"
+grep -q 'deploy/feral/puma.rb' "$CONTROL"
+grep -q '127.0.0.1' "$CONTROL"
+
+if grep -Eq '(^|[[:space:]])(sudo|systemctl|apt-get)([[:space:]]|$)' "$INSTALL"; then
+  echo "Feral installer must not require root/system services." >&2
+  exit 1
+fi
+
+echo "Feral rootless shell smoke checks passed."
+ "$INSTALL"
 grep -q 'chmod 600' "$INSTALL"
 grep -q 'nohup' "$CONTROL"
 grep -q 'deploy/feral/puma.rb' "$CONTROL"
