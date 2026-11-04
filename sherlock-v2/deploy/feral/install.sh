@@ -157,7 +157,6 @@ fi
 info "Installing Ruby dependencies"
 cd "$SRC_DIR"
 export BUNDLE_WITHOUT="development:test"
-export BUNDLE_FORCE_RUBY_PLATFORM=true
 export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 mkdir -p "$BUNDLE_APP_CONFIG"
 bundle config set --local path "$HOME/.local/share/sherlock-feral/bundle"
