@@ -180,6 +180,9 @@ if [[ ! -x "$RUBY_PREFIX/bin/ruby" ]]; then
   install -d -m 0755 "$RUBY_PREFIX_BASE"
   MAKE_OPTS=-j2 RUBY_BUILD_BUILD_PATH=/var/tmp/ruby-build ruby-build "$RUBY_VERSION" "$RUBY_PREFIX"
 fi
+ACTUAL_RUBY_VERSION=$("$RUBY_PREFIX/bin/ruby" -e 'print RUBY_VERSION')
+[[ "$ACTUAL_RUBY_VERSION" == "$RUBY_VERSION" ]] \\
+  || die "Installed Ruby version mismatch: expected $RUBY_VERSION, found $ACTUAL_RUBY_VERSION."
 "$RUBY_PREFIX/bin/ruby" -ropenssl -e 'abort "Ruby OpenSSL extension is not available" unless OpenSSL::OPENSSL_VERSION'
 gem install bundler -v 4.0.20 --no-document
 
