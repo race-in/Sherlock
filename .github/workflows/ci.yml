@@ -13,9 +13,10 @@ permissions:
   contents: read
 
 concurrency:
+  # Keep only the newest commit for a branch. A stale queued run must never
+  # hold the current commit's CI behind an obsolete matrix.
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  # Let the Debian matrix finish when a newer commit is pushed.
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   upstream-source-audit:
