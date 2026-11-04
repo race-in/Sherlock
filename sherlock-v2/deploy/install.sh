@@ -99,6 +99,12 @@ Database (default: install PostgreSQL on this machine)
   --pg-version N         PostgreSQL major version to install (default: 18, falls back to 17, then to
                          what Debian ships).
 
+Single-user security
+  The bundled native installer always enables single-user mode. Invite, join and second-account
+  routes are disabled. A random 64-character first-run token is printed at the end of a fresh
+  install; keep it private and enter it when creating the first admin account. Existing databases
+  with more than one account are rejected without deleting data.
+
 Other
   --install-dir DIR      Where the app lives (default /opt/sherlock).
   --ruby-version X.Y.Z   Ruby to build (default: the one in .ruby-version).
