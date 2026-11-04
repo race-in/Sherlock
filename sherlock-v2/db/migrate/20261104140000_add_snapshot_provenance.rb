@@ -3,6 +3,7 @@ class AddSnapshotProvenance < ActiveRecord::Migration[8.1]
     add_column :snapshots, :source, :string, default: "api", null: false
     add_column :snapshots, :note, :text
     add_column :snapshots, :created_by_user_id, :bigint
+    add_column :snapshots, :import_batch_id, :string
 
     add_check_constraint :snapshots,
       "source IN ('api', 'manual', 'csv_import', 'json_import')",
