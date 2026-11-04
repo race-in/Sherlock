@@ -121,9 +121,9 @@ verify_backup_pair "$DB_DUMP" "$SECRETS_ARCHIVE"
 "$PG_BINDIR/pg_restore" --list "$DB_DUMP" >/dev/null || die "PostgreSQL dump is invalid or unreadable; the live database has not been changed."
 
 echo "Creating a verified pre-restore backup of the current live database and credentials."
-PRE_RESTORE_BACKUP_OUTPUT=$(bash "$SCRIPT_DIR/backup.sh") \\
+PRE_RESTORE_BACKUP_OUTPUT=$(bash "$SCRIPT_DIR/backup.sh") \
   || die "Pre-restore backup failed; refusing to replace the live database."
-printf '%s\\n' "$PRE_RESTORE_BACKUP_OUTPUT"
+printf '%s\n' "$PRE_RESTORE_BACKUP_OUTPUT"
 
 RESTORE_TMP=$(mktemp -d /tmp/sherlock-restore.XXXXXX)
 trap 'rm -rf "$RESTORE_TMP"' EXIT
