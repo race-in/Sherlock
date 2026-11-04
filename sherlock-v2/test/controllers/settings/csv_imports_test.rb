@@ -11,7 +11,7 @@ class Settings::CsvImportsControllerTest < ActionDispatch::IntegrationTest
       writer << %w[time uploaded downloaded]
       writer << [ observed_at.iso8601, "987654321", "123456789" ]
     end
-    Tempfile.create(["history", ".csv"]) do |tempfile|
+    Tempfile.create([ "history", ".csv" ]) do |tempfile|
       tempfile.write(csv)
       tempfile.rewind
       upload = Rack::Test::UploadedFile.new(tempfile.path, "text/csv", original_filename: "history.csv")
@@ -34,7 +34,7 @@ class Settings::CsvImportsControllerTest < ActionDispatch::IntegrationTest
       writer << %w[time uploaded downloaded]
       writer << [ 5.days.ago.iso8601, "1", "1" ]
     end
-    Tempfile.create(["history", ".csv"]) do |tempfile|
+    Tempfile.create([ "history", ".csv" ]) do |tempfile|
       tempfile.write(csv)
       tempfile.rewind
       upload = Rack::Test::UploadedFile.new(tempfile.path, "text/csv", original_filename: "history.csv")
