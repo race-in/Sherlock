@@ -126,7 +126,7 @@ cat > "$SINGLE_USER_SMOKE" <<'RUBY'
 require "action_dispatch/testing/integration"
 
 names = Rails.application.routes.named_routes.names.map(&:to_s)
-blocked = %w[join new_join join_profile join_check opt_in settings_invites admin_invites admin_users]
+blocked = %w[join new_join join_profile join_check opt_in settings_invite settings_invites admin_invite admin_invites admin_user admin_users]
 present = names.select { |name| blocked.any? { |prefix| name == prefix || name.start_with?("#{prefix}_") } }
 abort "Single-user routes are still enabled: #{present.join(', ')}" if present.any?
 required = %w[first_run admin_sites admin_settings dashboard]
