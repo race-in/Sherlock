@@ -5,8 +5,8 @@ set -Eeuo pipefail
 [[ "${ID:-}" == debian ]] || { echo "Debian 11/12/13 required." >&2; exit 1; }
 MAJOR=${VERSION_ID%%.*}
 case "$MAJOR" in
-  11) NODE_VERSION=24.22.2; MIN_GLIBC=2.28 ;;
-  12|13) NODE_VERSION=26.12.0; MIN_GLIBC=2.34 ;;
+  11) NODE_VERSION=24.22.2; MIN_GLIBC=2.28; MIN_KERNEL=4.18 ;;
+  12|13) NODE_VERSION=26.12.0; MIN_GLIBC=2.34; MIN_KERNEL=5.14 ;;
   *) echo "Unsupported Debian release: $VERSION_ID" >&2; exit 1 ;;
 esac
 
@@ -17,8 +17,13 @@ case "$(dpkg --print-architecture)" in
 esac
 
 GLIBC=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
+KERNEL=$(uname -r | cut -d- -f1)
 dpkg --compare-versions "$GLIBC" ge "$MIN_GLIBC" || {
   echo "Node.js $NODE_VERSION needs glibc >= $MIN_GLIBC; found $GLIBC." >&2
+  exit 1
+}
+dpkg --compare-versions "$KERNEL" ge "$MIN_KERNEL" || {
+  echo "Node.js $NODE_VERSION needs kernel >= $MIN_KERNEL; found $KERNEL." >&2
   exit 1
 }
 
