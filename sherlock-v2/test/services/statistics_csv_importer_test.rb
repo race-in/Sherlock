@@ -48,9 +48,18 @@ class StatisticsCsvImporterTest < ActiveSupport::TestCase
     connection = connections(:alice_redacted)
     user = users(:alice)
     missing = CSV.generate { |writer| writer << %w[time uploaded]; writer << [ 1.day.ago.iso8601, "1" ] }
-    unknown = CSV.generate { |writer| writer << %w[time uploaded downloaded shell]; writer << [ 1.day.ago.iso8601, "1", "1", "x" ] }
-    future = CSV.generate { |writer| writer << %w[time uploaded downloaded]; writer << [ 1.day.from_now.iso8601, "1", "1" ] }
-    no_offset = CSV.generate { |writer| writer << %w[time uploaded downloaded]; writer << [ Time.current.strftime("%Y-%m-%dT%H:%M:%S"), "1", "1" ] }
+    unknown = CSV.generate do |writer|
+      writer << %w[time uploaded downloaded shell]
+      writer << [ 1.day.ago.iso8601, "1", "1", "x" ]
+    end
+    future = CSV.generate do |writer|
+      writer << %w[time uploaded downloaded]
+      writer << [ 1.day.from_now.iso8601, "1", "1" ]
+    end
+    no_offset = CSV.generate do |writer|
+      writer << %w[time uploaded downloaded]
+      writer << [ Time.current.strftime("%Y-%m-%dT%H:%M:%S"), "1", "1" ]
+    end
 
     [ missing, unknown, future, no_offset ].each do |csv|
       assert_no_difference -> { connection.snapshots.count } do
@@ -83,7 +92,10 @@ class StatisticsCsvImporterTest < ActiveSupport::TestCase
   test "does not accept malformed UTF-8 or out-of-range decimal values" do
     connection = connections(:alice_redacted)
     user = users(:alice)
-    bad_decimal = CSV.generate { |writer| writer << %w[time uploaded downloaded ratio]; writer << [ 1.day.ago.iso8601, "1", "1", "1.12345" ] }
+    bad_decimal = CSV.generate do |writer|
+      writer << %w[time uploaded downloaded ratio]
+      writer << [ 1.day.ago.iso8601, "1", "1", "1.12345" ]
+    end
 
     assert_raises(ArgumentError) do
       StatisticsCsvImporter.import!(connection:, user:, csv_text: bad_decimal)
