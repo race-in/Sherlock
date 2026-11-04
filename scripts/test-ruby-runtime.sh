@@ -71,6 +71,7 @@ tar -xJf "$TMP_DIR/$NODE_TARBALL" -C "$NODE_PREFIX" --strip-components=1
   echo "Node.js runtime version mismatch." >&2
   exit 1
 }
+export PATH="$NODE_PREFIX/bin:$PATH"
 "$NODE_PREFIX/bin/npm" --version
 RUNTIME_PATH="$RUBY_PREFIX/bin:$NODE_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
