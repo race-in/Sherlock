@@ -66,7 +66,7 @@ Rails.application.routes.draw do
       resource :metrics_token, only: %i[create destroy]
     end
     resources :invites, only: %i[index create destroy], param: :code unless Rails.application.config.x.single_user_mode
-    resource :account, only: (Rails.application.config.x.single_user_mode ? %i[show] : %i[show destroy])
+    resource :account, only: %i[show destroy]
     resources :sessions, only: :destroy
     resource :other_sessions, only: :destroy
     resource :data, only: :show, controller: "data"
