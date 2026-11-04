@@ -14,6 +14,9 @@ class StatisticsCsvImporter
   MAX_INTEGER = 2_147_483_647
 
   def self.import!(connection:, user:, csv_text:)
+    csv_text = csv_text.to_s.dup.force_encoding(Encoding::UTF_8)
+    raise ArgumentError, "CSV isn't valid UTF-8." unless csv_text.valid_encoding?
+
     table = CSV.parse(csv_text, headers: true, encoding: "bom|utf-8")
     headers = table.headers&.map(&:to_s)
     raise ArgumentError, "CSV needs a header row." if headers.blank?
