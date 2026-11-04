@@ -486,7 +486,6 @@ create_user_and_dirs() {
   install -d -o "$APP_USER" -g "$APP_USER" -m 0750 "$APP_HOME"
   install -d -m 0755 "$CONF_DIR"
   install -d -o "$APP_USER" -g "$APP_USER" -m 0700 "$CRED_DIR"
-  install -d -o "$APP_USER" -g "$APP_USER" -m 0755 "$INSTALL_DIR"
 }
 
 write_env_file() {
