@@ -74,7 +74,7 @@ export DEBIAN_FRONTEND=noninteractive
 log "Installing system dependencies for Debian $DEBIAN_MAJOR ($DEBIAN_CODENAME)"
 apt-get update
 apt-get install -y --no-install-recommends \
-  ca-certificates curl git gnupg build-essential autoconf bison \
+  ca-certificates curl git build-essential autoconf bison \
   libssl-dev libyaml-dev libreadline-dev zlib1g-dev libffi-dev libgdbm-dev \
   libncurses-dev libgmp-dev libdb-dev libpq-dev pkg-config python3 make gcc g++ \
   libjemalloc2 libatomic1 postgresql-common nginx certbot python3-certbot-nginx \
