@@ -12,14 +12,14 @@ grep -Fq 'pg_lsclusters -h | awk -v p="$DB_PORT" ' <<<"$existing_block"
 grep -Fq 'Existing install uses local PostgreSQL port $DB_PORT' <<<"$existing_block"
 grep -Fq 'if [[ -n "$OPT_PG_VERSION" && "$OPT_PG_VERSION" != "$PG_MAJOR" ]]' <<<"$existing_block"
 
-# The upgrade path must run backup and stop before replacing source or migrating.
+# The upgrade path must run stop, backup, and then modify before replacing source or migrating.
 main_block=$(sed -n '/^main() {/,/^}/p' "$INSTALLER")
 backup_line=$(grep -n 'run_pre_upgrade_backup' <<<"$main_block" | head -n 1 | cut -d: -f1)
 stop_line=$(grep -n 'stop_existing_service' <<<"$main_block" | head -n 1 | cut -d: -f1)
 sync_line=$(grep -n 'sync_source' <<<"$main_block" | head -n 1 | cut -d: -f1)
 migration_line=$(grep -n 'prepare_database' <<<"$main_block" | head -n 1 | cut -d: -f1)
 [[ -n "$backup_line" && -n "$stop_line" && -n "$sync_line" && -n "$migration_line" ]]
-(( backup_line < stop_line && stop_line < sync_line && sync_line < migration_line ))
+(( stop_line < backup_line && backup_line < sync_line && sync_line < migration_line ))
 
 grep -Fq 'APP_VERSION' "$INSTALLER"
 grep -Fq 'echo "APP_VERSION=$APP_VERSION"' "$INSTALLER"
