@@ -23,7 +23,7 @@ On Debian 11, after you explicitly accept the EOL warning, the installer backs u
 ## Stack
 
 - Ruby 4.0.9, compiled locally by pinned `ruby-build v20261023` (commit SHA verified by the installer)
-- Bundler 4.0.20
+- Bundler 4.0.20; application gems install under `/var/lib/sherlock/bundle`, owned by the dedicated service user (not the root-owned Ruby installation).
 - Node.js 26.12.0 official Linux binary, SHA-256 verified against Node.js `SHASUMS256.txt`
 - PostgreSQL 18
 - Puma managed by systemd; Solid Queue runs inside Puma for the single-server setup
@@ -106,6 +106,7 @@ Do not expose port 3000 publicly. Nginx is the public entry point and proxies to
 
 - Rails binds behind Nginx; port 3000 must remain private.
 - `/etc/sherlock/sherlock.env` is root-owned and readable only by the application group.
+- Ruby itself is root-owned under `/opt/rubies`; application gems are isolated in the service-user-owned `/var/lib/sherlock/bundle` and the same `BUNDLE_PATH` is used by systemd and updates.
 - Back up `config/credentials/production.key` securely; without it, encrypted credentials and saved API keys cannot be decrypted.
 - Puma is patched to listen only on `127.0.0.1:3000`; Nginx is the only public web entry point.
 - The Solid Queue worker's Prometheus exporter is patched to listen only on `127.0.0.1:9394` by default, preventing tracker/poll metrics from being exposed on every network interface.
