@@ -11,6 +11,22 @@ class InviteTest < ActiveSupport::TestCase
     assert_raises(Invite::Unusable) { invite.accept!(username: "dave", password: "long-enough-pw", time_zone: "UTC") }
   end
 
+  test "single-user mode refuses invite registration without consuming the invite" do
+    invite = invites(:alice_unused)
+    original = Rails.application.config.x.single_user_mode
+    Rails.application.config.x.single_user_mode = true
+
+    assert_no_difference -> { User.count } do
+      assert_raises(Invite::Unusable) do
+        invite.accept!(username: "carol", password: "long-enough-pw", time_zone: "UTC")
+      end
+    end
+    assert_equal 0, invite.reload.uses
+    assert invite.usable?
+  ensure
+    Rails.application.config.x.single_user_mode = original
+  end
+
   test "expired and revoked invites can't be used" do
     assert_raises(Invite::Unusable) { invites(:alice_expired).accept!(username: "dave", password: "long-enough-pw", time_zone: "UTC") }
     invites(:alice_unused).revoke!
