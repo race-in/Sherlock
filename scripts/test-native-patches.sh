@@ -19,7 +19,7 @@ default: &default
 DB
 
 bash "$PATCHER" "$TMP/app"
-grep -Fq 'bind "tcp://127.0.0.1:#{ENV.fetch('''PORT''', 3000)}"' "$TMP/app/config/puma.rb"
+grep -Fq "bind \"tcp://127.0.0.1:#{ENV.fetch('PORT', 3000)}\"" "$TMP/app/config/puma.rb"
 grep -Fq 'pool: <%= ENV.fetch("DB_POOL") { ENV.fetch("RAILS_MAX_THREADS") { 10 } } %>' "$TMP/app/config/database.yml"
 
 # Patching again must be idempotent.
