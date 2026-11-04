@@ -46,6 +46,29 @@ grep -R -n -E 'class .*Statistic|class .*Tracker|devise|has_secure_password|regi
   "$APP_DIR/app/controllers" "$APP_DIR/app/jobs" "$APP_DIR/app/services" "$APP_DIR/config/routes.rb" \
   --include='*.rb' 2>/dev/null | head -n 300 || true
 
+echo "--- Selected controller and configuration source ---"
+for relative in \
+  app/controllers/application_controller.rb \
+  app/controllers/concerns/authentication.rb \
+  app/controllers/first_runs_controller.rb \
+  app/controllers/joins_controller.rb \
+  app/controllers/sessions_controller.rb \
+  app/controllers/admin/base_controller.rb \
+  app/controllers/admin/users_controller.rb \
+  app/controllers/settings/imports_controller.rb \
+  app/controllers/settings/exports_controller.rb \
+  app/controllers/settings/data_controller.rb \
+  app/models/site.rb \
+  app/models/instance_setting.rb \
+  app/models/engines.rb \
+  config/application.rb \
+  README.md Gemfile; do
+  file="$APP_DIR/$relative"
+  [[ -f "$file" ]] || continue
+  echo "### $relative"
+  sed -n '1,300p' "$file"
+done
+
 echo "--- Database table inventory ---"
 if [[ -f "$APP_DIR/db/structure.sql" ]]; then
   grep -E '^CREATE TABLE|^CREATE SEQUENCE|^CREATE TYPE|^CREATE UNIQUE INDEX|^ALTER TABLE ONLY .* ADD CONSTRAINT' \
