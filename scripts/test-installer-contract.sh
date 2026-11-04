@@ -127,8 +127,8 @@ grep -Fq 'prepare_first_run_token' "$BUNDLED_INSTALLER" || {
   echo "ERROR: native installer must create or retain the first-run token." >&2
   exit 1
 }
-grep -Fq 'account_count <= 1' "$BUNDLED_INSTALLER" || {
-  echo "ERROR: native installer must reject legacy databases with multiple accounts." >&2
+grep -Fq 'DROP INDEX IF EXISTS sherlockdb.users_single_user_mode_idx' "$ROOT/sherlock-v2/db/migrate/20261104130000_restore_multi_user_accounts.rb" || {
+  echo "ERROR: upgrades must remove the old single-user-only database index." >&2
   exit 1
 }
 grep -Fq 'PG_DUMP_BIN=${PG_DUMP_BIN:-$(command -v pg_dump || true)}' "$ROOT/scripts/backup.sh" || {
