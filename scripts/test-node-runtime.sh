@@ -6,7 +6,7 @@ set -Eeuo pipefail
 MAJOR=${VERSION_ID%%.*}
 case "$MAJOR" in
   11) NODE_VERSION=24.22.2; MIN_GLIBC=2.28; MIN_KERNEL=4.18 ;;
-  12|13) NODE_VERSION=26.12.0; MIN_GLIBC=2.34; MIN_KERNEL=5.14 ;;
+  12|13) NODE_VERSION=26.12.0; MIN_GLIBC=2.28; MIN_KERNEL=4.18 ;;
   *) echo "Unsupported Debian release: $VERSION_ID" >&2; exit 1 ;;
 esac
 
