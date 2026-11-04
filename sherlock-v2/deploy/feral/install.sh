@@ -83,7 +83,7 @@ export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 command -v ruby >/dev/null || die "Ruby >= 3.2 is required. Debian 9 system Ruby is too old; install a private runtime first."
 ruby -e 'require "rubygems"; abort "Ruby >= 3.2 required" if Gem::Version.new(RUBY_VERSION) < Gem::Version.new("3.2.0")' ||
   die "Ruby >= 3.2 is required."
-ruby -ropenssl -e 'v=OpenSSL::OPENSSL_VERSION[/\d+\.\d+\.\d+/].split(".").map(&:to_i); abort "OpenSSL >= 1.1.1 required" if v < [1,1,1]' ||
+ruby -ropenssl -e 'v=Gem::Version.new(OpenSSL::OPENSSL_VERSION[/\d+\.\d+\.\d+/]); abort "OpenSSL >= 1.1.1 required" if v < Gem::Version.new("1.1.1")' ||
   die "Ruby must be linked against OpenSSL >= 1.1.1 (not Debian 9 system OpenSSL 1.0.2)."
 command -v bundle >/dev/null || die "Bundler is missing for this Ruby."
 command -v pg_config >/dev/null || die "PostgreSQL development/client libraries (pg_config) are required."
