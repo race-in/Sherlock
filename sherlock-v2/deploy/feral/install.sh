@@ -85,18 +85,23 @@ export LIBCLANG_PATH
 GCC_INCLUDE="$(gcc -print-file-name=include 2>/dev/null || true)"
 [[ -n "$GCC_INCLUDE" && -r "$GCC_INCLUDE/stdarg.h" ]] ||
   die "GCC internal headers (stdarg.h) were not found; install/enable the GCC development toolchain."
-export BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS:+$BINDGEN_EXTRA_CLANG_ARGS }-I$GCC_INCLUDE"
+# rb-sys uses target-specific bindgen variables when generating Ruby bindings.
+# Set both spellings so the GCC 6 internal stdarg.h is visible to libclang.
+BINDGEN_GCC_ARGS="-I$GCC_INCLUDE"
+export BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS:+$BINDGEN_EXTRA_CLANG_ARGS }$BINDGEN_GCC_ARGS"
+export BINDGEN_EXTRA_CLANG_ARGS_x86_64_unknown_linux_gnu="$BINDGEN_GCC_ARGS"
+export BINDGEN_EXTRA_CLANG_ARGS_x86_64-unknown-linux-gnu="$BINDGEN_GCC_ARGS"
 
-# The PostgreSQL libpq headers are split across include/ and include/postgresql
-# on this private build. Expose both paths to native gem extension checks.
+# Pass libpq paths explicitly to the pg gem instead of relying on pg_config's
+# autodetection (which can fail on non-standard, rootless prefixes).
 PG_INCLUDE="$RUNTIME_PREFIX/include"
-PG_NESTED_INCLUDE="$RUNTIME_PREFIX/include/postgresql"
+PG_LIB="$RUNTIME_PREFIX/lib"
 [[ -r "$PG_INCLUDE/libpq-fe.h" ]] ||
   die "Private PostgreSQL header libpq-fe.h is missing under $PG_INCLUDE."
-[[ -r "$PG_NESTED_INCLUDE/postgres_ext.h" ]] ||
-  die "Private PostgreSQL header postgres_ext.h is missing under $PG_NESTED_INCLUDE."
+[[ -r "$PG_LIB/libpq.so" || -r "$PG_LIB/libpq.a" ]] ||
+  die "Private PostgreSQL client library libpq is missing under $PG_LIB."
 export PG_CONFIG="$RUNTIME_PREFIX/bin/pg_config"
-export CPPFLAGS="-I$PG_INCLUDE -I$PG_NESTED_INCLUDE ${CPPFLAGS:-}"
+export CPPFLAGS="-I$PG_INCLUDE ${CPPFLAGS:-}"
 export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 command -v ruby >/dev/null || die "Ruby >= 3.2 is required. Debian 9 system Ruby is too old; install a private runtime first."
 ruby -e 'require "rubygems"; abort "Ruby >= 3.2 required" if Gem::Version.new(RUBY_VERSION) < Gem::Version.new("3.2.0")' ||
@@ -143,6 +148,7 @@ export BUNDLE_FORCE_RUBY_PLATFORM=true
 export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 mkdir -p "$BUNDLE_APP_CONFIG"
 bundle config set --local path "$HOME/.local/share/sherlock-feral/bundle"
+bundle config set --local build.pg "--with-pg-config=$PG_CONFIG --with-pg-include=$PG_INCLUDE --with-pg-lib=$PG_LIB"
 bundle install
 
 info "Preparing application directory"
