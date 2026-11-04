@@ -75,6 +75,28 @@
   </section>
 <% end %>
 
+
+<section class="card mt-5 overflow-x-auto">
+  <div class="border-b border-line px-4 py-3">
+    <h2 class="font-medium">Recent history and source</h2>
+    <p class="hint mt-1">The latest observations are append-only. Manual and imported entries are labelled separately from tracker API updates.</p>
+  </div>
+  <table class="table">
+    <thead><tr><th>Observed</th><th>Source</th><th class="text-right">Uploaded</th><th class="text-right">Downloaded</th><th>Note</th></tr></thead>
+    <tbody>
+      <% @connection.snapshots.chronological.last(10).reverse_each do |entry| %>
+        <tr>
+          <td><%= l entry.created_at.in_time_zone, format: :short %></td>
+          <td><span class="tag"><%= entry.source.humanize %></span></td>
+          <td class="text-right"><%= bytes entry.uploaded %></td>
+          <td class="text-right"><%= bytes entry.downloaded %></td>
+          <td class="max-w-64 text-sm text-ink-soft"><%= entry.note.presence || "—" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</section>
+
 <div class="mt-6 grid gap-4 lg:grid-cols-2">
   <%= render "shared/chart", title: "Upload and download per #{@history.interval}", unit: "bytes", type: "bar", step: 1.public_send(@history.interval), mirror: "Downloaded",
         points: chart_points(@history, :uploaded, group: "Uploaded", per_interval: true) + chart_points(@history, :downloaded, group: "Downloaded", per_interval: true),
