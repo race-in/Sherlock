@@ -1,0 +1,53 @@
+<%# Used in Admin → Invites and the setup on the dashboard. %>
+<%# locals: (joinable_sites:, turbo: true) %>
+<%= form_with scope: :invite, url: admin_invites_path, class: "space-y-4", data: { turbo: } do |form| %>
+  <fieldset>
+    <legend class="label">Uses</legend>
+    <div class="mt-1.5 flex flex-wrap gap-2">
+      <label class="choice"><%= form.radio_button :uses, "one", checked: true %> One person</label>
+      <label class="choice<%= " opacity-50 cursor-not-allowed" if joinable_sites.empty? %>"><%= form.radio_button :uses, "limit", disabled: joinable_sites.empty? %> Up to
+        <%= form.number_field :max_uses, value: 100, min: 2, max: 100_000, class: "input h-auto w-20 py-0.5", disabled: joinable_sites.empty?, aria: { label: "Most people" } %> people</label>
+      <label class="choice<%= " opacity-50 cursor-not-allowed" if joinable_sites.empty? %>"><%= form.radio_button :uses, "unlimited", disabled: joinable_sites.empty? %> No limit</label>
+    </div>
+  </fieldset>
+  <% if joinable_sites.any? %>
+    <%# Picks the tracker when there's only one, as during setup. %>
+    <div>
+      <%= form.label :site_id, "For members of", class: "label" %>
+      <%= form.select :site_id, joinable_sites.map { [ _1.name, _1.id ] }, { include_blank: ("Any tracker they can opt in on" if joinable_sites.many?), selected: (joinable_sites.first.id if joinable_sites.one?) },
+            class: "input mt-1.5 max-w-xs" %>
+      <p class="hint mt-1">For invites for more than one person. The join page asks for a profile on this tracker, and you see how many joined from it.</p>
+    </div>
+  <% end %>
+  <fieldset>
+    <legend class="label">Expires</legend>
+    <div class="mt-1.5 flex flex-wrap gap-2">
+      <label class="choice"><%= form.radio_button :expires, "14", checked: true %> In 14 days</label>
+      <label class="choice"><%= form.radio_button :expires, "30" %> In 30 days</label>
+      <label class="choice"><%= form.radio_button :expires, "never" %> Never</label>
+    </div>
+  </fieldset>
+  <%# What a new member can add once they're in, so nobody is invited into a Sherlock with nothing to track. %>
+  <% usable = Site.where.not(tier: :unsupported).order(:name) %>
+  <% open, granted = usable.everyone.map(&:name), usable.granted.map(&:name) %>
+  <% if open.any? %>
+    <p class="flex items-start gap-2 rounded-lg border border-line bg-sunken px-4 py-3 text-sm">
+      <i class="bi bi-people text-up" aria-hidden="true"></i>
+      <span>People who join can track their stats on <strong class="font-medium"><%= open.to_sentence %></strong>.<% if granted.any? %> <%= granted.to_sentence %> only for you and people you grant <%= granted.one? ? "it" : "them" %> to.<% end %>
+        Change this in <%= link_to "Admin → Sites", admin_sites_path, class: "link" %>.</span>
+    </p>
+  <% else %>
+    <p class="flex items-start gap-2 rounded-lg border border-warn/30 bg-warn-soft px-4 py-3 text-sm" role="alert">
+      <i class="bi bi-exclamation-triangle text-warn" aria-hidden="true"></i>
+      <span>People who join can't track any tracker yet. Open one to members in <%= link_to "Admin → Sites", admin_sites_path, class: "link" %> first.</span>
+    </p>
+  <% end %>
+  <p class="hint">
+    <% if joinable_sites.empty? %>
+      Invites for more than one person need a tracker where members opt in with a link on their profile. Set one up first.
+    <% else %>
+      Before anyone joins with an invite for more than one person, they put their opt-in link on their tracker profile and Sherlock checks it. So it's safe to post in a tracker's forum.
+    <% end %>
+  </p>
+  <%= form.submit "Create invite", class: "btn-primary" %>
+<% end %>

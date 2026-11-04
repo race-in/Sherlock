@@ -1,0 +1,10 @@
+<% content_for :title, "Preferences" %>
+<%= render "onboarding/steps", current: 1 %>
+<h1 class="heading text-3xl">Preferences</h1>
+<p class="mt-2 text-ink-soft">You can change these later in Settings.</p>
+<%= form_with model: Current.user, scope: :user, url: onboarding_preferences_path, method: :patch, class: "mt-6 space-y-5",
+      data: { controller: "time-zone", time_zone_overwrite_value: Current.user.time_zone == "UTC" } do |form| %>
+  <%= render "shared/errors", record: Current.user %>
+  <%= render "users/preference_fields", form: %>
+  <%= form.submit "Continue", class: "btn-primary" %>
+<% end %>

@@ -1,0 +1,55 @@
+<% content_for :title, "Compare" %>
+<h1 class="heading mb-6 text-3xl">Compare</h1>
+<% if @connections.empty? %>
+  <div class="card px-6 py-16 text-center"><p class="text-ink-soft">No trackers yet.</p><%= link_to "Add tracker", tracker_selection_path, class: "btn-primary mt-4" %></div>
+<% else %>
+  <%= form_with url: comparison_path, method: :get, class: "card mb-4 flex flex-wrap items-end gap-4 p-4", data: { controller: "autosubmit" } do |form| %>
+    <div>
+      <%= form.label :stat, "Stat", class: "label" %>
+      <%= form.select :stat, PinnedComparison::STATS.invert, { selected: @stat }, class: "input mt-1", data: { action: "autosubmit#submit" } %>
+    </div>
+    <div>
+      <%= form.label :range, "Range", class: "label" %>
+      <%= form.select :range, ApplicationHelper::RANGE_LABELS.invert, { selected: @range }, class: "input mt-1", data: { action: "autosubmit#submit" } %>
+    </div>
+    <div>
+      <%= form.label :mode, "Show", class: "label" %>
+      <%= form.select :mode, [ [ "Total", "total" ], [ "Change per interval", "interval" ] ], { selected: @per_interval ? "interval" : "total" }, class: "input mt-1", data: { action: "autosubmit#submit" } %>
+    </div>
+    <fieldset class="flex flex-wrap gap-3 text-sm">
+      <legend class="label mb-1">Trackers</legend>
+      <% @connections.each do |connection| %>
+        <label class="flex items-center gap-1.5"><%= check_box_tag "ids[]", connection.id, @selected.include?(connection), data: { action: "autosubmit#submit" } %> <%= connection.site.display_name %></label>
+      <% end %>
+    </fieldset>
+    <noscript><%= form.submit "Show", class: "btn-primary" %></noscript>
+  <% end %>
+  <% pin_action = capture do %>
+    <% if @pin %>
+      <%= button_to comparison_pin_path(@pin), method: :delete, class: "btn-quiet text-xs", title: "Unpin this chart" do %><i class="bi bi-pin-angle-fill"></i> Pinned<% end %>
+    <% elsif @selected.any? %>
+      <%= button_to comparison_pins_path, params: { stat: @stat, range: @range, mode: @per_interval ? "interval" : "total", ids: @selected.map(&:id) },
+            class: "btn-quiet text-xs", title: "Keep this chart on this page" do %><i class="bi bi-pin-angle"></i> Pin<% end %>
+    <% end %>
+  <% end %>
+  <%= render "shared/chart", title: "#{PinnedComparison::STATS[@stat]}#{" per interval" if @per_interval && @stat != "interval_ratio"}", unit: chart_unit(@stat), height: "360px",
+        colors: tracker_colors(@selected), points: @selected.flat_map { |c| chart_points(c.history(@range), @stat.to_sym, group: c.site.display_name, per_interval: @per_interval) },
+        actions: pin_action %>
+
+  <% if @pins.any? %>
+    <h2 class="section-title mt-8 mb-3">Pinned</h2>
+    <div class="grid gap-4 lg:grid-cols-2">
+      <% @pins.each do |pin| %>
+        <% connections = pin.connections.to_a %>
+        <%= render "shared/chart", title: pin.title, unit: chart_unit(pin.stat),
+              note: [ ApplicationHelper::RANGE_LABELS[pin.range], connections.map { _1.site.display_name }.to_sentence.presence || "No trackers" ].join(" · "),
+              colors: tracker_colors(connections),
+              points: connections.flat_map { |c| chart_points(c.history(pin.range), pin.stat.to_sym, group: c.site.display_name, per_interval: pin.is_per_interval?) },
+              actions: capture {
+                concat link_to("Open", comparison_path(pin.compare_params), class: "btn-quiet text-xs", title: "Open in the chart above")
+                concat button_to("Unpin", comparison_pin_path(pin), method: :delete, class: "btn-quiet text-xs")
+              } %>
+      <% end %>
+    </div>
+  <% end %>
+<% end %>

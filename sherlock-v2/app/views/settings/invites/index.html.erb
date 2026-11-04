@@ -1,0 +1,42 @@
+<%= render layout: "settings/frame" do %>
+  <div class="mb-3 flex items-center justify-between">
+    <h2 class="section-title">Invites</h2>
+    <div class="flex items-center gap-3">
+      <span class="hint"><%= Current.user.is_admin? ? "No limit for admins" : "#{Current.user.invites_left} of #{Current.user.invite_limit} left" %></span>
+      <%= button_to "Create invite", settings_invites_path, class: "btn-primary", disabled: !Current.user.can_invite? %>
+    </div>
+  </div>
+  <p class="hint mb-4">Sherlock is invite only. An invite works once and expires after 14 days. You can see who joined with yours.</p>
+  <section class="card overflow-x-auto">
+    <% if @invites.empty? %>
+      <p class="hint px-4 py-10 text-center">No invites yet.</p>
+    <% else %>
+      <table class="table">
+        <thead><tr><th>Link</th><th>Status</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+          <% @invites.each do |invite| %>
+            <tr>
+              <td>
+                <% if invite.usable? %>
+                  <%= render "shared/copy_link", url: join_url(invite.code) %>
+                <% else %>
+                  <code class="font-mono text-xs text-muted"><%= invite.code.first(8) %>…</code>
+                <% end %>
+              </td>
+              <td>
+                <% if invite.uses.positive? %><span class="tag-up">Used by <%= invite.users.map(&:username).to_sentence.presence || "a deleted account" %></span>
+                <% elsif invite.status == :unused %><span class="tag-accent">Unused<% if invite.expires_at %>, expires <%= l invite.expires_at.to_date, format: :short %><% end %></span>
+                <% else %><span class="tag-neutral"><%= invite.status.to_s.capitalize %></span>
+                <% end %>
+              </td>
+              <td class="text-ink-soft"><%= time_ago invite.created_at %></td>
+              <td class="text-right">
+                <% if invite.usable? %><%= button_to "Revoke", settings_invite_path(invite), method: :delete, class: "btn-quiet" %><% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </section>
+<% end %>

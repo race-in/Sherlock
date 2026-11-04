@@ -1,0 +1,54 @@
+<nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto" aria-label="Main">
+  <%= nav_link "Dashboard", dashboard_path, icon: "grid" %>
+  <%= nav_link "Compare", comparison_path, icon: "graph-up" %>
+
+  <p class="eyebrow mt-5 mb-1 px-2.5">Trackers</p>
+  <% Current.user.connections.includes(:site).ordered.each do |connection| %>
+    <%= link_to connection_path(connection), class: "nav-link", aria: { current: ("page" if request.path.start_with?(connection_path(connection))) } do %>
+      <%= site_mark connection.site, size: "size-5" %>
+      <span class="flex-1 truncate"><%= connection.site.display_name %></span>
+      <% if connection.ok? %>
+        <span class="text-xs text-muted"><%= human_bytes(connection.latest_snapshot&.buffer || 0) %></span>
+      <% else %>
+        <%= status_tag connection %>
+      <% end %>
+    <% end %>
+  <% end %>
+  <%= link_to tracker_selection_path, class: "nav-link text-muted" do %>
+    <i class="bi bi-plus-lg text-[15px]"></i><span>Add tracker</span>
+  <% end %>
+</nav>
+
+<%# Admins only, while update checks are on and found a newer version. Closing it lasts until the next one. %>
+<% if (version = Current.user.update_notice) %>
+  <div class="mb-3 flex items-start gap-2.5 rounded-lg border border-line bg-surface p-3 text-sm shadow-xs" role="status">
+    <i class="bi bi-stars text-base text-accent" aria-hidden="true"></i>
+    <div class="min-w-0 flex-1">
+      <p class="font-medium text-ink">Sherlock <%= version %> is out</p>
+      <p class="hint mt-0.5">You run <%= Rails.configuration.x.version %>.</p>
+      <%= link_to "#{Rails.configuration.x.source_url}/releases/tag/#{version}", class: "link mt-1.5 inline-flex items-center gap-1", target: "_blank", rel: "noopener" do %>
+        What's new <i class="bi bi-box-arrow-up-right text-xs" aria-hidden="true"></i>
+      <% end %>
+    </div>
+    <%= button_to dismissals_path, params: { notice: "update" }, class: "-mt-1 -mr-1 cursor-pointer rounded p-1 text-muted hover:text-ink", aria: { label: "Close until the next version" } do %>
+      <i class="bi bi-x-lg"></i>
+    <% end %>
+  </div>
+<% end %>
+
+<div class="flex flex-col gap-0.5 border-t border-line pt-3">
+  <% if Current.user.is_admin? %>
+    <%# Only while a link works, so the admin knows people can still join with one. It's the one item
+        marked on its own page; Admin is marked on the rest of /admin. %>
+    <% single_user = Rails.application.config.x.single_user_mode %>
+    <% invites_open = !single_user && Invite.usable.exists? %>
+    <% on_invites = invites_open && request.path == admin_invites_path %>
+    <% if invites_open %>
+      <%= nav_link "Active invites", admin_invites_path, icon: "envelope-open", active: on_invites,
+            trailing: tag.span(class: "relative flex size-2", title: "At least one invite link works", aria: { hidden: true }) {
+              tag.span(class: "absolute inline-flex size-full rounded-full bg-up opacity-75 motion-safe:animate-ping") + tag.span(class: "relative inline-flex size-2 rounded-full bg-up") } %>
+    <% end %>
+    <%= nav_link "Admin", (single_user ? admin_sites_path : admin_users_path), icon: "shield", active: request.path.start_with?("/admin") && !on_invites %>
+  <% end %>
+  <%= nav_link "Settings", settings_connections_path, icon: "gear", active: request.path.start_with?("/settings") %>
+</div>

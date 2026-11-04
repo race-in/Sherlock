@@ -1,0 +1,156 @@
+<% content_for :title, @connection.site.display_name %>
+<%= render "connections/header", connection: @connection, history: @history %>
+<%= render "connections/problems", connections: [ @connection ] %>
+
+<details class="card mt-4 p-4">
+  <summary class="cursor-pointer font-medium">Add manual statistics</summary>
+  <p class="hint mt-2">Record a point in time when the tracker API isn't available. Values are stored as a new, immutable history point; uploaded and downloaded are required bytes.</p>
+  <%= form_with scope: :snapshot, url: connection_manual_snapshot_path(@connection), class: "mt-4 space-y-4" do |form| %>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div>
+        <%= form.label :uploaded, "Uploaded (bytes)", class: "label" %>
+        <%= form.number_field :uploaded, min: 0, step: 1, required: true, class: "input mt-1 w-full", placeholder: "e.g. 1073741824" %>
+      </div>
+      <div>
+        <%= form.label :downloaded, "Downloaded (bytes)", class: "label" %>
+        <%= form.number_field :downloaded, min: 0, step: 1, required: true, class: "input mt-1 w-full", placeholder: "e.g. 536870912" %>
+      </div>
+      <% { ratio: "Ratio", required_ratio: "Required ratio", bonus_points: "Bonus points", seeding: "Seeding", leeching: "Leeching", snatched: "Snatched", hit_and_runs: "Hit and runs", uploads: "Torrents uploaded", forum_posts: "Forum posts", torrent_comments: "Torrent comments" }.each do |field, label| %>
+        <div>
+          <%= form.label field, label, class: "label" %>
+          <%= form.number_field field, min: 0, step: %i[ratio required_ratio bonus_points].include?(field) ? "any" : 1, class: "input mt-1 w-full" %>
+        </div>
+      <% end %>
+      <div>
+        <%= form.label :created_at, "Observation time", class: "label" %>
+        <%= form.datetime_local_field :created_at, value: Time.current.strftime("%Y-%m-%dT%H:%M"), max: Time.current.strftime("%Y-%m-%dT%H:%M"), class: "input mt-1 w-full" %>
+      </div>
+    </div>
+    <div>
+      <%= form.label :note, "Note (optional)", class: "label" %>
+      <%= form.text_area :note, rows: 2, maxlength: 500, class: "input mt-1 w-full", placeholder: "Where this figure came from, or why it was entered" %>
+    </div>
+    <%= form.submit "Save statistics", class: "btn-primary" %>
+  <% end %>
+</details>
+
+<% snapshot = @connection.latest_snapshot %>
+<% name = @connection.site.display_name %>
+
+<section class="card overflow-x-auto">
+  <table class="table">
+    <thead><tr><th>Change</th><th class="text-right">Uploaded</th><th class="text-right">Downloaded</th><th class="text-right">Buffer</th><th class="text-right">Ratio</th></tr></thead>
+    <tbody>
+      <% { "24 hours" => 1.day.ago, "7 days" => 7.days.ago, "30 days" => 30.days.ago, "All time" => Time.at(0) }.each do |label, since| %>
+        <% change = @connection.change(since:) %>
+        <tr>
+          <td><%= label %><% if change&.is_partial && label != "All time" %> <span class="hint">(since <%= l @connection.snapshots.minimum(:created_at).in_time_zone.to_date, format: :short %>)</span><% end %></td>
+          <td class="text-right"><%= byte_change change&.uploaded %></td>
+          <td class="text-right"><%= bytes change&.downloaded %></td>
+          <td class="text-right"><%= byte_change change&.buffer %></td>
+          <td class="text-right"><%= ratio_change change&.ratio %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</section>
+
+<% if snapshot %>
+  <section class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="card p-4"><p class="eyebrow"><%= buffer_label %></p><p class="mt-2 text-xl"><%= bytes snapshot.buffer %></p></div>
+    <div class="card p-4">
+      <p class="eyebrow">Ratio</p>
+      <p class="mt-2 text-xl"><%= ratio snapshot.ratio %>
+        <% if snapshot.required_ratio %><span class="hint text-sm">needs <%= ratio snapshot.required_ratio %></span><% end %></p>
+      <% if snapshot.ratio && snapshot.required_ratio && snapshot.ratio < snapshot.required_ratio %>
+        <p class="tag-down mt-2">Below required ratio</p>
+      <% end %>
+    </div>
+    <div class="card p-4"><p class="eyebrow">Uploaded / downloaded</p><p class="mt-2 text-xl"><%= bytes snapshot.uploaded %> <span class="text-muted">/</span> <%= bytes snapshot.downloaded %></p></div>
+    <div class="card p-4">
+      <p class="eyebrow">Seeding · snatched</p>
+      <p class="mt-2 text-xl"><%= count snapshot.seeding %> <span class="text-muted">·</span> <%= count snapshot.snatched %></p>
+      <% if snapshot.user_class %><p class="hint mt-1"><%= snapshot.user_class %></p><% end %>
+    </div>
+  </section>
+<% end %>
+
+
+<section class="card mt-5 overflow-x-auto">
+  <div class="border-b border-line px-4 py-3">
+    <h2 class="font-medium">Recent history and source</h2>
+    <p class="hint mt-1">The latest observations are append-only. Manual and imported entries are labelled separately from tracker API updates.</p>
+  </div>
+  <table class="table">
+    <thead><tr><th>Observed</th><th>Source</th><th class="text-right">Uploaded</th><th class="text-right">Downloaded</th><th>Note</th></tr></thead>
+    <tbody>
+      <% @connection.snapshots.chronological.last(10).reverse_each do |entry| %>
+        <tr>
+          <td><%= l entry.created_at.in_time_zone, format: :short %></td>
+          <td><span class="tag"><%= entry.source.humanize %></span></td>
+          <td class="text-right"><%= bytes entry.uploaded %></td>
+          <td class="text-right"><%= bytes entry.downloaded %></td>
+          <td class="max-w-64 text-sm text-ink-soft"><%= entry.note.presence || "—" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</section>
+
+<div class="mt-6 grid gap-4 lg:grid-cols-2">
+  <%= render "shared/chart", title: "Upload and download per #{@history.interval}", unit: "bytes", type: "bar", step: 1.public_send(@history.interval), mirror: "Downloaded",
+        points: chart_points(@history, :uploaded, group: "Uploaded", per_interval: true) + chart_points(@history, :downloaded, group: "Downloaded", per_interval: true),
+        sample: chart_sample(@history, "interval") %>
+  <%= render "shared/chart", title: "Upload and download in total", unit: "bytes",
+        points: chart_points(@history, :uploaded, group: "Uploaded") + chart_points(@history, :downloaded, group: "Downloaded"),
+        sample: chart_sample(@history, "total") %>
+  <%= render "shared/chart", title: buffer_label, unit: "bytes", points: chart_points(@history, :buffer, group: buffer_label), sample: chart_sample(@history, "level") %>
+  <%= render "shared/chart", title: "Ratio", unit: "ratio", points: chart_points(@history, :ratio, group: "Ratio"), sample: chart_sample(@history, "level") %>
+  <%= render "shared/chart", title: "Ratio per #{@history.interval}", note: "Upload divided by download in each #{@history.interval}. Left out when nothing was downloaded.",
+        unit: "ratio", type: "bar", step: 1.public_send(@history.interval), points: chart_points(@history, :interval_ratio, group: "Ratio"), sample: chart_sample(@history, "interval") %>
+  <% if @history.reports?(:bonus_points) %>
+    <%= render "shared/chart", title: "Bonus points", unit: "count", points: chart_points(@history, :bonus_points, group: "Bonus points"),
+          sample: chart_sample(@history, "level") %>
+  <% end %>
+  <% if @history.reports?(:seeding) %>
+    <%= render "shared/chart", title: "Seeding", unit: "count", points: chart_points(@history, :seeding, group: "Seeding"), sample: chart_sample(@history, "level") %>
+  <% end %>
+  <% if @history.reports?(:uploads) %>
+    <%= render "shared/chart", title: "Torrents uploaded", unit: "count", points: chart_points(@history, :uploads, group: "Torrents uploaded"),
+          sample: chart_sample(@history, "total") %>
+  <% end %>
+  <% if @history.reports?(:forum_posts) || @history.reports?(:torrent_comments) %>
+    <%= render "shared/chart", title: "Forum posts and torrent comments", unit: "count",
+          points: chart_points(@history, :forum_posts, group: "Forum posts") + chart_points(@history, :torrent_comments, group: "Torrent comments"),
+          sample: chart_sample(@history, "total") %>
+  <% end %>
+</div>
+
+<% if (cross_seed = @connection.cross_seed_snapshots.chronological.last) %>
+  <h2 class="heading mt-10 text-xl">Cross-seeding</h2>
+  <p class="hint mt-1">From qui, <%= time_ago cross_seed.created_at %>. Counts torrents that are complete and seeding, and cross-seeded ones whose files also seed on another tracker. Paused are cross-seeds where one of the two copies is paused. Upload is as your torrent client counts it.</p>
+  <section class="mt-4 grid gap-3 sm:grid-cols-3">
+    <div class="card p-4"><p class="eyebrow">Cross-seeded</p><p class="mt-2 text-xl"><%= count cross_seed.cross_seeded %> <span class="hint text-sm">of <%= count cross_seed.torrents %> seeding<% if cross_seed.cross_seeded_paused.positive? %> (<%= count cross_seed.cross_seeded_paused %> paused)<% end %></span></p>
+      <p class="hint mt-1 text-sm"><%= cross_seed_change @connection, since: 1.day.ago %> in the last 24 hours</p></div>
+    <div class="card p-4"><p class="eyebrow">Cross-seeded size</p><p class="mt-2 text-xl"><%= bytes cross_seed.cross_seeded_size %> <span class="hint text-sm">of <%= bytes cross_seed.size %></span></p></div>
+    <div class="card p-4"><p class="eyebrow">Uploaded by cross-seeds</p><p class="mt-2 text-xl"><%= bytes cross_seed.cross_seeded_uploaded %> <span class="hint text-sm">of <%= bytes cross_seed.uploaded %></span></p></div>
+  </section>
+  <div class="mt-4">
+    <%= render "shared/chart", title: "Seeding and cross-seeded torrents", unit: "count", points: cross_seed_points(@connection, @history) %>
+  </div>
+<% end %>
+
+<% if @patterns.any? %>
+  <h2 class="heading mt-10 text-xl">Patterns</h2>
+  <p class="hint mt-1">From the last <%= Patterns::WEEKS %> weeks, in your time zone. These don't follow the range above.</p>
+  <div class="mt-4 grid gap-4 lg:grid-cols-3">
+    <div class="lg:col-span-2">
+      <%= render "shared/chart", title: "When you upload", note: "Average upload per hour.", unit: "bytes", type: "heatmap", height: "280px", **hour_heatmap(@patterns) %>
+    </div>
+    <%= render "shared/chart", title: "Best day of the week", note: "Average upload per day.", unit: "bytes", type: "column", height: "280px",
+          points: weekday_points(@patterns), labels: { x_title: "Day", y_title: "Average upload" } %>
+  </div>
+  <div class="mt-4">
+    <%= render "shared/chart", title: "Upload per day", unit: "bytes", type: "heatmap", height: "240px", **calendar_heatmap(@patterns) %>
+  </div>
+<% end %>

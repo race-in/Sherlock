@@ -1,0 +1,8 @@
+#!/bin/bash -e
+
+# If running the rails server then create or migrate the database and update the tracker list
+if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+  ./bin/rails db:prepare db:seed
+fi
+
+exec "${@}"

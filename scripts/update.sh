@@ -12,6 +12,10 @@ PREVIOUS_COMMIT=
 BACKUP_PATH=
 
 [[ $EUID -eq 0 ]] || { echo 'Run as root.' >&2; exit 1; }
+if [[ -f "$APP_DIR/.sherlock-native-install" ]]; then
+  echo "This is a bundled native installation. Update from the full Sherlock source checkout and rerun sherlock-v2/deploy/install.sh; scripts/update.sh is for the legacy Git-checkout deployment only." >&2
+  exit 1
+fi
 [[ -d "$APP_DIR/.git" ]] || { echo "$APP_DIR is not a Git checkout." >&2; exit 1; }
 [[ -f "$PATCHER" && ! -L "$PATCHER" ]] || { echo "Current deployment patcher missing or unsafe: $PATCHER" >&2; exit 1; }
 [[ -f "$SCRIPT_DIR/backup.sh" ]] || { echo 'backup.sh is missing; refusing to update without a backup.' >&2; exit 1; }

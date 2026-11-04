@@ -1,0 +1,94 @@
+redacted:
+  slug: redacted
+  name: Redacted
+  short_name: RED
+  engine: gazelle
+  tier: supported
+  base_url: https://redacted.sh
+  tracker_hosts: [flacsfor.me]
+  api_key_url: https://redacted.sh/user.php?action=edit
+  privacy_settings_url: https://redacted.sh/user.php?action=edit
+  key_instructions: Create an API key with no permissions.
+
+orpheus:
+  slug: orpheus
+  name: Orpheus
+  short_name: OPS
+  engine: gazelle
+  tier: supported
+  base_url: https://orpheus.network
+  tracker_hosts: [opsfet.ch]
+  api_key_url: https://orpheus.network/user.php?action=edit
+  key_instructions: Create an API key.
+
+hdbits:
+  slug: hdbits
+  name: HDBits
+  short_name: HDB
+  engine: hdbits
+  tier: supported
+  credential_kind: passkey
+  availability: granted
+  credential_warning: HDBits has no API key, only the passkey from your torrents.
+  base_url: https://hdbits.org
+  tracker_hosts: [hdbits.org]
+  api_key_url: https://hdbits.org/
+  key_instructions: Your passkey is on your profile page.
+
+broadcasthenet:
+  slug: broadcasthenet
+  name: BroadcasTheNet
+  short_name: BTN
+  engine: btn
+  tier: supported
+  base_url: https://api.broadcasthe.net
+  api_key_url: https://broadcasthe.net/user.php?action=edit
+  key_instructions: Your API key is in your profile settings.
+
+gazellegames:
+  slug: gazellegames
+  name: GazelleGames
+  short_name: GGn
+  engine: gazellegames
+  tier: supported
+  base_url: https://gazellegames.net
+  api_key_url: https://gazellegames.net/user.php?action=edit
+  privacy_settings_url: https://gazellegames.net/user.php?action=edit
+  key_instructions: Create an API key with the User permission.
+
+avistaz:
+  slug: avistaz
+  name: AvistaZ
+  short_name: AvZ
+  tier: unsupported
+  unsupported_reason: Needs your login, not an API key.
+
+aither:
+  slug: aither
+  name: Aither
+  short_name: ATH
+  engine: unit3d
+  tier: beta
+  base_url: https://aither.cc
+  api_key_url: https://aither.cc
+  key_instructions: Copy your API key from your profile settings.
+
+anthelion:
+  slug: anthelion
+  name: Anthelion
+  short_name: ANT
+  engine: anthelion
+  tier: beta
+  base_url: https://anthelion.me
+  api_key_url: https://anthelion.me/user.php?action=edit
+  key_instructions: Your API key is under Access Settings.
+
+animebytes:
+  slug: animebytes
+  name: AnimeBytes
+  short_name: AB
+  engine: animebytes
+  tier: beta
+  base_url: https://animebytes.tv
+  api_key_url: https://animebytes.tv/user.php?action=edit
+  key_instructions: Your API key is in your account settings.

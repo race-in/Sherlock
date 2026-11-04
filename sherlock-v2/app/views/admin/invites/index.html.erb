@@ -1,0 +1,28 @@
+<%= render layout: "admin/frame" do %>
+  <section class="card mb-6 p-5">
+    <h2 class="section-title">Create invite</h2>
+    <div class="mt-4"><%= render "admin/invites/form", joinable_sites: @joinable_sites %></div>
+  </section>
+
+  <section class="card overflow-x-auto">
+    <table class="table">
+      <thead><tr><th>Link</th><th>Created by</th><th class="text-right">Uses</th><th>Status</th><th>Expires</th><th></th></tr></thead>
+      <tbody>
+        <% @invites.each do |invite| %>
+          <tr>
+            <td>
+              <% if invite.usable? %>
+                <%= render "shared/copy_link", url: join_url(invite.code) %>
+              <% else %><code class="font-mono text-xs text-muted"><%= invite.code.first(8) %>…</code><% end %>
+            </td>
+            <td><%= link_to invite.created_by_user.username, admin_user_path(invite.created_by_user), class: "link" %></td>
+            <td class="num text-right"><% if invite.site %><span class="hint mr-1"><%= invite.site.name %> ·</span><% end %><%= invite.uses %> of <%= invite.max_uses || "∞" %></td>
+            <td><span class="<%= invite.usable? ? "tag-up" : "tag-neutral" %>"><%= invite.status.to_s.humanize %></span></td>
+            <td class="text-ink-soft"><%= invite.expires_at ? l(invite.expires_at.to_date, format: :short) : "Never" %></td>
+            <td class="text-right"><% if invite.usable? %><%= button_to "Revoke", admin_invite_path(invite), method: :delete, class: "btn-quiet" %><% end %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </section>
+<% end %>

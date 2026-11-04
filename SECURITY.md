@@ -13,7 +13,7 @@ Include the affected commit, Debian release and architecture, reproduction steps
 ## Deployment safety
 
 - Keep Rails/Puma port 3000 bound to loopback; expose only Nginx on ports 80/443.
-- Keep the worker Prometheus exporter on loopback (`METRICS_HOST=127.0.0.1`) unless a separately authenticated private monitoring path is configured. Do not expose port 9394 publicly.
+- Keep the worker Prometheus exporter on loopback (`METRICS_BIND=127.0.0.1`) unless a separately authenticated private monitoring path is configured. Do not expose port 9394 publicly.
 - Do not publish the environment file, Rails production keys, API keys, PostgreSQL passwords, or backup archives.
 - Backups contain both tracker statistics and the Rails decryption key. Treat them as highly sensitive and store them off-host with restricted access.
 - If an API key or Rails production key is exposed, rotate/revoke it at the relevant service and replace the affected secrets.
@@ -21,4 +21,6 @@ Include the affected commit, Debian release and architecture, reproduction steps
 
 ## Scope
 
-This repository currently contains native deployment tooling, not the upstream Sherlock application itself. Vulnerabilities in the upstream application or in tracker websites should be reported to their respective maintainers. The deployment scripts can still introduce local privilege, credential-handling, or network-exposure risks and are in scope here.
+This repository contains the Sherlock Rails application under `sherlock-v2/`, native deployment tooling, and local deployment patches. Application vulnerabilities in the bundled tree, authentication/session handling, credential storage, import/export, metrics exposure, or installer/update/backup/restore behavior are in scope. Preserve upstream attribution and coordinate vulnerabilities that also affect the upstream project with its maintainers. Vulnerabilities in third-party tracker websites themselves should be reported to those services.
+
+**Deployment status:** the canonical native installer sets `SINGLE_USER_MODE=false`, preserves upstream invite/join/user-management routes, and requires a random first-run setup token only while creating the initial admin account. Keep the setup token private and do not expose the app until HTTPS is configured. A full production-host install and penetration/regression test remain release gates.

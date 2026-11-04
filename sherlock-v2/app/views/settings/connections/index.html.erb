@@ -1,0 +1,50 @@
+<%= render layout: "settings/frame" do %>
+  <div class="group" data-controller="sortable" data-sortable-url-value="<%= settings_tracker_order_path %>">
+    <div class="mb-3 flex items-center justify-between gap-4">
+      <div>
+        <h2 class="section-title">Trackers</h2>
+        <p class="hint mt-1 hidden group-data-[editing]:block">Drag the rows. The sidebar and charts follow this order.</p>
+      </div>
+      <div class="flex shrink-0 gap-2 group-data-[editing]:hidden">
+        <% if @connections.many? %>
+          <button type="button" class="btn-secondary" data-action="sortable#edit"><i class="bi bi-arrow-down-up"></i> Reorder</button>
+        <% end %>
+        <%= link_to tracker_selection_path, class: "btn-primary" do %><i class="bi bi-plus-lg"></i> Add tracker<% end %>
+      </div>
+      <button type="button" class="btn-primary hidden shrink-0 group-data-[editing]:inline-flex" data-action="sortable#done">Done</button>
+    </div>
+    <section class="card overflow-x-auto">
+      <% if @connections.empty? %>
+        <p class="hint px-4 py-10 text-center">No trackers yet.</p>
+      <% else %>
+        <table class="table">
+          <thead><tr><th class="hidden w-8 group-data-[editing]:table-cell"><span class="sr-only">Order</span></th><th>Tracker</th><th class="hidden sm:table-cell">Username</th><th>Status</th><th class="hidden sm:table-cell">Last update</th><th><span class="sr-only">Manage</span></th></tr></thead>
+          <tbody>
+            <% @connections.each do |connection| %>
+              <tr id="<%= dom_id connection %>" class="sortable-item" data-sortable-target="item" data-id="<%= connection.id %>">
+                <td class="hidden pr-0 group-data-[editing]:table-cell">
+                  <button type="button" class="btn-quiet cursor-grab touch-none px-1 text-muted active:cursor-grabbing"
+                          aria-label="Move <%= connection.site.display_name %>. Use the up and down arrow keys." title="Drag to reorder"
+                          data-action="pointerdown->sortable#grab pointermove->sortable#drag pointerup->sortable#drop pointercancel->sortable#drop keydown->sortable#key">
+                    <i class="bi bi-grip-vertical" aria-hidden="true"></i>
+                  </button>
+                </td>
+                <td>
+                  <%= link_to settings_connection_path(connection), class: "flex items-center gap-2 font-medium hover:underline group-data-[editing]:pointer-events-none" do %><%= site_mark connection.site, size: "size-5" %><%= connection.site.display_name %><% end %>
+                  <%# On a phone, username and last update move under the name instead of taking two columns. %>
+                  <p class="hint mt-0.5 pl-7 text-xs sm:hidden"><%= connection.external_username %> · <%= time_ago connection.polled_at %></p>
+                </td>
+                <td class="hidden text-ink-soft sm:table-cell"><%= connection.external_username %></td>
+                <td><%= status_tag connection %></td>
+                <td class="hidden text-ink-soft sm:table-cell"><%= time_ago connection.polled_at %></td>
+                <td class="text-right">
+                  <%= link_to settings_connection_path(connection), class: "btn-quiet group-data-[editing]:invisible", aria: { label: "Manage #{connection.site.display_name}" } do %><span class="hidden sm:inline">Manage</span><i class="bi bi-chevron-right sm:hidden" aria-hidden="true"></i><% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </section>
+  </div>
+<% end %>

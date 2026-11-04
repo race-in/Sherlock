@@ -1,0 +1,9 @@
+<%# locals: (name:, mark:, granted:, slug:, create_path:, destroy_path:) %>
+<li class="flex items-center justify-between gap-4">
+  <span class="flex items-center gap-2"><%= mark %><%= name %></span>
+  <%= button_to granted ? destroy_path : create_path, method: granted ? :delete : :post, params: granted ? {} : { slug: },
+        form_class: "inline-flex", class: "switch", role: "switch", aria: { checked: granted, label: "#{name} for #{@user.username}" },
+        title: granted ? "Take back" : "Grant" do %>
+    <span class="switch-thumb"></span>
+  <% end %>
+</li>

@@ -1,0 +1,36 @@
+<% content_for :title, "Your stats over time" %>
+<section>
+  <h1 class="heading text-4xl leading-tight sm:text-5xl">Your stats,<br>hour by hour.</h1>
+  <p class="mt-4 max-w-lg text-lg text-ink-soft">Sherlock keeps the history of your upload, download, ratio and buffer, so you can see how they change.</p>
+  <p class="mt-4 max-w-lg text-ink-soft">It's invite only. You need an invite from someone who already has an account.</p>
+  <div class="mt-7 flex gap-2">
+    <%= link_to "Sign in", new_session_path, class: "btn-primary" %>
+    <%= link_to "I have an invite", new_join_path, class: "btn-secondary" %>
+  </div>
+</section>
+
+<section class="mt-12"><%= render "preview" %></section>
+
+<section class="mt-16">
+  <h2 class="heading text-2xl">Your data</h2>
+  <ul class="mt-5 grid gap-6 sm:grid-cols-3 sm:gap-8">
+    <li>
+      <p class="flex items-baseline gap-2 font-medium"><i class="bi bi-shield-lock-fill text-ink" aria-hidden="true"></i>Encrypted</p>
+      <p class="mt-1 text-ink-soft">Sensitive information like usernames and API keys is encrypted.</p>
+    </li>
+    <li>
+      <p class="flex items-baseline gap-2 font-medium"><i class="bi bi-eye-slash-fill text-ink" aria-hidden="true"></i>Little is logged</p>
+      <p class="mt-1 text-ink-soft">No IP addresses, no browser details, no email address, no tracking, no ads.</p>
+    </li>
+    <li>
+      <p class="flex items-baseline gap-2 font-medium"><i class="bi bi-hdd-stack-fill text-ink" aria-hidden="true"></i>Run it yourself</p>
+      <p class="mt-1 text-ink-soft">The code is open source. On your own server, your keys stay with you.
+        <%= link_to "See the code", Rails.configuration.x.source_url, class: "link", target: "_blank", rel: "noopener" %></p>
+    </li>
+  </ul>
+  <div class="mt-12 max-w-2xl space-y-3 text-ink-soft">
+    <h2 class="heading text-2xl text-ink">How Sherlock reads your trackers</h2>
+    <%= render "shared/how_sherlock_reads" %>
+  </div>
+  <p class="mt-6 text-sm text-ink-soft"><%= link_to "Read the privacy policy", privacy_path, class: "link" %></p>
+</section>

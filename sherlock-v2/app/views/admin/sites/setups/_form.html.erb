@@ -1,0 +1,62 @@
+<%# Adding a tracker as its admin: the same key and test as on a self-hosted Sherlock, plus whether people
+    the admin invites can track their stats there too (Admin::Sites::SetupsController). Used on the
+    dashboard and in Admin → Sites, and to change it later. %>
+<%# locals: (site:, share:, error:, from: nil) %>
+<% own = Current.user.connections.find_by(site:) %>
+<% others = site.connections.where.not(user: Current.user).count %>
+<%# Sharing starts ticked on a new tracker members opt in to, since nobody hands over a key there. Where
+    members would give their own key, the admin ticks it only after checking the tracker's rules. %>
+<% shared = share.nil? ? (site.off? ? site.opt_in_possible? : site.everyone?) : share == "1" %>
+
+<% if error %>
+  <div class="mt-4 rounded-lg border border-down/30 bg-down-soft px-4 py-3 text-sm text-down" role="alert"><p class="font-medium"><%= error %></p></div>
+<% end %>
+
+<%= form_with scope: :connection, url: admin_site_setup_path(site), class: "mt-4 space-y-5",
+      data: { turbo_frame: "_top", controller: "submitting", submitting_label_value: "Testing your key…" } do |form| %>
+  <%= hidden_field_tag :from, from if from %>
+
+  <% if own %>
+    <p class="flex items-center gap-2 text-sm text-ink-soft"><i class="bi bi-check-circle-fill text-up" aria-hidden="true"></i>Your <%= site.name %> account is on Sherlock as <%= own.external_username %>.</p>
+  <% end %>
+  <% if !own || site.instance_key? || site.opt_in_possible? %>
+    <div class="max-w-xl space-y-4">
+      <% if site.needs_username? %>
+        <div>
+          <%= form.label :username, "Your #{site.name} username", class: "label" %>
+          <%= form.text_field :username, autocomplete: "off", spellcheck: false, class: "input mt-1" %>
+        </div>
+      <% end %>
+      <div>
+        <%= form.label :api_key, "Your #{site.name} #{site.hdbits? ? "passkey" : "API key"}", class: "label" %>
+        <%= render "shared/secret_field", form:, class: "mt-1 py-2.5", placeholder: (own ? "Saved. Leave empty to keep it." : "•" * 24) %>
+        <p class="hint mt-1">
+          <%= site.opt_in_possible? ? "Give it the User permission, so it can read profiles." : site.key_instructions %>
+          <% if site.api_key_url %><%= link_to site.api_key_url, class: "link whitespace-nowrap", target: "_blank", rel: "noopener noreferrer" do %>Open <%= site.name %> settings <i class="bi bi-box-arrow-up-right text-xs"></i><% end %><% end %>
+        </p>
+      </div>
+    </div>
+  <% end %>
+
+  <% unless Rails.application.config.x.single_user_mode %>
+  <label class="group card flex max-w-2xl cursor-pointer items-start gap-3 p-4 hover:border-line-strong has-checked:border-accent has-checked:bg-accent-soft">
+    <%= hidden_field_tag :share, "0", id: nil %>
+    <%= check_box_tag :share, "1", shared, class: "mt-1" %>
+    <span>
+      <span class="font-medium">Let people you invite track <%= site.name %> too</span>
+      <% if site.opt_in_possible? %>
+        <span class="hint mt-1 block">They never give Sherlock a key. Your key reads their <%= site.name %> profile once they add a Sherlock link to it, and sees only what other members see.</span>
+      <% else %>
+        <span class="hint mt-1 block">Each adds their own key. Only if <%= site.name %>'s rules allow it.</span>
+      <% end %>
+      <%# Only once unticked, which is when it happens; the card is white then. %>
+      <% if others.positive? && site.everyone? %><span class="mt-2 flex items-center gap-1.5 text-sm text-warn group-has-checked:hidden"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Saving stops updates for <%= pluralize others, "member" %>.</span><% end %>
+    </span>
+  </label>
+
+  <%= form.button class: "btn-primary px-5 py-2.5 text-base", data: { submitting_target: "button" } do %>
+    <i class="bi bi-arrow-repeat inline-block animate-spin" data-submitting-target="spinner" hidden aria-hidden="true"></i>
+    <span data-submitting-target="label"><%= own ? "Save" : "Test and add #{site.name}" %></span> <i class="bi bi-arrow-right"></i>
+  <% end %>
+  <% end %>
+<% end %>

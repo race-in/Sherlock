@@ -24,6 +24,35 @@ tar -czf "$TMP/good.tar.gz" \
   -C "$TMP/etc" sherlock.env
 bash "$RESTORE" --verify "$TMP/good.tar.gz"
 
+# The bundled native installer stores credentials outside /opt/sherlock and writes comments,
+# SINGLE_USER_MODE and FIRST_RUN_TOKEN in sherlock.env; no RAILS_MASTER_KEY env var is used.
+mkdir -p "$TMP/native/app/config" "$TMP/native/etc/credentials"
+cp "$TMP/app/config/credentials/production.key" "$TMP/native/etc/credentials/production.key"
+cp "$TMP/app/config/credentials/production.yml.enc" "$TMP/native/etc/credentials/production.yml.enc"
+ln -s "$TMP/native/etc/credentials" "$TMP/native/app/config/credentials"
+cat > "$TMP/native/etc/sherlock.env" <<'ENV'
+# Managed by deploy/install.sh. Values below the marker are yours and are kept on updates.
+# After editing: sudo systemctl restart sherlock
+RAILS_ENV=production
+APP_HOST=stats.example.com
+FORCE_SSL=true
+PORT=3000
+BIND_ADDRESS=127.0.0.1
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_NAME=sherlockdb_prod
+DB_USER=sherlockdb_prod_write
+DB_PASSWORD=0123456789abcdef0123456789abcdef
+SINGLE_USER_MODE=true
+FIRST_RUN_TOKEN=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+SOLID_QUEUE_IN_PUMA=true
+METRICS_BIND=127.0.0.1
+ENV
+tar -czf "$TMP/native-secrets.tar.gz" \
+  -C "$TMP/native/app" config/credentials/production.key config/credentials/production.yml.enc \
+  -C "$TMP/native/etc" sherlock.env
+bash "$RESTORE" --verify "$TMP/native-secrets.tar.gz"
+
 # Dump and credentials must come from one atomic backup run and the same DB.
 STAMP=20261104T071500.123456789Z-12345
 PAIR_DUMP="$TMP/sherlockdb_prod-$STAMP.dump"

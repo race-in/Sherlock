@@ -1,0 +1,22 @@
+<% content_for :title, "Connect #{@site.display_name}" %>
+<% unless Current.user.onboarded? %><%= render "onboarding/steps", current: 2 %><% end %>
+<div class="max-w-xl">
+  <% if tracker_queue.many? %>
+    <p class="hint"><%= tracker_queue.size %> trackers left to connect</p>
+  <% end %>
+  <h1 class="heading mt-1 flex items-center gap-3 text-3xl"><%= site_mark @site, size: "size-8" %> Connect <%= @site.display_name %></h1>
+  <div class="mt-6">
+    <% if @site.instance_key? %>
+      <p class="mb-5 text-ink-soft">Sherlock reads your <%= @site.name %> profile as other <%= @site.name %> members see it, once you add a Sherlock link to it. You never share your API key.</p>
+      <% claim = profile_claim if profile_claim&.site == @site %>
+      <%= render "connections/profile_form", sites: [ @site ], claim:, error: @check_error || @error,
+            profile_path: site_profile_path(@site), check_path: site_check_path(@site),
+            continue: button_to("Add #{@site.name}", site_connection_path(@site), class: "btn-primary") %>
+    <% else %>
+      <%= render "connections/key_form", site: @site, error: @error, url: site_connection_path(site_slug: @site.slug), method: :post %>
+    <% end %>
+  </div>
+  <% if tracker_queue.size > 1 %>
+    <%= button_to "Skip #{@site.display_name}", tracker_selection_path, method: :patch, params: { slugs: tracker_queue - [ @site.slug ] }, class: "btn-quiet mt-4" %>
+  <% end %>
+</div>

@@ -1,0 +1,23 @@
+name: sherlock
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: sherlock-postgres
+    environment:
+      POSTGRES_DB: sherlockdb_develop
+      POSTGRES_USER: sherlockdb_develop_write
+      POSTGRES_PASSWORD: sherlockdb_develop_write
+    ports:
+      - "5448:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./init-db-sherlock.sql:/docker-entrypoint-initdb.d/init-db-sherlock.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sherlockdb_develop_write -d sherlockdb_develop"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

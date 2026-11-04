@@ -1,0 +1,32 @@
+admin:
+  username: admin
+  password_digest: <%= BCrypt::Password.create("correct-horse-battery", cost: 4) %>
+  is_admin: true
+  invite_limit: 3
+  time_zone: Europe/Berlin
+  tracker_rules_accepted_at: <%= 1.month.ago.to_fs(:db) %>
+  onboarding_completed_at: <%= 1.month.ago.to_fs(:db) %>
+
+alice:
+  username: alice
+  password_digest: <%= BCrypt::Password.create("correct-horse-battery", cost: 4) %>
+  invited_by_user: admin
+  invite: admin_used
+  invite_limit: 2
+  time_zone: UTC
+  tracker_rules_accepted_at: <%= 1.month.ago.to_fs(:db) %>
+  onboarding_completed_at: <%= 1.month.ago.to_fs(:db) %>
+
+bob:
+  username: bob
+  password_digest: <%= BCrypt::Password.create("correct-horse-battery", cost: 4) %>
+  invited_by_user: alice
+  time_zone: UTC
+  tracker_rules_accepted_at: <%= 1.month.ago.to_fs(:db) %>
+  onboarding_completed_at: <%= 1.month.ago.to_fs(:db) %>
+
+newbie:
+  username: newbie
+  password_digest: <%= BCrypt::Password.create("correct-horse-battery", cost: 4) %>
+  invited_by_user: admin
+  time_zone: UTC

@@ -1,0 +1,17 @@
+<%# locals: (site:, connected_site_ids:) %>
+<% added = connected_site_ids.include?(site.id) %>
+<label class="card flex items-center gap-3 p-3 <%= added ? "" : "cursor-pointer hover:border-line-strong has-[:checked]:border-accent has-[:checked]:bg-accent-soft" %>" data-filter-target="item" data-name="<%= "#{site.name} #{site.short_name}".downcase %>">
+  <% if added %>
+    <i class="bi bi-check-circle-fill text-base leading-none text-up" aria-hidden="true"></i>
+  <% else %>
+    <%= check_box_tag "slugs[]", site.slug, false, class: "accent-[var(--accent)]", id: "site_#{site.slug}" %>
+  <% end %>
+  <%= site_mark site %>
+  <span class="flex-1">
+    <span class="font-medium"><%= site.display_name %></span>
+    <% if site.credential_warning %>
+      <span class="hint mt-0.5 block text-xs"><%= site.credential_warning %></span>
+    <% end %>
+  </span>
+  <% if added %><span class="tag-up">Connected</span><% elsif site.beta? %><span class="tag-warn">Beta</span><% end %>
+</label>

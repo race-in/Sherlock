@@ -167,6 +167,9 @@ runuser -u "$APP_USER" -- bash /usr/local/libexec/sherlock/patch-native-app.sh "
 printf '\n/config/credentials/\n' >> "$STAGING_DIR/.git/info/exclude"
 mv "$STAGING_DIR" "$APP_DIR"
 STAGING_DIR=
+# GitHub API imports can store Rails binstubs without executable mode; restore the
+# upstream executable contract before invoking any bin/rails command.
+chmod 0755 "$APP_DIR"/bin/*
 
 log "Building Ruby ${RUBY_VERSION} against the host OpenSSL (>= 1.1.1)"
 RUBY_BUILD_TAG=v20261023
@@ -270,7 +273,7 @@ APP_GIT_BRANCH=$BRANCH
 PORT=3000
 FORCE_SSL=true
 SOLID_QUEUE_IN_PUMA=true
-METRICS_HOST=127.0.0.1
+METRICS_BIND=127.0.0.1
 RAILS_LOG_LEVEL=info
 ENV
 chown root:"$APP_GROUP" "$ETC_DIR/sherlock.env"

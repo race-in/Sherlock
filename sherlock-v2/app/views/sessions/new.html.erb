@@ -1,0 +1,17 @@
+<% content_for :title, "Sign in" %>
+<div class="mx-auto max-w-sm">
+  <h1 class="heading text-3xl">Sign in</h1>
+  <%= form_with url: session_path, class: "mt-6 space-y-4" do |form| %>
+    <div>
+      <%= form.label :username, class: "label" %>
+      <%= form.text_field :username, required: true, autofocus: true, autocomplete: "username", autocapitalize: "none", value: params[:username], class: "input mt-1" %>
+    </div>
+    <div>
+      <%= form.label :password, class: "label" %>
+      <%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72, class: "input mt-1" %>
+    </div>
+    <%= form.submit "Sign in", class: "btn-primary w-full" %>
+  <% end %>
+  <p class="hint mt-6">Forgot your password? Ask the person who runs Sherlock to reset it.</p>
+  <p class="hint mt-2">New here? Sherlock is invite only. You need an invite code, which you can ask for in the forum. <%= link_to "Use an invite", new_join_path, class: "link" %>.</p>
+</div>

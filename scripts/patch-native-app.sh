@@ -25,8 +25,8 @@ patches = {
         'pool: <%= ENV.fetch("DB_POOL") { ENV.fetch("RAILS_MAX_THREADS") { 10 } } %>',
     ),
     Path("config/initializers/yabeda.rb"): (
-        'Host: "0.0.0.0", Port: ENV.fetch("METRICS_PORT", 9394).to_i',
-        'Host: ENV.fetch("METRICS_HOST", "127.0.0.1"), Port: ENV.fetch("METRICS_PORT", 9394).to_i',
+        'Host: ENV.fetch("METRICS_BIND", "0.0.0.0"), Port: ENV.fetch("METRICS_PORT", 9394).to_i',
+        'Host: ENV.fetch("METRICS_BIND", "127.0.0.1"), Port: ENV.fetch("METRICS_PORT", 9394).to_i',
     ),
 }
 

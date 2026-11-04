@@ -1,0 +1,74 @@
+<%# The admin's first steps (AdminSetup), in place of the dashboard until each is done or skipped: numbered
+    circles that turn into green checks. The step that's next opens right here, with its form inline.
+    Everything stays changeable later in Admin and Settings. %>
+<%# locals: (setup:) %>
+<% done = setup.steps.count(&:done?) %>
+<% next_step = setup.next_step %>
+<section class="card overflow-hidden">
+  <div class="p-6 sm:p-8">
+    <h2 class="heading text-2xl">Set up your Sherlock</h2>
+    <p class="mt-1 text-ink-soft">Each step turns green as soon as it's done. You can change all of it later in Admin.</p>
+    <div class="mt-5 flex items-center gap-3">
+      <div class="h-2 flex-1 overflow-hidden rounded-full bg-sunken" role="progressbar" aria-valuemin="0" aria-valuemax="<%= setup.steps.size %>" aria-valuenow="<%= done %>">
+        <div class="h-full rounded-full bg-up transition-all" style="width: <%= (done * 100 / setup.steps.size) %>%"></div>
+      </div>
+      <span class="num text-sm text-ink-soft"><%= done %> of <%= setup.steps.size %></span>
+    </div>
+  </div>
+  <ol class="divide-y divide-line border-t border-line">
+    <% setup.steps.each.with_index(1) do |step, number| %>
+      <% change_paths = { contact: admin_settings_path, first_tracker: admin_sites_path, updates: admin_settings_path } %>
+      <% change_paths[:invites] = Rails.application.config.x.single_user_mode ? nil : admin_invites_path %>
+      <% change_path = change_paths.fetch(step.key) %>
+      <% open = step == next_step %>
+      <% locked = setup.locked?(step) %>
+      <li class="flex items-start gap-4 px-6 py-5 sm:px-8 <%= "bg-accent-soft/40" if open %>">
+        <% if step.done? %>
+          <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-up-soft text-xl text-up" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+        <% else %>
+          <span class="num inline-flex size-10 shrink-0 items-center justify-center rounded-full text-base font-medium <%= open ? "bg-accent text-accent-ink" : "border-2 border-line-strong text-muted" %>" aria-hidden="true"><%= number %></span>
+        <% end %>
+        <div class="min-w-0 flex-1 <%= "opacity-60" if locked %>">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p class="min-h-10 flex-1 content-center text-lg font-medium <%= "text-ink-soft" if step.done? %>">
+              <%= step.title %>
+              <% if step.skipped? && !step.done %><span class="tag-neutral ml-1 align-middle text-xs">Skipped</span><% elsif step.optional? && !step.done? %><span class="tag-neutral ml-1 align-middle text-xs">Optional</span><% end %>
+              <% if locked %><i class="bi bi-lock ml-1 text-base text-muted" aria-hidden="true"></i><% end %>
+              <span class="sr-only"><%= step.done? ? "done" : locked ? "after the contact" : "to do" %></span>
+            </p>
+            <% if step.done? %>
+              <%= link_to "Change", change_path, class: "btn-quiet shrink-0" if change_path.present? %>
+            <% elsif step.optional? && !(open && step.key == :updates) %>
+              <%= button_to "Skip", admin_setup_skips_path, params: { step: step.key }, class: "btn-quiet px-4 py-2.5 text-base" %>
+            <% end %>
+          </div>
+          <% if open %>
+            <% case step.key %>
+            <% when :contact %>
+              <div class="mt-2"><%= render "admin/settings/contact_form", setting: InstanceSetting.current %></div>
+            <% when :first_tracker %>
+              <p class="hint"><%= step.hint %></p>
+              <% site = Site.where.not(tier: :unsupported).find_by(slug: params[:setup_site]) if params[:setup_site] %>
+              <%= render "dashboards/setup_tracker", site:, share: params[:share], error: flash[:setup_error] %>
+            <% when :invites %>
+              <p class="hint"><%= step.hint %></p>
+              <%# A full page load: the dashboard after setup brings the chart script, and Turbo would reload for it and
+                  lose the new invite. %>
+              <div class="mt-4"><%= render "admin/invites/form", joinable_sites: Site.joinable.to_a, turbo: false %></div>
+            <% when :updates %>
+              <%= render "admin/settings/update_checks_explainer" %>
+              <div class="mt-4 flex flex-wrap items-center gap-2">
+                <%= button_to admin_settings_path, method: :patch, params: { instance_setting: { is_update_check_enabled: "1" } }, class: "btn-primary px-5 py-2.5 text-base" do %>
+                  <i class="bi bi-bell"></i> Turn on update checks
+                <% end %>
+                <%= button_to "Leave off", admin_setup_skips_path, params: { step: step.key }, class: "btn-quiet px-4 py-2.5 text-base" %>
+              </div>
+            <% end %>
+          <% else %>
+            <p class="hint"><%= locked ? "After the contact above, so your first request to a tracker already carries it." : step.hint %></p>
+          <% end %>
+        </div>
+      </li>
+    <% end %>
+  </ol>
+</section>

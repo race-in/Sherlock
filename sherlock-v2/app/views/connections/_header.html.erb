@@ -1,0 +1,22 @@
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="heading flex items-center gap-3 text-3xl"><%= site_mark connection.site, size: "size-8" %><%= connection.site.display_name %></h1>
+    <p class="hint mt-1">
+      <%= connection.external_username %> · <%= status_tag connection %> · updated <%= time_ago connection.polled_at %>
+      <% if connection.next_poll_at %> · next <%= clock connection.next_poll_at %><% end %>
+    </p>
+  </div>
+  <div class="flex min-w-0 max-w-full items-center gap-2">
+    <%= range_picker history.range %>
+    <% if (connection.ok? || connection.failing?) && connection.site.member_key? %>
+      <%= button_to settings_connection_poll_path(connection), class: "btn-quiet", title: "Update now", aria: { label: "Update now" } do %><i class="bi bi-arrow-clockwise"></i><% end %>
+    <% end %>
+    <%= link_to settings_connection_path(connection), class: "btn-quiet", aria: { label: "Tracker settings" } do %><i class="bi bi-gear"></i><% end %>
+  </div>
+</div>
+<nav class="mb-6 flex gap-1 border-b border-line text-sm" aria-label="Tracker">
+  <% [ [ "Overview", connection_path(connection, range: history.range) ], [ "History", connection_history_path(connection, range: history.range) ] ].each do |label, path| %>
+    <% active = request.path == URI(path).path %>
+    <%= link_to label, path, class: [ "-mb-px border-b-2 px-3 py-2", active ? "border-accent text-ink font-medium" : "border-transparent text-muted hover:text-ink" ], aria: { current: ("page" if active) } %>
+  <% end %>
+</nav>

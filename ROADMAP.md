@@ -6,58 +6,59 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 - Deployment: native Rails + PostgreSQL + Nginx + systemd; no Docker requirement.
 - Supported host targets: Debian 11/12/13 (Debian 12/13 recommended; Debian 11 is EOL compatibility only).
-- Access: one private instance at a user-owned HTTPS subdomain.
-- User model: single-user only; no public registration or invite flow.
+- Access: one self-hosted instance at a user-owned HTTPS subdomain, supporting multiple invited users.
+- User model: preserve upstream multi-user invite flow and administrator user management.
 - Statistics sources: automatic tracker API, manual entry, CSV import, and JSON import.
 - History: immutable, timestamped snapshots; corrections create new records rather than overwriting history.
 - UI: preserve the upstream Sherlock visual design and navigation where possible.
 
 ## Phase 0 — Rights and source baseline
 
-- [ ] Obtain written permission or a clear licence that allows modifying and redistributing the upstream Sherlock source.
+- [ ] Keep the maintainer's written permission or a clear licence record with the project governance materials; the source tree itself has no standalone LICENSE file.
 - [ ] Confirm the exact upstream commit to use as the base.
 - [ ] Keep upstream attribution, notices, and any required licence terms.
-- [ ] Import the authorized upstream source into this repository without losing its history where practical.
-- [ ] Run the untouched upstream test suite and record a clean baseline.
+- [x] Bundle the imported Sherlock v2 application baseline under `sherlock-v2/`, preserving upstream attribution and notices.
+- [x] Record the upstream source inventory and schema/import/export contract in `docs/UPSTREAM_AUDIT.md`.
+- [ ] Complete a clean full Rails test baseline on the bundled source in the Debian CI matrix.
 
-**Gate:** do not publish a modified upstream application until the source licence/permission is confirmed. The supplied archive did not contain a standalone LICENSE file.
+**Gate:** retain evidence of the maintainer permission already obtained for this project and preserve all upstream attribution. The audited upstream tree has no standalone LICENSE file; do not imply an OSI/open-source licence that is not present.
 
-## Phase 1 — Single-user mode
+## Phase 1 — Multi-user account compatibility
 
 - [x] Upstream first-run setup creates the initial administrator account.
-- [ ] Make the installation permanently single-user: disable invite joins and every user-creation path after first-run.
-- [ ] Enforce the one-account invariant in both Rails model/controller paths and PostgreSQL, including concurrent requests.
-- [ ] Preserve existing connection ownership and historical data migrations.
-- [ ] Add regression tests proving a second account cannot be created.
+- [x] Preserve upstream invite-based registration and administrator user management in the native installation.
+- [x] Keep first-run setup protected by a private token without disabling subsequent user registration.
+- [x] Add regression tests for invitation creation, joining, permissions, single-user mode, and multi-user tracker isolation.
 
 ## Phase 2 — Unified statistics model
 
-- [ ] Preserve existing tracker snapshots and chart compatibility.
-- [ ] Add a validated source/provenance field: API, manual, CSV, or JSON.
-- [ ] Store observation time, import batch reference, and optional notes.
-- [ ] Use bytes as canonical storage units; keep units explicit at input boundaries.
-- [ ] Keep unavailable values distinct from zero.
-- [ ] Validate ratio and tracker-reported fields without silently replacing source values.
+- [x] Preserve existing tracker snapshots and chart compatibility.
+- [x] Add a validated source/provenance field: API, manual, CSV, or JSON.
+- [x] Store observation time, import batch reference, creator attribution, and optional notes.
+- [x] Use bytes as canonical storage units; keep units explicit at input boundaries.
+- [x] Keep unavailable values distinct from zero.
+- [x] Validate manual/import values and preserve API-reported fields without silently replacing source values.
 - [ ] Enforce duplicate protection without overwriting historical observations.
 
 ## Phase 3 — Manual statistics entry
 
-- [ ] Add tracker-specific Add/Edit Statistics workflow matching the existing UI.
-- [ ] Allow optional fields because trackers expose different metrics.
-- [ ] Validate timestamps, numbers, units, and tracker identity on the server.
-- [ ] Record every manual correction in an audit trail.
-- [ ] Display manual/API/import source badges and observation times.
-- [ ] Add tests for zero, null, large byte values, timezone handling, and invalid input.
+- [x] Add tracker-specific append-only Add Statistics workflow matching the existing UI; corrections create new observations.
+- [x] Allow optional fields because trackers expose different metrics.
+- [x] Validate timestamps, numbers, byte units, and tracker ownership on the server.
+- [x] Record the creator and timestamp for each manual observation; retain prior observations.
+- [x] Display manual/API/import source labels and observation times in recent history.
+- [x] Add tests for zero, null, large byte values, timezone handling, and invalid input.
 
 ## Phase 4 — CSV and JSON import/export
 
 - [x] Upstream already provides JSON account-data export/import and per-connection CSV history export; preserve and test both.
 - [ ] CSV statistics template with preview and column mapping (distinct from existing history CSV export).
-- [ ] Strict CSV size, row-count, encoding, timestamp, tracker and field validation.
-- [ ] Transactional statistics import with duplicate detection and downloadable error report.
+- [x] Strict CSV size, row-count, encoding, timestamp, tracker ownership and field validation.
+- [x] Validate the complete CSV before a single atomic insert; skip duplicates and repeated imports.
+- [ ] Add a downloadable row-error report for rejected CSV files.
 - [ ] Versioned Custom Edition JSON format for statistics with schema validation, without changing upstream account-backup JSON semantics.
-- [ ] Never export tracker API keys, passkeys, Rails secrets, or database credentials.
-- [ ] Test rollback on partial failures and repeated imports.
+- [x] Never export tracker API keys, passkeys, Rails secrets, database credentials, or local creator/batch IDs.
+- [x] Test that invalid later CSV rows insert nothing and repeated CSV/JSON imports skip existing timestamps.
 
 ## Phase 5 — Tracker integrations
 
@@ -86,8 +87,9 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Current status
 
-- [x] Native deployment scaffold and CI checks for shell scripts, helper tests, and Debian release detection.
-- [x] Single-user + hybrid manual/automatic + CSV/JSON target architecture documented.
-- [ ] Full Sherlock Custom Edition application features.
+- [x] Native deployment scaffold, shell regression tests, source audit, and Debian release compatibility jobs.
+- [x] Multi-user + hybrid manual/automatic + CSV/JSON target architecture documented.
+- [ ] Versioned Custom Edition JSON statistics interchange, CSV preview/mapping/error report, and additional tracker integrations.
+- [ ] New manual-statistics and CSV-import CI suite must pass before the feature is marked release-ready.
 - [ ] Full fresh-install verification on real Debian VPS hosts.
 

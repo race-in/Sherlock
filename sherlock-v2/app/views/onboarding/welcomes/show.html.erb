@@ -1,0 +1,46 @@
+<% content_for :title, "Welcome" %>
+<%= render "onboarding/steps", current: 0 %>
+<h1 class="heading text-3xl">Welcome, <%= Current.user.username %></h1>
+<% joined_by_profile = Current.user.connections.exists? %>
+<% if Current.user.is_admin? %>
+  <div class="mt-4 space-y-3 text-ink-soft">
+    <p>You run this Sherlock. It checks your trackers once an hour and keeps your stats: upload, download, ratio and buffer.</p>
+    <p>Your API keys stay on this server, encrypted. Sherlock only sends each one to its own tracker.</p>
+    <p>Next, pick your preferences. Your dashboard then walks you through the rest: a contact for tracker staff, your trackers, and inviting people.</p>
+  </div>
+  <div class="card mt-6 p-4">
+    <p class="font-medium">Running Sherlock for other people?</p>
+    <p class="hint mt-1">Then you look after their data too. Before you invite anyone:</p>
+    <ul class="hint mt-2 list-disc space-y-1.5 pl-5 marker:text-muted">
+      <li><strong class="font-medium text-ink">Follow each tracker's rules.</strong> Most don't let members give their API key to someone else's server. On those, Sherlock reads members' profiles with your key, and only after they opt in.</li>
+      <li><strong class="font-medium text-ink">Keep the server secure.</strong> Install updates, and only let people you trust onto it.</li>
+      <li><strong class="font-medium text-ink">Back up the database.</strong> Keep the master key somewhere else too: without it, saved keys can't be decrypted.</li>
+      <li><strong class="font-medium text-ink">Be someone they can trust.</strong> Members trust you with their stats. Tell them who runs this Sherlock and how to reach you.</li>
+    </ul>
+<% elsif joined_by_profile %>
+  <div class="mt-4 space-y-3 text-ink-soft">
+    <p>Sherlock checks your tracker profile once an hour and keeps your stats: upload, download, ratio and buffer.</p>
+    <p>It reads only what other members of the tracker can see on your profile, so your paranoia settings apply. Only you see your stats here.</p>
+    <p>To stop, remove the Sherlock link from your profile, or delete your account in Settings. <%= link_to "Privacy", privacy_path, class: "link" %></p>
+  </div>
+  <div>
+<% else %>
+  <div class="mt-4 space-y-3 text-ink-soft">
+    <p>Sherlock checks your trackers once an hour and keeps your stats: upload, download, ratio and buffer.</p>
+    <%= render "shared/how_sherlock_reads", user: Current.user %>
+    <p>This site always runs the latest version of the open source code, so you can check. <%= link_to "Privacy", privacy_path, class: "link" %></p>
+  </div>
+  <div class="card mt-6 p-4">
+    <p class="font-medium">Check your tracker's rules first</p>
+    <p class="hint mt-1">Only give Sherlock an API key if your tracker's rules allow it.</p>
+<% end %>
+  <%= form_with url: onboarding_welcome_path, method: :patch, class: "mt-4" do |form| %>
+    <% unless joined_by_profile %>
+      <label class="flex items-center gap-2 text-sm">
+        <%= form.check_box :accept, { checked: Current.user.tracker_rules_accepted_at.present? }, "1", "0" %>
+        I understand
+      </label>
+    <% end %>
+    <%= form.submit "Continue", class: "btn-primary #{"mt-4" unless joined_by_profile}" %>
+  <% end %>
+</div>

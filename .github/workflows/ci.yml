@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - "**"
   pull_request:
     branches:
       - main
@@ -11,10 +11,6 @@ on:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   upstream-source-audit:
@@ -24,6 +20,8 @@ jobs:
     steps:
       - name: Check out deployment repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
       - name: Clone and audit upstream Sherlock source
         run: |
           git clone --depth 1 --no-tags \
@@ -38,6 +36,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
 
       - name: Install linters
         run: |
@@ -87,6 +87,64 @@ jobs:
       - name: Validate workflow YAML
         run: yamllint --strict -d relaxed .github/workflows/ci.yml
 
+  rails-application:
+    name: Rails application tests and security checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: sherlockdb_develop_write
+          POSTGRES_PASSWORD: sherlockdb_develop_write
+          POSTGRES_DB: postgres
+        ports:
+          - 5448:5432
+        options: >-
+          --health-cmd "pg_isready -U sherlockdb_develop_write -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0.9"
+          bundler-cache: true
+          working-directory: sherlock-v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "26.12.0"
+          cache: npm
+          cache-dependency-path: sherlock-v2/package-lock.json
+
+      - name: Build frontend assets
+        working-directory: sherlock-v2
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Run Rails, style, dependency and security checks
+        working-directory: sherlock-v2
+        env:
+          CI: "true"
+          APP_VERSION: v0.0.0-ci
+          TEST_DB_HOST: 127.0.0.1
+          TEST_DB_PORT: "5448"
+          TEST_DB_USER: sherlockdb_develop_write
+          TEST_DB_PASSWORD: sherlockdb_develop_write
+          TEST_DB_NAME: sherlockdb_test
+        run: |
+          chmod 0755 bin/*
+          ./bin/ci
+
   debian-compatibility:
     name: Debian ${{ matrix.version }} compatibility
     runs-on: ubuntu-24.04
@@ -104,6 +162,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
 
       - name: Run platform compatibility check
         env:
