@@ -240,6 +240,20 @@ resolve_settings() {
   RUBY_VERSION="${OPT_RUBY_VERSION:-$ruby_default}"
   NODE_VERSION="${OPT_NODE_VERSION:-$node_default}"
 
+  # Debian 11's kernel/glibc are too old for the pinned Node 26 binary.
+  # Node 24 is sufficient for the frontend toolchain (esbuild requires Node >= 18).
+  case "$CODENAME" in
+    bullseye)
+      [[ "$NODE_VERSION" == 26.12.0 || "$NODE_VERSION" == 24.22.2 ]] \
+        || die "Debian 11 supports the Node.js 24.22.2 build runtime only."
+      NODE_VERSION=24.22.2
+      ;;
+    bookworm|trixie)
+      [[ "$NODE_VERSION" == 26.12.0 ]] \
+        || die "Debian 12/13 use the pinned Node.js 26.12.0 build runtime."
+      ;;
+  esac
+
   APP_HOST="$(pick "$OPT_DOMAIN" APP_HOST "")"
   if [[ -z "$APP_HOST" ]]; then
     if [[ -t 0 && $ASSUME_YES -eq 0 ]]; then
@@ -318,8 +332,8 @@ install_base_packages() {
   # Build tools for Ruby and the gems, libraries Ruby links against, and everything the installer needs.
   apt_install ca-certificates curl gnupg git openssl rsync xz-utils tar patch file \
     build-essential autoconf bison pkg-config \
-    libssl-dev zlib1g-dev libyaml-dev libffi-dev libreadline-dev libncurses-dev libgmp-dev libdb-dev uuid-dev \
-    libjemalloc2
+    libssl-dev zlib1g-dev libyaml-dev libffi-dev libreadline-dev libncurses-dev libgmp-dev libdb-dev libpq-dev libgdbm-dev uuid-dev \
+    libjemalloc2 libatomic1
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -465,8 +479,8 @@ create_user_and_dirs() {
 write_env_file() {
   step "Writing $ENV_FILE"
   local tmp; tmp="$(mktemp)"
-  local metrics_bind=0.0.0.0
-  [[ "$PROXY" == nginx ]] && metrics_bind=127.0.0.1
+  # The worker metrics endpoint is private regardless of the web proxy mode.
+  local metrics_bind=127.0.0.1
   {
     echo "# Managed by deploy/install.sh. Values below the marker are yours and are kept on updates."
     echo "# After editing: sudo systemctl restart $SERVICE"
@@ -533,6 +547,8 @@ fetch_node() {
     || die "The Node.js download doesn't match its checksum."
   tar -xJf "$NODE_TMP/$name.tar.xz" -C "$NODE_TMP"
   NODE_BIN="$NODE_TMP/$name/bin"
+  "$NODE_BIN/node" --version | grep -Fx "v$NODE_VERSION" >/dev/null \
+    || die "Node.js runtime version check failed (expected v$NODE_VERSION)."
   chmod -R a+rX "$NODE_TMP"
 }
 cleanup_node() {
