@@ -1,7 +1,11 @@
 <% content_for :title, "Admin" %>
 <h1 class="heading mb-4 text-3xl">Admin</h1>
+<% admin_tabs = [ [ "Sites", admin_sites_path ], [ "Settings", admin_settings_path ], [ "Jobs", "/jobs" ] ] %>
+<% unless Rails.application.config.x.single_user_mode %>
+  <% admin_tabs.unshift([ "Invite tree", admin_users_path ], [ "Invites", admin_invites_path ]) %>
+<% end %>
 <nav class="mb-6 flex gap-1 border-b border-line text-sm" aria-label="Admin">
-  <% [ [ "Invite tree", admin_users_path ], [ "Invites", admin_invites_path ], [ "Sites", admin_sites_path ], [ "Settings", admin_settings_path ], [ "Jobs", "/jobs" ] ].each do |label, path| %>
+  <% admin_tabs.each do |label, path| %>
     <% active = request.path.start_with?(path) %>
     <%= link_to label, path, class: [ "-mb-px border-b-2 px-3 py-2", active ? "border-accent text-ink font-medium" : "border-transparent text-muted hover:text-ink" ], data: ({ turbo: false } if path == "/jobs") %>
   <% end %>
