@@ -13,6 +13,7 @@ Include the affected commit, Debian release and architecture, reproduction steps
 ## Deployment safety
 
 - Keep Rails/Puma port 3000 bound to loopback; expose only Nginx on ports 80/443.
+- Keep the worker Prometheus exporter on loopback (`METRICS_HOST=127.0.0.1`) unless a separately authenticated private monitoring path is configured. Do not expose port 9394 publicly.
 - Do not publish the environment file, Rails production keys, API keys, PostgreSQL passwords, or backup archives.
 - Backups contain both tracker statistics and the Rails decryption key. Treat them as highly sensitive and store them off-host with restricted access.
 - If an API key or Rails production key is exposed, rotate/revoke it at the relevant service and replace the affected secrets.
