@@ -40,14 +40,15 @@
   <% if Current.user.is_admin? %>
     <%# Only while a link works, so the admin knows people can still join with one. It's the one item
         marked on its own page; Admin is marked on the rest of /admin. %>
-    <% invites_open = Invite.usable.exists? %>
+    <% single_user = Rails.application.config.x.single_user_mode %>
+    <% invites_open = !single_user && Invite.usable.exists? %>
     <% on_invites = invites_open && request.path == admin_invites_path %>
     <% if invites_open %>
       <%= nav_link "Active invites", admin_invites_path, icon: "envelope-open", active: on_invites,
             trailing: tag.span(class: "relative flex size-2", title: "At least one invite link works", aria: { hidden: true }) {
               tag.span(class: "absolute inline-flex size-full rounded-full bg-up opacity-75 motion-safe:animate-ping") + tag.span(class: "relative inline-flex size-2 rounded-full bg-up") } %>
     <% end %>
-    <%= nav_link "Admin", admin_users_path, icon: "shield", active: request.path.start_with?("/admin") && !on_invites %>
+    <%= nav_link "Admin", (single_user ? admin_sites_path : admin_users_path), icon: "shield", active: request.path.start_with?("/admin") && !on_invites %>
   <% end %>
   <%= nav_link "Settings", settings_connections_path, icon: "gear", active: request.path.start_with?("/settings") %>
 </div>
