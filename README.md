@@ -112,7 +112,7 @@ Do not expose port 3000 publicly. Nginx is the public entry point and proxies to
 
 **Warning:** restoring replaces the current database. Verify both backup files and keep a copy of `/etc/sherlock/sherlock.env` before proceeding.
 
-Run as root and replace the example timestamp with the files you want to restore:
+Run as root on the same installation and replace the example timestamp (including nanoseconds and PID) with the files you want to restore:
 
 ```bash
 systemctl stop sherlock
@@ -120,8 +120,8 @@ set -a
 . /etc/sherlock/sherlock.env
 set +a
 
-DB_DUMP=/var/backups/sherlock/sherlockdb_prod-YYYYMMDDTHHMMSSZ.dump
-CREDENTIALS_ARCHIVE=/var/backups/sherlock/sherlock-credentials-YYYYMMDDTHHMMSSZ.tar.gz
+DB_DUMP=/var/backups/sherlock/sherlockdb_prod-YYYYMMDDTHHMMSS.NNNNNNNNNZ-PID.dump
+CREDENTIALS_ARCHIVE=/var/backups/sherlock/sherlock-credentials-YYYYMMDDTHHMMSS.NNNNNNNNNZ-PID.tar.gz
 
 runuser -u postgres -- dropdb --if-exists --force "$DB_NAME"
 runuser -u postgres -- createdb --owner "$DB_USER" --encoding UTF8 "$DB_NAME"
@@ -135,7 +135,7 @@ chmod 0600 /opt/sherlock/config/credentials/production.key /opt/sherlock/config/
 systemctl start sherlock
 ```
 
-This assumes the PostgreSQL role, database environment file, and service account still exist. The credentials archive contains sensitive decryption material; store it securely.
+This assumes the PostgreSQL role, database environment file, and service account still exist, and that you are restoring a backup made by this same installation. The credentials archive contains sensitive decryption material; store it securely. For cross-host recovery, reconcile `/etc/sherlock/sherlock.env` with the restored Rails master key before starting the service.
 
 ## Security
 
@@ -146,7 +146,6 @@ See [SECURITY.md](SECURITY.md) for private vulnerability reporting and deploymen
 This repository is a **native deployment scaffold**, not yet the complete Sherlock Custom Edition. It does not implement single-user-only enforcement, manual statistics entry, CSV/JSON import/export workflows, or additional tracker adapters. The upstream app may still retain its existing multi-user/invite behavior.
 
 The supplied upstream archive did not contain a standalone LICENSE file. Before redistributing or publishing modified upstream source, obtain and verify the maintainer's permission/license. This repository therefore keeps deployment tooling separate from upstream application source.
-- This GitHub repository contains deployment tooling only, not the Rails application source. Do not pass `https://github.com/race-in/Sherlock.git` as the application-source URL to `install.sh`; provide a separate authorized repository containing the complete Rails source tree.
 - This GitHub repository contains deployment tooling only, not the Rails application source. Do not pass `https://github.com/race-in/Sherlock.git` as the application-source URL to `install.sh`; provide a separate authorized repository containing the complete Rails source tree.
 
 ## Validation status
