@@ -913,7 +913,7 @@ ${C_GRN}${C_BOLD}Sherlock is installed.${C_OFF}
   ${C_BOLD}Back up $CRED_DIR/production.key${C_OFF}: without it the saved API keys can't be decrypted.
 EOF
   if [[ "$account_count" == "0" ]]; then
-    echo "  First-run token: $FIRST_RUN_TOKEN"
+    echo "  One-time setup token (valid until the first admin account is created): $FIRST_RUN_TOKEN"
     echo "  Enter this token on the first-run page before creating your only admin account."
   fi
   if [[ "$PROXY" == none ]]; then
@@ -933,11 +933,11 @@ main() {
     install_local_postgres
     provision_local_database
   fi
+  check_db_connection
+  check_single_user_database
   prepare_first_run_token
   write_env_file
   install_ruby
-  check_db_connection
-  check_single_user_database
   sync_source
   build_app
   create_credentials
