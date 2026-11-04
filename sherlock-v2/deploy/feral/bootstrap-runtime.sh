@@ -79,6 +79,18 @@ if [[ ! -x "$PREFIX/bin/ruby" ]] || [[ "$("$PREFIX/bin/ruby" -e 'print RUBY_VERS
  rm -rf "$WORK/build/ruby-4.0.9"; tar -xf "$WORK/src/ruby-4.0.9.tar.xz" -C "$WORK/build"
  (cd "$WORK/build/ruby-4.0.9" && PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig" CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib -Wl,-rpath,$PREFIX/lib" ./configure --prefix="$PREFIX" --disable-install-doc --with-openssl-dir="$PREFIX" --with-zlib-dir="$PREFIX" --with-libyaml-dir="$PREFIX" --disable-yjit && make -j"$JOBS" && make install) >"$LOG_DIR/ruby-build.log" 2>&1 || { tail -n 80 "$LOG_DIR/ruby-build.log" >&2; die "Ruby build failed; see $LOG_DIR/ruby-build.log"; }
 fi
+step "Install private Rust toolchain for the prometheus mmap extension"
+RUSTUP_HOME="$PREFIX/rustup"
+CARGO_HOME="$PREFIX/cargo"
+export RUSTUP_HOME CARGO_HOME
+if [[ ! -x "$CARGO_HOME/bin/rustc" ]]; then
+ curl --proto '=https' --tlsv1.2 --fail --location --retry 3 https://sh.rustup.rs -o "$WORK/src/rustup-init.sh"
+ sh "$WORK/src/rustup-init.sh" -y --no-modify-path --profile minimal --default-toolchain 1.89.0
+fi
+export PATH="$CARGO_HOME/bin:$PATH"
+rustc --version | grep -F 'rustc 1.89.0' >/dev/null || die "Rust 1.89.0 toolchain check failed."
+cargo --version >/dev/null || die "Cargo is unavailable."
+
 step "Install temporary Node.js 22 build runtime for glibc 2.17+"
 NODE_VERSION=22.21.1
 NODE_ARCHIVE="node-v$NODE_VERSION-linux-x64-glibc-217.tar.xz"
@@ -95,10 +107,14 @@ fi
 NODE_BIN="$PREFIX/node/node-v$NODE_VERSION-linux-x64-glibc-217/bin"
 "$NODE_BIN/node" --version | grep -Fx "v$NODE_VERSION" >/dev/null || die "Node.js version check failed."
 
-export PATH="$PREFIX/bin:$NODE_BIN:$PATH" LD_LIBRARY_PATH="$PREFIX/lib"
+export PATH="$PREFIX/bin:$NODE_BIN:$CARGO_HOME/bin:$PATH" LD_LIBRARY_PATH="$PREFIX/lib"
 ruby -ropenssl -rzlib -ryaml -e 'abort "wrong Ruby" unless RUBY_VERSION=="4.0.9"; abort "wrong OpenSSL" unless OpenSSL::OPENSSL_VERSION.include?("3.5.9"); puts "Ruby #{RUBY_VERSION} / #{OpenSSL::OPENSSL_VERSION} / zlib #{Zlib::ZLIB_VERSION} / Psych #{Psych::VERSION}"'
 gem install bundler -v 4.0.20 --no-document
+gem install libclang -v 14.0.6 --no-document
+export LIBCLANG_PATH="$(ruby -rlibclang -e 'puts File.dirname(Libclang.path)')"
+[[ -f "$LIBCLANG_PATH/libclang.so" ]] || die "Bundled libclang shared library was not found."
 bundle _4.0.20_ --version
+
 printf '\nRuntime installed under %s\n' "$PREFIX"
-printf 'export PATH="%s/bin:$PATH"\n' "$PREFIX"
+printf 'export PATH="%s/bin:%s/bin:%s/cargo/bin:$PATH"\n' "$PREFIX" "$PREFIX/node/node-v22.21.1-linux-x64-glibc-217" "$PREFIX"
 printf 'export LD_LIBRARY_PATH="%s/lib:${LD_LIBRARY_PATH:-}"\n' "$PREFIX"
