@@ -7,6 +7,9 @@ APP_DIR="${SHERLOCK_HOME:-$HOME/.local/opt/sherlock}"
 CONF_DIR="${SHERLOCK_CONFIG_DIR:-$HOME/.config/sherlock-feral}"
 STATE_DIR="${SHERLOCK_STATE_DIR:-$HOME/.local/var/sherlock-feral}"
 ENV_FILE="$CONF_DIR/sherlock.env"
+CRED_DIR="$CONF_DIR/credentials"
+RUNTIME_PREFIX="${SHERLOCK_RUNTIME_PREFIX:-$HOME/.local/opt/sherlock-runtime}"
+NODE_BIN="$RUNTIME_PREFIX/node/node-v22.21.1-linux-x64-glibc-217/bin"
 
 DOMAIN=""
 PORT=18443
@@ -64,6 +67,10 @@ done
   die "Expected Debian 9 (Stretch); found ${PRETTY_NAME:-unknown}. This branch targets the Feral Debian 9 slot."
 
 info "Checking rootless runtime prerequisites"
+[[ -x "$RUNTIME_PREFIX/bin/ruby" ]] || die "Private runtime missing. Run bash ./deploy/feral/bootstrap-runtime.sh first."
+export PATH="$RUNTIME_PREFIX/bin:$NODE_BIN:$PATH"
+export LD_LIBRARY_PATH="$RUNTIME_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 command -v ruby >/dev/null || die "Ruby >= 3.2 is required. Debian 9 system Ruby is too old; install a private runtime first."
 ruby -e 'require "rubygems"; abort "Ruby >= 3.2 required" if Gem::Version.new(RUBY_VERSION) < Gem::Version.new("3.2.0")' ||
   die "Ruby >= 3.2 is required."
@@ -75,6 +82,7 @@ command -v pg_isready >/dev/null || die "pg_isready is required to verify the ex
 command -v git >/dev/null || die "git is required."
 command -v curl >/dev/null || die "curl is required."
 command -v sha256sum >/dev/null || die "sha256sum is required."
+command -v npm >/dev/null || die "Private Node.js/npm runtime missing. Re-run bootstrap-runtime.sh."
 
 info "Checking PostgreSQL connectivity"
 PGPASSWORD="$DB_PASSWORD" pg_isready -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" >/dev/null ||
@@ -98,11 +106,7 @@ bundle install
 
 info "Building frontend assets"
 if [[ ! -d "$SRC_DIR/public/assets" || -z "$(find "$SRC_DIR/public/assets" -type f -print -quit 2>/dev/null)" ]]; then
-  command -v node >/dev/null || die "Precompiled public/assets are absent and Node.js is unavailable. Build assets on a compatible machine and deploy them with the source."
-  command -v npm >/dev/null || die "npm is required to build frontend assets."
-  npm ci
-  npm run build
-  SECRET_KEY_BASE_DUMMY=1 APP_HOST="$DOMAIN" RAILS_ENV=production bundle exec rails assets:precompile
+  (cd "$SRC_DIR" && npm ci --no-audit --no-fund && npm run build && SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid RAILS_ENV=production bundle exec rails assets:precompile)
 fi
 
 info "Preparing application directory"
@@ -111,7 +115,9 @@ mkdir -p "$APP_DIR"
 tar -C "$SRC_DIR" --exclude='./.git' --exclude='./node_modules' --exclude='./tmp' -cf - . |
   tar -C "$APP_DIR" -xf -
 touch "$APP_DIR/.sherlock-feral-install"
-mkdir -p "$APP_DIR/tmp/pids" "$APP_DIR/log"
+mkdir -p "$APP_DIR/tmp/pids" "$APP_DIR/log" "$CRED_DIR"
+rm -rf "$APP_DIR/config/credentials"
+ln -s "$CRED_DIR" "$APP_DIR/config/credentials"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   umask 077
@@ -127,13 +133,32 @@ DB_PORT=$DB_PORT
 DB_NAME=$DB_NAME
 DB_USER=$DB_USER
 DB_PASSWORD=$(printf '%q' "$DB_PASSWORD")
-RAILS_MASTER_KEY=$(openssl rand -hex 16)
-SECRET_KEY_BASE=$(openssl rand -hex 64)
 EOF
   chmod 600 "$ENV_FILE"
 else
   chmod 600 "$ENV_FILE"
   echo "Existing environment file preserved: $ENV_FILE"
+fi
+
+info "Preparing encrypted Rails production credentials"
+if [[ ! -s "$CRED_DIR/production.yml.enc" || ! -s "$CRED_DIR/production.key" ]]; then
+  [[ ! -s "$CRED_DIR/production.yml.enc" && ! -s "$CRED_DIR/production.key" ]] ||
+    die "Incomplete Rails credentials pair in $CRED_DIR. Restore both files from backup."
+  CRED_TMP="$(mktemp "$CONF_DIR/credentials.XXXXXX")"
+  chmod 600 "$CRED_TMP"
+  (
+    cd "$APP_DIR"
+    set -a; . "$ENV_FILE"; set +a
+    export RAILS_ENV=production APP_HOST=setup
+    {
+      echo "secret_key_base: $(bundle exec rails secret)"
+      bundle exec rails db:encryption:init | tail -n 4
+    } > "$CRED_TMP"
+    EDITOR="cp $CRED_TMP" bundle exec rails credentials:edit --environment production >/dev/null
+  ) || { rm -f "$CRED_TMP"; die "Rails production credentials could not be created."; }
+  rm -f "$CRED_TMP"
+  [[ -s "$CRED_DIR/production.yml.enc" && -s "$CRED_DIR/production.key" ]] || die "Rails credentials files were not created."
+  chmod 600 "$CRED_DIR/production.key" "$CRED_DIR/production.yml.enc"
 fi
 
 info "Running database migrations"
@@ -151,4 +176,5 @@ info "Installation files are ready"
 echo "Application: $APP_DIR"
 echo "Environment: $ENV_FILE"
 echo "Controller:  $APP_DIR/deploy/feral/control.sh"
-echo "Before starting: set RAILS_MASTER_KEY in $ENV_FILE (chmod 600), then configure the Feral proxy."
+echo "Rails credentials: $CRED_DIR (keep production.key private and backed up)."
+echo "Configure the Feral subdomain proxy to http://127.0.0.1:$PORT, then start with control.sh."
