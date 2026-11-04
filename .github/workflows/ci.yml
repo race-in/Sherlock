@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+# Keep only the newest CI run for a branch or pull request.
+# This prevents rapid development commits from filling the hosted-runner queue.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   upstream-source-audit:
     name: Upstream Rails source inventory
