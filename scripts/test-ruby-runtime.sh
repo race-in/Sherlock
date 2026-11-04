@@ -65,8 +65,7 @@ groupadd --system sherlock-runtime-test
 useradd --system --gid sherlock-runtime-test --home-dir "$APP_HOME" --create-home --shell /usr/sbin/nologin sherlock-runtime-test
 install -d -o sherlock-runtime-test -g sherlock-runtime-test -m 0750 "$APP_DIR" "$BUNDLE_PATH" "$APP_HOME"
 cp -a "$APP_SOURCE_DIR/." "$APP_DIR/"
-# Exercise the exact deployment patcher against the bundled Rails application.
-bash "$SCRIPT_DIR/patch-native-app.sh" "$APP_DIR"
+# Test the exact bundled Rails source; the legacy patcher is covered separately by test-native-patches.sh.
 chown -R sherlock-runtime-test:sherlock-runtime-test "$APP_DIR"
 
 APP_RUBY_VERSION=$(tr -d '\r\n' < "$APP_DIR/.ruby-version")
