@@ -896,7 +896,9 @@ summary() {
   local APP_URL="$scheme://$APP_HOST"
   if [[ "$PROXY" == none && "$FORCE_SSL" == false ]]; then APP_URL="http://${APP_HOST%%:*}:$PORT"; fi
   local account_count=0
-  account_count=$(db_psql -Atc "SELECT count(*) FROM sherlockdb.users" 2>/dev/null || echo 0)
+  account_count=$(db_psql -Atc "SELECT count(*) FROM sherlockdb.users") \
+    || die "Cannot verify the account count; refusing to display the first-run setup token."
+  [[ "$account_count" =~ ^[0-9]+$ ]] || die "The database returned an invalid account count."
   cat <<EOF
 
 ${C_GRN}${C_BOLD}Sherlock is installed.${C_OFF}
@@ -934,6 +936,7 @@ main() {
   prepare_first_run_token
   write_env_file
   install_ruby
+  check_db_connection
   check_single_user_database
   sync_source
   build_app
