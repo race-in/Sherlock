@@ -49,6 +49,7 @@ runuser -u "$APP_USER" -- env \
   RAILS_ENV=production APP_HOST="$APP_HOST" RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
   DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" \
   RAILS_MAX_THREADS="${RAILS_MAX_THREADS:-3}" DB_POOL="${DB_POOL:-10}" \
+  BUNDLE_PATH="${BUNDLE_PATH:-/var/lib/sherlock/bundle}" \
   BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT='development:test' \
   bash -s -- "$APP_DIR" "$APP_GIT_BRANCH" "$PATCHER" <<'UPDATE'
 set -Eeuo pipefail
@@ -70,6 +71,7 @@ runuser -u "$APP_USER" -- env \
   PATH="$RUBY_BIN:$NODE_BIN:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin" \
   RAILS_ENV=production APP_HOST="$APP_HOST" RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
   DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DB_POOL="${DB_POOL:-10}" \
+  BUNDLE_PATH="${BUNDLE_PATH:-/var/lib/sherlock/bundle}" \
   BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT='development:test' \
   bash -s -- "$APP_DIR" <<'MIGRATE'
 set -Eeuo pipefail
