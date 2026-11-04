@@ -13,7 +13,7 @@ Ruby at the system OpenSSL and do not silently downgrade TLS verification.
 The adapter deliberately checks these prerequisites before changing files:
 - Ruby >= 3.2 with OpenSSL >= 1.1.1
 - Bundler compatible with the checked-in Gemfile.lock
-- PostgreSQL client libraries usable by the `pg` gem
+- PostgreSQL client libraries usable by the `pg` gem, plus `pg_isready` and `psql`
 - Node/npm only when assets need to be built (precompiled assets are preferred)
 - an external PostgreSQL database and credentials
 - a user-writable application directory and an available unprivileged TCP port
@@ -66,9 +66,18 @@ bash ./deploy/feral/install.sh --domain stats.example.com --port 18443 --db-host
 The development branch is the deployment source of truth for this Feral test. Update it with `git pull --ff-only origin feature/feral-rootless-edition` before testing a newer commit; do not switch this checkout to `main`.
 
 The installer is intentionally fail-closed. It validates the host/runtime/database
-before replacing an existing application. It requires the database to be provisioned
-outside this installer; the configured DB user must be able to create the
-`sherlockdb` schema and run migrations.
+before replacing an existing application. The database itself must be provisioned
+outside this installer. Before changing the app directory, the installer authenticates
+with `psql`, applies PostgreSQL SSL mode (default `require`), creates the
+`sherlockdb` schema if absent, and verifies the configured role has schema USAGE
+and CREATE privileges. Rails migrations then create the application tables.
+
+For Supabase on an IPv4-only Feral slot, use the **Session Pooler** endpoint and port
+`5432` from the Supabase Dashboard's Connect panel. Use the exact pooler hostname
+and username shown there (often `postgres.<project-ref>`), set `DB_NAME=postgres`,
+and keep `SHERLOCK_PGSSLMODE=require` (the default). Do not use the Transaction
+Pooler for this persistent Rails/Puma process. Never put the database password in
+shell history or commit it to the repository.
 
 The installer creates encrypted Rails production credentials and a private key under
 `~/.config/sherlock-feral/credentials/`. Database settings and `APP_HOST` are written
