@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  # Do not kill a running Debian compatibility matrix when another commit is pushed.
+  # Let the Debian matrix finish when a newer commit is pushed.
   cancel-in-progress: false
 
 jobs:
