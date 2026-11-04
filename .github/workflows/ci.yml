@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Check out deployment repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
       - name: Clone and audit upstream Sherlock source
         run: |
           git clone --depth 1 --no-tags \
@@ -39,6 +41,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
 
       - name: Install linters
         run: |
@@ -105,6 +109,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
 
       - name: Run platform compatibility check
         env:
