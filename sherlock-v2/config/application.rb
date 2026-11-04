@@ -47,7 +47,7 @@ module Sherlock
     # Set SINGLE_USER_MODE=true only for an explicitly requested private single-account instance.
     config.x.single_user_mode = ENV["SINGLE_USER_MODE"] == "true"
 
-    # The latest release tag, for the footer. Images get APP_VERSION at build time.
+    # The latest release tag, for the footer. Docker images and native installs set APP_VERSION.
     config.x.version = ENV.fetch("APP_VERSION") { `git describe --tags --abbrev=0 2>/dev/null`.strip.presence || "unknown" }
 
     # The public source repository, linked from the UI and the tracker User-Agent.
