@@ -1,0 +1,26 @@
+[Unit]
+Description=Sherlock private tracker statistics application
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=sherlock
+Group=sherlock
+WorkingDirectory=/opt/sherlock
+EnvironmentFile=/etc/sherlock/sherlock.env
+Environment=PATH=/opt/rubies/4.0.9/bin:/opt/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=WEB_CONCURRENCY=1
+ExecStart=/usr/bin/env bundle exec puma -C config/puma.rb
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sherlock/tmp /opt/sherlock/log /opt/sherlock/storage
+
+[Install]
+WantedBy=multi-user.target
