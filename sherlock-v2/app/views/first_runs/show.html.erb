@@ -10,9 +10,9 @@
     <%= render "shared/errors", record: form.object %>
     <% if Rails.application.config.x.single_user_mode || ENV["FIRST_RUN_TOKEN"].present? %>
       <div>
-        <%= label_tag :setup_token, "One-time installer token", class: "label" %>
+        <%= label_tag :setup_token, "First-run setup token", class: "label" %>
         <%= text_field_tag :setup_token, params[:setup_token], required: true, autocomplete: "off", autocapitalize: "none", spellcheck: false, class: "input mt-1" %>
-        <p class="hint mt-1">Enter the 64-character token printed once by the native installer.</p>
+        <p class="hint mt-1">Enter the 64-character token printed by the native installer. It is required until the first account is created.</p>
       </div>
     <% end %>
     <%= form.hidden_field :time_zone, value: form.object.time_zone, data: { time_zone_target: "field" } %>
