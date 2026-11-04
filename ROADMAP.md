@@ -15,8 +15,8 @@ This roadmap records the agreed target configuration. Items below are planned un
 ## Phase 0 — Rights and source baseline
 
 - [ ] Keep the maintainer's written permission or a clear licence record with the project governance materials; the source tree itself has no standalone LICENSE file.
-- [ ] Confirm the exact upstream commit to use as the base.
-- [ ] Keep upstream attribution, notices, and any required licence terms.
+- [x] Confirm the imported upstream base commit: `6eaecd7e249687ca2e302e7d7f5e81f91f082d53`.
+- [x] Keep upstream attribution, notices, and any required licence terms in the bundled application.
 - [x] Bundle the imported Sherlock v2 application baseline under `sherlock-v2/`, preserving upstream attribution and notices.
 - [x] Record the upstream source inventory and schema/import/export contract in `docs/UPSTREAM_AUDIT.md`.
 - [ ] Complete a clean full Rails test baseline on the bundled source in the Debian CI matrix.
@@ -26,10 +26,10 @@ This roadmap records the agreed target configuration. Items below are planned un
 ## Phase 1 — Single-user mode
 
 - [x] Upstream first-run setup creates the initial administrator account.
-- [ ] Make the installation permanently single-user: disable invite joins and every user-creation path after first-run.
-- [ ] Enforce the one-account invariant in both Rails model/controller paths and PostgreSQL, including concurrent requests.
-- [ ] Preserve existing connection ownership and historical data migrations.
-- [ ] Add regression tests proving a second account cannot be created.
+- [x] Make the native installation single-user: require the private first-run token and disable invite joins, invite management, user management and all second-account creation paths.
+- [x] Enforce the one-account invariant in the Rails model/controller path and a PostgreSQL trigger using transaction-scoped advisory locking, including concurrent requests.
+- [x] Preserve existing connection ownership and historical snapshots; the new migration only adds a trigger and does not rewrite historical data.
+- [ ] Pass CI regression tests proving a second account cannot be created through HTTP, Rails model saves or direct SQL.
 
 ## Phase 2 — Unified statistics model
 
