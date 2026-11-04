@@ -53,6 +53,40 @@ verify_secrets_archive() {
   trap - EXIT
 }
 
+
+verify_backup_pair() {
+  local dump=$1 archive=$2 dump_base archive_base archive_db_name dump_stamp archive_stamp archived_env
+
+  [[ -s "$dump" ]] || die "Database dump is missing or empty: $dump"
+  [[ -s "$archive" ]] || die "Secrets archive is missing or empty: $archive"
+  verify_secrets_archive "$archive"
+
+  dump_base=$(basename -- "$dump")
+  archive_base=$(basename -- "$archive")
+  archived_env=$(tar -xOzf "$archive" sherlock.env) || die "Cannot read archived Sherlock environment."
+  archive_db_name=$(printf '%s\n' "$archived_env" | awk -F= '$1 == "DB_NAME" { sub(/^[^=]*=/, ""); print; exit }')
+  [[ "$archive_db_name" =~ ^[A-Za-z_][A-Za-z0-9_]{0,62}$ ]] || die "Invalid DB_NAME in secrets archive."
+
+  [[ "$dump_base" == "$archive_db_name-"*.dump ]] || die "Database dump filename does not match archived DB_NAME ($archive_db_name)."
+  [[ "$archive_base" == sherlock-secrets-*.tar.gz ]] || die "Unexpected secrets archive filename."
+  dump_stamp=\${dump_base#"$archive_db_name-"}
+  dump_stamp=\${dump_stamp%.dump}
+  archive_stamp=\${archive_base#sherlock-secrets-}
+  archive_stamp=\${archive_stamp%.tar.gz}
+
+  [[ "$dump_stamp" =~ ^[0-9]{8}T[0-9]{6}\.[0-9]{9}Z-[0-9]+$ ]] || die "Database dump filename has an invalid backup timestamp."
+  [[ "$archive_stamp" =~ ^[0-9]{8}T[0-9]{6}\.[0-9]{9}Z-[0-9]+$ ]] || die "Secrets archive filename has an invalid backup timestamp."
+  [[ "$dump_stamp" == "$archive_stamp" ]] || die "Database dump and secrets archive are from different backup runs."
+
+  echo "PASS: database dump and secrets archive belong to backup $dump_stamp for $archive_db_name."
+}
+
+if [[ ${1:-} == --verify-pair ]]; then
+  [[ $# -eq 3 ]] || die "Usage: $0 --verify-pair <database.dump> <secrets-archive.tar.gz>"
+  verify_backup_pair "$2" "$3"
+  exit 0
+fi
+
 if [[ ${1:-} == --verify ]]; then
   [[ $# -eq 2 ]] || die "Usage: $0 --verify <secrets-archive.tar.gz>"
   verify_secrets_archive "$2"
@@ -84,7 +118,8 @@ SECRETS_ARCHIVE=$(realpath -- "$2")
 [[ -x "$PG_BINDIR/pg_restore" ]] || die "PostgreSQL 18 pg_restore is missing."
 "$PG_BINDIR/pg_restore" --list "$DB_DUMP" >/dev/null ||
   die "PostgreSQL dump is invalid or unreadable; the live database has not been changed."
-verify_secrets_archive "$SECRETS_ARCHIVE"
+verify_backup_pair "$DB_DUMP" "$SECRETS_ARCHIVE"
+"$PG_BINDIR/pg_restore" --list "$DB_DUMP" >/dev/null || die "PostgreSQL dump is invalid or unreadable; the live database has not been changed."
 
 RESTORE_TMP=$(mktemp -d /tmp/sherlock-restore.XXXXXX)
 trap 'rm -rf "$RESTORE_TMP"' EXIT
