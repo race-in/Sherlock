@@ -32,7 +32,8 @@ restore_service() {
       runuser -u "$APP_USER" -- bash "$PATCHER" "$APP_DIR" || true
       systemctl start sherlock || true
     else
-      echo "Database migration had started. Sherlock is intentionally left stopped to avoid running mismatched code against a partially migrated database." >&2
+      systemctl stop sherlock || true
+      echo "Database migration had started. Sherlock has been stopped to avoid running mismatched code against a partially migrated database." >&2
       echo "Inspect the migration logs, verify the database, and restore the matching backup before starting the service." >&2
     fi
     echo "Backup location: ${BACKUP_PATH:-check /var/backups/sherlock}" >&2
