@@ -96,10 +96,13 @@ runuser -u sherlock-runtime-test -- env \
 PG_PORT=$(pg_lsclusters --no-header | awk '$1 == 18 && $4 == "online" {print $3; exit}')
 [[ "$PG_PORT" =~ ^[0-9]+$ ]] || { echo "PostgreSQL 18 cluster is not online." >&2; exit 1; }
 pg_isready -h 127.0.0.1 -p "$PG_PORT"
+SINGLE_USER_DB_NAME="${DB_NAME}_single"
 runuser -u postgres -- psql -p "$PG_PORT" -v ON_ERROR_STOP=1 \
-  -v role_name="$DB_ROLE" -v role_password="$DB_PASSWORD" -v database_name="$DB_NAME" <<'SQL'
+  -v role_name="$DB_ROLE" -v role_password="$DB_PASSWORD" -v database_name="$DB_NAME" \
+  -v single_database_name="$SINGLE_USER_DB_NAME" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN SUPERUSER PASSWORD %L', :'role_name', :'role_password') \gexec
 SELECT format('CREATE DATABASE %I OWNER %I ENCODING %L', :'database_name', :'role_name', 'UTF8') \gexec
+SELECT format('CREATE DATABASE %I OWNER %I ENCODING %L', :'single_database_name', :'role_name', 'UTF8') \gexec
 SQL
 
 runuser -u sherlock-runtime-test -- env \
@@ -114,4 +117,36 @@ runuser -u sherlock-runtime-test -- env \
     bundle exec rails test
   ' -- "$APP_DIR"
 
-printf 'PASS: Debian %s compiled Ruby %s, resolved test gems, and passed the bundled Sherlock Rails test suite on PostgreSQL 18.\n' "$(cut -d. -f1 <<< "$VERSION_ID")" "$RUBY_VERSION"
+# Exercise the single-user routes and account invariant in a separate, clean database. This keeps
+# the upstream multi-user fixtures/tests above unchanged while validating the native deployment mode.
+SINGLE_USER_TOKEN=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+runuser -u sherlock-runtime-test -- env \
+  HOME="$APP_HOME" PATH="$RUBY_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT=development \
+  RAILS_ENV=test CI=true SINGLE_USER_MODE=true FIRST_RUN_TOKEN="$SINGLE_USER_TOKEN" \
+  TEST_DB_HOST=127.0.0.1 TEST_DB_PORT="$PG_PORT" TEST_DB_USER="$DB_ROLE" \
+  TEST_DB_PASSWORD="$DB_PASSWORD" TEST_DB_NAME="$SINGLE_USER_DB_NAME" \
+  bash -ec '
+    cd "$1"
+    bundle exec rails db:prepare
+    bundle exec rails runner -e test "
+      names = Rails.application.routes.named_routes.names.map(&:to_s)
+      forbidden = %w[join new_join settings_invites admin_invites admin_users]
+      present = forbidden & names
+      abort "Single-user routes are still enabled: #{present.join(", ")}" if present.any?
+      required = %w[first_run admin_sites admin_settings dashboard]
+      missing = required - names
+      abort "Required single-user routes are missing: #{missing.join(", ")}" if missing.any?
+      User.transaction do
+        first = User.create!(username: "single-admin", password: "single-user-password", time_zone: "UTC", is_admin: true)
+        abort "First account was not created" unless first.persisted?
+        second = User.new(username: "second-account", password: "second-user-password", time_zone: "UTC")
+        abort "Second account was accepted in single-user mode" if second.save
+        abort "Second-account failure did not report the single-user invariant" unless second.errors.full_messages.any? { |message| message.include?("one account only") }
+        raise ActiveRecord::Rollback
+      end
+      puts "PASS: single-user routes and one-account invariant"
+    "
+  ' -- "$APP_DIR"
+
+printf 'PASS: Debian %s compiled Ruby %s, resolved gems, passed Rails tests and passed single-user mode checks on PostgreSQL 18.\n' "$(cut -d. -f1 <<< "$VERSION_ID")" "$RUBY_VERSION"
