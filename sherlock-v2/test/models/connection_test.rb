@@ -9,6 +9,7 @@ class ConnectionTest < ActiveSupport::TestCase
         assert_equal "dr4g0n", connection.external_username
         assert_equal "new-key", connection.reload.credential
         assert_equal [ 29, 863, 13 ], connection.snapshots.last.values_at(:uploads, :forum_posts, :torrent_comments)
+        assert_equal "api", connection.snapshots.last.source
       end
     end
 
