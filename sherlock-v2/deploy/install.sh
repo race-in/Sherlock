@@ -650,7 +650,7 @@ EOF
   else
     source_commit=unversioned
   fi
-  printf 'managed_by=sherlock-deploy/install.sh\\nsource_commit=%s\\n' "$source_commit" > "$INSTALL_DIR/.sherlock-native-install"
+  printf 'managed_by=sherlock-deploy/install.sh\nsource_commit=%s\n' "$source_commit" > "$INSTALL_DIR/.sherlock-native-install"
   chown root:"$APP_USER" "$INSTALL_DIR/.sherlock-native-install"
   chmod 0640 "$INSTALL_DIR/.sherlock-native-install"
 }
