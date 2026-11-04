@@ -62,53 +62,78 @@ rewrite_deb822_file() {
   temp_file=$(mktemp)
   awk '
     BEGIN { RS = ""; ORS = "" }
-    function rewrite_uri(value) {
-      gsub(/https:\/\/deb\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
-      gsub(/http:\/\/deb\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
-      gsub(/https:\/\/ftp\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
-      gsub(/http:\/\/ftp\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
-      gsub(/https:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
-      gsub(/http:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
-      gsub(/https:\/\/security\.debian\.org\/debian-security/, "http://archive.debian.org/debian-security", value)
-      gsub(/http:\/\/security\.debian\.org\/debian-security/, "http://archive.debian.org/debian-security", value)
-      return value
+
+    function is_official_debian_uri(uri) {
+      return uri ~ /^https?:\\/\\/(deb\\.debian\\.org|ftp\\.debian\\.org|httpredir\\.debian\\.org|security\\.debian\\.org)\\/debian(-security)?\\/?$/
     }
+
+    function rewrite_uri_for_suite(uri, suite) {
+      if (!is_official_debian_uri(uri)) return uri
+      if (suite == "bullseye-security") return "http://archive.debian.org/debian-security"
+      if (uri ~ /security\\.debian\\.org\\/debian-security/) return "http://archive.debian.org/debian-security"
+      return "http://archive.debian.org/debian"
+    }
+
     {
-      count = split($0, lines, "\n")
-      drop_stanza = 0
-      has_archive = 0
-      has_validity_option = 0
+      count = split($0, lines, "\\n")
+      suites_value = ""
+      uris_value = ""
       for (i = 1; i <= count; i++) {
         if (lines[i] ~ /^Suites:[[:space:]]*/) {
-          value = lines[i]
-          sub(/^Suites:[[:space:]]*/, "", value)
-          suite_count = split(value, suites, /[[:space:]]+/)
-          kept = ""
-          for (j = 1; j <= suite_count; j++) {
-            if (suites[j] == "" || suites[j] == "bullseye-backports" || suites[j] == "bullseye-backports-sloppy") {
-              continue
-            }
-            kept = kept (kept == "" ? "" : " ") suites[j]
-          }
-          if (kept == "") {
-            drop_stanza = 1
-          } else {
-            lines[i] = "Suites: " kept
-          }
+          suites_value = lines[i]
+          sub(/^Suites:[[:space:]]*/, "", suites_value)
         }
-      }
-      if (drop_stanza) next
-      output = ""
-      for (i = 1; i <= count; i++) {
         if (lines[i] ~ /^URIs:[[:space:]]*/) {
-          lines[i] = rewrite_uri(lines[i])
-          if (lines[i] ~ /archive\.debian\.org/) has_archive = 1
+          uris_value = lines[i]
+          sub(/^URIs:[[:space:]]*/, "", uris_value)
         }
-        if (lines[i] ~ /^Check-Valid-Until:[[:space:]]*/) has_validity_option = 1
-        output = output (i == 1 ? "" : "\n") lines[i]
       }
-      if (has_archive && !has_validity_option) output = output "\nCheck-Valid-Until: no"
-      printf "%s\n\n", output
+
+      # Leave third-party-only and non-Bullseye source stanzas byte-for-byte
+      # unchanged. Only official Debian repositories are rewritten.
+      official = 0
+      uri_count = split(uris_value, uri_items, /[[:space:]]+/)
+      for (i = 1; i <= uri_count; i++) {
+        if (uri_items[i] != "" && is_official_debian_uri(uri_items[i])) official = 1
+      }
+      if (!official || suites_value == "") {
+        printf "%s\\n\\n", $0
+        next
+      }
+
+      suite_count = split(suites_value, suites, /[[:space:]]+/)
+      emitted = 0
+      for (suite_index = 1; suite_index <= suite_count; suite_index++) {
+        suite = suites[suite_index]
+        if (suite == "") continue
+        if (suite == "bullseye-backports" || suite == "bullseye-backports-sloppy") continue
+
+        rewritten_uris = ""
+        for (i = 1; i <= uri_count; i++) {
+          if (uri_items[i] == "") continue
+          new_uri = rewrite_uri_for_suite(uri_items[i], suite)
+          rewritten_uris = rewritten_uris (rewritten_uris == "" ? "" : " ") new_uri
+        }
+
+        output = ""
+        for (i = 1; i <= count; i++) {
+          if (lines[i] ~ /^URIs:[[:space:]]*/ ||
+              lines[i] ~ /^Suites:[[:space:]]*/ ||
+              lines[i] ~ /^Check-Valid-Until:[[:space:]]*/) continue
+          output = output (output == "" ? "" : "\\n") lines[i]
+        }
+        if (output != "") output = output "\\n"
+        output = output "URIs: " rewritten_uris "\\nSuites: " suite
+        if (rewritten_uris ~ /archive\\.debian\\.org/ &&
+            output !~ /Check-Valid-Until:/) {
+          output = output "\\nCheck-Valid-Until: no"
+        }
+        printf "%s\\n\\n", output
+        emitted++
+      }
+
+      # A source stanza containing only disabled Bullseye backports is omitted.
+      if (emitted == 0) next
     }
   ' "$source_file" > "$temp_file"
 
