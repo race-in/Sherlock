@@ -14,7 +14,7 @@ The native-runtime CI jobs validate the bundled source: Node installs dependenci
 
 - First-run setup creates the initial administrator account.
 - Authentication uses Rails sessions and `has_secure_password`.
-- The normal join flow accepts invites; admins can issue personal/open invites and manage users. This is multi-user behavior, not a single-user-only installation.
+- The upstream baseline's normal join flow accepts invites; admins can issue personal/open invites and manage users. The bundled native deployment now disables those routes and navigation paths, requires a private first-run token, and rejects subsequent accounts in Rails.
 - Tracker connections and immutable snapshots are already modeled with `Connection`, `Snapshot` and `History`.
 - Existing tracker engines include Gazelle, HDBits, BTN, GazelleGames, UNIT3D, Anthelion and AnimeBytes.
 - Account-data JSON export/import already exists through `User#export`, `User#import!`, and the settings data/export/import controllers.
@@ -26,7 +26,7 @@ The native-runtime CI jobs validate the bundled source: Node installs dependenci
 
 | Requirement | Audited upstream baseline | Work still required |
 |---|---|---|
-| Single-user instance | First-run admin + invite-based joins + admin user management | Provision the first account privately; block invite registration and all second-user creation paths; enforce the one-account invariant and test concurrency |
+| Single-user instance | Upstream is multi-user; native deployment layer now has a private first-run token, disabled join/invite/user-management routes, a Rails model guard and a PostgreSQL trigger protected by transaction advisory locking | CI must pass the isolated native-mode HTTP, view-rendering, model and direct-SQL regression test; then verify on a fresh VPS |
 | Manual statistics | No manual snapshot entry workflow was found in the audited controllers/routes | Add validated manual observations while preserving immutable snapshot history |
 | CSV | CSV export exists for connection history | Add CSV statistics import with preview, transactional writes and an error report |
 | JSON | User/account backup import/export exists | Add a versioned statistics interchange format without breaking the existing account-backup JSON format |
@@ -39,4 +39,4 @@ The audited upstream tree contains project documentation but no root or nearby s
 
 ## Verification limits
 
-GitHub Actions validates shell helpers and runs Debian 11/12/13 compatibility jobs against the bundled source. The Ruby job runs the Rails test suite with PostgreSQL; the Node job builds the frontend; and the schema job loads the bundled database structure. These container checks do not prove that a fresh install boots behind Nginx with TLS, that systemd behaves correctly after reboots, or that backup/restore succeeds on a real VPS. DNS, certificate issuance, real-host service startup, upgrade behavior and restore procedures remain release gates.
+GitHub Actions validates shell helpers and runs Debian 11/12/13 compatibility jobs against the bundled source. The Ruby job runs the Rails suite with PostgreSQL and an isolated single-user-mode smoke test; that smoke test checks invalid/valid setup tokens, route removal, dashboard/admin view rendering, the Rails one-account guard and the PostgreSQL trigger against direct SQL. The Node job builds the frontend; the schema job loads the bundled database structure. These container checks do not prove that a fresh install boots behind Nginx with TLS, that systemd behaves correctly after reboots, or that backup/restore succeeds on a real VPS. DNS, certificate issuance, real-host service startup, upgrade behavior and restore procedures remain release gates.
