@@ -8,7 +8,9 @@ class StatisticsCsvImporter
     uploads forum_posts torrent_comments uploaded_change downloaded_change buffer_change interval_ratio note
   ].freeze
   REQUIRED_HEADERS = %w[time uploaded downloaded].freeze
-  INTEGER_FIELDS = %w[uploaded downloaded seeding leeching snatched hit_and_runs uploads forum_posts torrent_comments].freeze
+  INTEGER_FIELDS = %w[
+    uploaded downloaded seeding leeching snatched hit_and_runs uploads forum_posts torrent_comments
+  ].freeze
   DECIMAL_FIELDS = %w[ratio required_ratio bonus_points].freeze
   BIGINT_FIELDS = %w[uploaded downloaded].freeze
   MAX_BIGINT = 9_223_372_036_854_775_807
@@ -42,14 +44,16 @@ class StatisticsCsvImporter
       batch_id = SecureRandom.uuid
       rows = table.each_with_index.filter_map do |record, index|
         row_number = index + 2
-        raise ArgumentError, "CSV row #{row_number}: the number of values does not match the header." unless record.fields.length == headers.length
+        unless record.fields.length == headers.length
+          raise ArgumentError, "CSV row #{row_number}: the number of values does not match the header."
+        end
         values = record.to_h
         next if values.values.all?(&:blank?)
 
         begin
           timestamp = values["time"].to_s
           raise ArgumentError, "time is required" if timestamp.blank?
-          raise ArgumentError, "time must include an explicit UTC offset" unless timestamp.match?(/(?:Z|[+-]\d{2}:\d{2})\z/i)
+          unless timestamp.match?(/(?:Z|[+-]\d{2}:\d{2})\z/i)\n            raise ArgumentError, "time must include an explicit UTC offset"\n          end
 
           created_at = Time.iso8601(timestamp).change(usec: 0)
           raise ArgumentError, "observation time is in the future" if created_at.future?
