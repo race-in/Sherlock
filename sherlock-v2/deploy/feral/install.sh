@@ -97,6 +97,8 @@ PG_INCLUDE="$RUNTIME_PREFIX/include"
 PG_LIB="$RUNTIME_PREFIX/lib"
 [[ -r "$PG_INCLUDE/libpq-fe.h" ]] ||
   die "Private PostgreSQL header libpq-fe.h is missing under $PG_INCLUDE."
+[[ -r "$PG_INCLUDE/postgres_ext.h" ]] ||
+  die "Private PostgreSQL companion header postgres_ext.h is missing under $PG_INCLUDE. Re-run bootstrap-runtime.sh to repair the libpq development headers."
 [[ -r "$PG_LIB/libpq.so" || -r "$PG_LIB/libpq.a" ]] ||
   die "Private PostgreSQL client library libpq is missing under $PG_LIB."
 export PG_CONFIG="$RUNTIME_PREFIX/bin/pg_config"
