@@ -17,12 +17,12 @@ rewrite_list_file() {
   temp_file=$(mktemp)
   awk '
     function rewrite_uri(value) {
-      gsub(/https:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/http:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/https:\/\/ftp\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/http:\/\/ftp\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/https:\/\/httpredir\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/http:\/\/httpredir\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/https:\/\/deb\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/http:\/\/deb\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/https:\/\/ftp\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/http:\/\/ftp\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/https:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/http:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
       return value
     }
     {
@@ -53,12 +53,12 @@ rewrite_deb822_file() {
   awk '
     BEGIN { RS = ""; ORS = "" }
     function rewrite_uri(value) {
-      gsub(/https:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/http:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/https:\/\/ftp\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/http:\/\/ftp\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/https:\/\/httpredir\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
-      gsub(/http:\/\/httpredir\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
+      gsub(/https:\/\/deb\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/http:\/\/deb\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/https:\/\/ftp\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/http:\/\/ftp\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/https:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/http:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
       return value
     }
     {
