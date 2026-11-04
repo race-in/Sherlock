@@ -65,10 +65,10 @@ The installer:
 2. Installs build dependencies, Nginx, Certbot, and PostgreSQL prerequisites.
 3. Configures PGDG for Debian 12/13, or the frozen `apt-archive.postgresql.org` Bullseye repository for Debian 11.
 4. Installs PostgreSQL 18 and creates the database, role, and required `sherlockdb` schema.
-5. Clones the authorized app source to `/opt/sherlock`.
+5. Clones the authorized app source to `/opt/sherlock` and applies two small, idempotent deployment-only patches: bind Puma to loopback and use a separate database pool setting.
 6. Builds Ruby 4.0.9, installs the checksum-verified Node.js 26.12.0 binary, then installs Bundler/gems/npm dependencies.
 7. Creates encrypted Rails production credentials and a root-managed environment file.
-8. Prepares the database, compiles assets, configures systemd and Nginx, and requests a Let's Encrypt certificate.
+8. Creates the PostgreSQL database (the app's own `structure.sql` creates its schema), prepares the database, compiles assets, configures systemd and Nginx, and requests a Let's Encrypt certificate.
 
 It refuses to overwrite an existing `/opt/sherlock` directory or an existing database role.
 
@@ -92,6 +92,8 @@ Do not expose port 3000 publicly. Nginx is the public entry point and proxies to
 - Rails binds behind Nginx; port 3000 must remain private.
 - `/etc/sherlock/sherlock.env` is root-owned and readable only by the application group.
 - Back up `config/credentials/production.key` securely; without it, encrypted credentials and saved API keys cannot be decrypted.
+- Puma is patched to listen only on `127.0.0.1:3000`; Nginx is the only public web entry point.
+- The database connection pool uses `DB_POOL=10` independently from Puma's `RAILS_MAX_THREADS=3`, leaving room for Solid Queue jobs.
 - Never commit production keys, API keys, database passwords, or `sherlock.env`.
 - Store the database dump and credential archive separately and securely.
 - Verify restore procedures before relying on backups.
