@@ -6,6 +6,8 @@ umask 077
 STAMP="$(date -u +%Y%m%dT%H%M%S.%NZ)-$"
 DEST=${1:-/var/backups/sherlock}
 install -d -m 0700 "$DEST"
+chown root:root "$DEST"
+chmod 0700 "$DEST"
 TMP_DIR=$(mktemp -d "$DEST/.sherlock-backup.XXXXXX")
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -26,7 +28,7 @@ tar -czf "$CREDENTIALS_TMP" -C /opt/sherlock \
 
 {
   printf 'created_at_utc=%s\n' "$STAMP"
-  printf 'application_commit=%s\n' "$(git -C /opt/sherlock rev-parse HEAD)"
+  printf 'application_commit=%s\n' "$(runuser -u sherlock -- git -C /opt/sherlock rev-parse HEAD)"
   printf 'database=%s\n' "$DB_NAME"
   printf 'postgres_client_version=%s\n' "$(/usr/lib/postgresql/18/bin/pg_dump --version)"
 } > "$MANIFEST_TMP"
