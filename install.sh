@@ -212,9 +212,18 @@ if [[ ! -f "$APP_DIR/config/credentials/production.yml.enc" ]]; then
     cd /opt/sherlock
     CREDENTIALS_TMP=$(mktemp /tmp/sherlock-credentials.XXXXXX)
     trap '\''rm -f "$CREDENTIALS_TMP"'\'' EXIT
+    ENCRYPTION_OUTPUT=$(bin/rails db:encryption:init)
+    ENCRYPTION_YAML=$(printf "%s\\n" "$ENCRYPTION_OUTPUT" | sed -n "/^active_record_encryption:/,$p")
+    [[ -n "$ENCRYPTION_YAML" ]] || { echo "Rails did not emit an active_record_encryption block." >&2; exit 1; }
+    for required_key in primary_key deterministic_key key_derivation_salt; do
+      grep -Eq "^[[:space:]]+$required_key:" <<< "$ENCRYPTION_YAML" || {
+        echo "Rails encryption output is missing $required_key." >&2
+        exit 1
+      }
+    done
     {
       printf "secret_key_base: %s\\n" "$(bin/rails secret)"
-      bin/rails db:encryption:init | tail -n 4
+      printf "%s\\n" "$ENCRYPTION_YAML"
     } > "$CREDENTIALS_TMP"
     EDITOR="cp $CREDENTIALS_TMP" bin/rails credentials:edit --environment production
   '
