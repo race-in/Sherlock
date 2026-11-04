@@ -664,6 +664,11 @@ CREATE TABLE sherlockdb.snapshots (
     uploads integer,
     forum_posts integer,
     torrent_comments integer,
+    source character varying DEFAULT 'api'::character varying NOT NULL,
+    note text,
+    created_by_user_id bigint,
+    CONSTRAINT snapshots_source_valid CHECK (((source)::text = ANY ((ARRAY['api'::character varying, 'manual'::character varying, 'csv_import'::character varying, 'json_import'::character varying])::text[]))),
+    CONSTRAINT snapshots_note_length CHECK (((note IS NULL) OR (char_length(note) <= 500))),
     CONSTRAINT snapshots_bytes_range CHECK (((uploaded >= 0) AND (downloaded >= 0))),
     CONSTRAINT snapshots_community_counts_range CHECK (((COALESCE(uploads, 0) >= 0) AND (COALESCE(forum_posts, 0) >= 0) AND (COALESCE(torrent_comments, 0) >= 0))),
     CONSTRAINT snapshots_counts_range CHECK (((COALESCE(seeding, 0) >= 0) AND (COALESCE(leeching, 0) >= 0) AND (COALESCE(snatched, 0) >= 0) AND (COALESCE(hit_and_runs, 0) >= 0)))
@@ -2235,6 +2240,13 @@ ALTER TABLE ONLY sherlockdb.solid_queue_failed_executions
 ALTER TABLE ONLY sherlockdb.snapshots
     ADD CONSTRAINT fk_rails_3e4ac0b1f1 FOREIGN KEY (connection_id) REFERENCES sherlockdb.connections(id) ON DELETE CASCADE;
 
+--
+-- Name: snapshots fk_rails_bdd9e6b7fc; Type: FK CONSTRAINT; Schema: sherlockdb; Owner: -
+--
+
+ALTER TABLE ONLY sherlockdb.snapshots
+    ADD CONSTRAINT fk_rails_bdd9e6b7fc FOREIGN KEY (created_by_user_id) REFERENCES sherlockdb.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: solid_queue_blocked_executions fk_rails_4cd34e2228; Type: FK CONSTRAINT; Schema: sherlockdb; Owner: -
@@ -2387,6 +2399,8 @@ ALTER TABLE ONLY sherlockdb.site_grants
 SET search_path TO sherlockdb;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261104140000'),
+('20261104130000'),
 ('20261028144152'),
 ('20261028105602'),
 ('20261027213858'),
