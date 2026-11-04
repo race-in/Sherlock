@@ -1,6 +1,25 @@
 require "test_helper"
 
 class UserTest < ActiveSupport::TestCase
+  test "native application defaults to invite-based multi-user mode" do
+    assert_not Rails.application.config.x.single_user_mode
+  end
+
+  test "an invited account starts with isolated tracker data and remains in its inviter branch" do
+    alice, bob = users(:alice), users(:bob)
+    invite = alice.created_invites.create!
+    carol = invite.accept!(username: "carol", password: "long-enough-pw", time_zone: "UTC")
+
+    assert_equal alice, carol.invited_by_user
+    assert_includes alice.branch, carol
+    assert_includes alice.branch, bob
+    assert_empty carol.connections
+    assert_equal [ "Redacted" ], alice.connections.includes(:site).map { _1.site.name }.uniq
+    assert_equal [ "Redacted" ], bob.connections.includes(:site).map { _1.site.name }.uniq
+    assert_not_equal alice.connections.sole.id, bob.connections.sole.id
+    assert_equal 0, carol.metrics.length
+  end
+
   test "branch is everyone below a user in the invite tree" do
     assert_equal [ users(:alice), users(:bob) ].map(&:id).sort, User.branch_ids(users(:alice).id).sort
     assert_equal %w[bob], users(:alice).branch.map(&:username)
