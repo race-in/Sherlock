@@ -48,6 +48,11 @@ while (($#)); do
   esac
 done
 
+# Reuse the protected password from a previous partial/complete install on reruns.
+if [[ -z "$DB_PASSWORD" && -f "$ENV_FILE" ]]; then
+  DB_PASSWORD="$(bash -c 'source "$1"; printf "%s" "${DB_PASSWORD:-}"' _ "$ENV_FILE")"
+fi
+
 [[ "$DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || die "A valid --domain is required."
 [[ "$PORT" =~ ^[0-9]+$ ]] && ((PORT > 1024 && PORT < 65536)) || die "Port must be 1025..65535."
 [[ -n "$DB_HOST" && -n "$DB_NAME" && -n "$DB_USER" ]] || die "--db-host, --db-name and --db-user are required."
