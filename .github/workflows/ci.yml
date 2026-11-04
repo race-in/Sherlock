@@ -65,6 +65,8 @@ jobs:
           bash scripts/test-native-patches.sh
           bash scripts/test-bullseye-archive.sh
           bash scripts/test-backup-restore.sh
+          bash scripts/test-nginx-host-conflict.sh
+          bash scripts/test-installer-contract.sh
 
       - name: Validate workflow YAML
         run: yamllint --strict -d relaxed .github/workflows/ci.yml
