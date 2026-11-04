@@ -53,7 +53,9 @@ class StatisticsCsvImporter
         begin
           timestamp = values["time"].to_s
           raise ArgumentError, "time is required" if timestamp.blank?
-          unless timestamp.match?(/(?:Z|[+-]\d{2}:\d{2})\z/i)\n            raise ArgumentError, "time must include an explicit UTC offset"\n          end
+          unless timestamp.match?(/(?:Z|[+-]\d{2}:\d{2})\z/i)
+            raise ArgumentError, "time must include an explicit UTC offset"
+          end
 
           created_at = Time.iso8601(timestamp).change(usec: 0)
           raise ArgumentError, "observation time is in the future" if created_at.future?
