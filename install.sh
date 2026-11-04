@@ -45,8 +45,13 @@ case "$ARCH" in
   arm64) NODE_ARCH=arm64 ;;
   *) die "Unsupported architecture: $ARCH. Supported: amd64 and arm64." ;;
 esac
+case "$DEBIAN_MAJOR" in
+  11) NODE_BINARY_VERSION=24.22.2; NODE_MIN_GLIBC=2.28 ;;
+  12|13) NODE_BINARY_VERSION=26.12.0; NODE_MIN_GLIBC=2.34 ;;
+esac
 GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
-dpkg --compare-versions "$GLIBC_VERSION" ge 2.28 || die "glibc $GLIBC_VERSION is too old; Node.js 26.12.0 requires glibc >= 2.28."
+dpkg --compare-versions "$GLIBC_VERSION" ge "$NODE_MIN_GLIBC" \
+  || die "glibc $GLIBC_VERSION is too old for Node.js $NODE_BINARY_VERSION (requires >= $NODE_MIN_GLIBC)."
 
 # Fail before installing or compiling the stack if the public hostname is not ready.
 getent ahosts "$DOMAIN" >/dev/null || die "DNS for $DOMAIN does not resolve yet. Create its A/AAAA record pointing to this VPS and rerun."
@@ -139,9 +144,9 @@ for required in .ruby-version .node-version Gemfile.lock package-lock.json confi
   [[ -f "$STAGING_DIR/$required" ]] || die "Application source is missing required file: $required"
 done
 RUBY_VERSION=$(tr -d '\r\n' < "$STAGING_DIR/.ruby-version")
-NODE_VERSION=$(tr -d '\r\n' < "$STAGING_DIR/.node-version")
+APP_NODE_VERSION=$(tr -d '\r\n' < "$STAGING_DIR/.node-version")
 [[ "$RUBY_VERSION" == 4.0.9 ]] || die "Unsupported application Ruby version: $RUBY_VERSION (installer is pinned for 4.0.9)."
-[[ "$NODE_VERSION" == 26.12.0 ]] || die "Unsupported application Node.js version: $NODE_VERSION (installer is pinned for 26.12.0)."
+[[ "$APP_NODE_VERSION" == 26.12.0 ]] || die "Unsupported application Node.js version: $APP_NODE_VERSION (installer expects upstream source pin 26.12.0)."
 RUBY_PREFIX="$RUBY_PREFIX_BASE/$RUBY_VERSION"
 install -d -m 0755 /usr/local/libexec/sherlock
 install -o root -g root -m 0755 "$SCRIPT_DIR/scripts/patch-native-app.sh" /usr/local/libexec/sherlock/patch-native-app.sh
@@ -168,17 +173,17 @@ fi
 "$RUBY_PREFIX/bin/ruby" -ropenssl -e 'abort "Ruby OpenSSL extension is not available" unless OpenSSL::OPENSSL_VERSION'
 gem install bundler -v 4.0.20 --no-document
 
-log "Installing official Node.js ${NODE_VERSION} binary for ${NODE_ARCH}"
-NODE_TARBALL="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+log "Installing official Node.js ${NODE_BINARY_VERSION} build runtime for ${NODE_ARCH}"
+NODE_TARBALL="node-v${NODE_BINARY_VERSION}-linux-${NODE_ARCH}.tar.xz"
 TMP_NODE_DIR=$(mktemp -d)
-curl -fsSLo "$TMP_NODE_DIR/SHASUMS256.txt" "$NODE_DIST_BASE/v$NODE_VERSION/SHASUMS256.txt"
-curl -fsSLo "$TMP_NODE_DIR/$NODE_TARBALL" "$NODE_DIST_BASE/v$NODE_VERSION/$NODE_TARBALL"
+curl -fsSLo "$TMP_NODE_DIR/SHASUMS256.txt" "$NODE_DIST_BASE/v$NODE_BINARY_VERSION/SHASUMS256.txt"
+curl -fsSLo "$TMP_NODE_DIR/$NODE_TARBALL" "$NODE_DIST_BASE/v$NODE_BINARY_VERSION/$NODE_TARBALL"
 grep -E "^[0-9a-f]{64}  ${NODE_TARBALL}$" "$TMP_NODE_DIR/SHASUMS256.txt" > "$TMP_NODE_DIR/node.sha256" \
   || die "No official SHA-256 checksum found for $NODE_TARBALL"
 (cd "$TMP_NODE_DIR" && sha256sum --check node.sha256)
 install -d -m 0755 "$NODE_PREFIX"
 tar -xJf "$TMP_NODE_DIR/$NODE_TARBALL" -C "$NODE_PREFIX" --strip-components=1
-"$NODE_PREFIX/bin/node" --version | grep -Fx "v$NODE_VERSION" >/dev/null || die 'Installed Node.js version verification failed.'
+"$NODE_PREFIX/bin/node" --version | grep -Fx "v$NODE_BINARY_VERSION" >/dev/null || die "Installed Node.js version verification failed (expected $NODE_BINARY_VERSION)."
 "$NODE_PREFIX/bin/npm" --version
 rm -rf "$TMP_NODE_DIR"
 TMP_NODE_DIR=
