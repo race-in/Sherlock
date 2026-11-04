@@ -124,8 +124,8 @@ runuser -u sherlock-runtime-test -- env \
 # Exercise the same frontend build path as deploy/install.sh. This catches Node/npm,
 # lockfile, esbuild, Rails asset-pipeline and production asset configuration regressions.
 runuser -u sherlock-runtime-test -- env \
-  HOME="$APP_HOME" PATH="$RUNTIME_PATH" \\
-  BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT=development \\
+  HOME="$APP_HOME" PATH="$RUNTIME_PATH" \
+  BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT=development \
   RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid \\
   bash -ec '
     cd "$1"
