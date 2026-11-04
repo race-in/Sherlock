@@ -94,4 +94,7 @@ jobs:
             --volume "$GITHUB_WORKSPACE:/workspace:ro" \
             --workdir /workspace \
             "$DEBIAN_IMAGE" \
-            bash -ec 'bash scripts/compatibility-check.sh && bash scripts/test-apt-dependencies.sh'
+            bash -ec '
+              bash scripts/compatibility-check.sh
+              bash scripts/test-apt-dependencies.sh
+            '
