@@ -27,7 +27,10 @@ class StatisticsCsvImporter
     csv_text = csv_text.dup.force_encoding(Encoding::UTF_8)
     raise ArgumentError, "CSV isn't valid UTF-8." unless csv_text.valid_encoding?
 
-    table = CSV.parse(csv_text, headers: true, encoding: "bom|utf-8")
+    # Ruby does not expose "bom|utf-8" as a named Encoding on every supported build.
+    # Strip the optional UTF-8 BOM explicitly, then parse the already-validated UTF-8 string.
+    csv_text.delete_prefix!("\uFEFF")
+    table = CSV.parse(csv_text, headers: true)
     headers = table.headers&.map(&:to_s)
     raise ArgumentError, "CSV needs a header row." if headers.blank?
     raise ArgumentError, "CSV contains blank column names." if headers.any?(&:blank?)
