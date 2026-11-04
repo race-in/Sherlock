@@ -116,8 +116,6 @@ DB_DUMP=$(realpath -- "$1")
 SECRETS_ARCHIVE=$(realpath -- "$2")
 [[ -f "$DB_DUMP" && -s "$DB_DUMP" ]] || die "Database dump is missing or empty: $DB_DUMP"
 [[ -x "$PG_BINDIR/pg_restore" ]] || die "PostgreSQL 18 pg_restore is missing."
-"$PG_BINDIR/pg_restore" --list "$DB_DUMP" >/dev/null ||
-  die "PostgreSQL dump is invalid or unreadable; the live database has not been changed."
 verify_backup_pair "$DB_DUMP" "$SECRETS_ARCHIVE"
 "$PG_BINDIR/pg_restore" --list "$DB_DUMP" >/dev/null || die "PostgreSQL dump is invalid or unreadable; the live database has not been changed."
 
