@@ -2,12 +2,10 @@
 <h1 class="heading mb-6 text-3xl">Settings</h1>
 <div class="flex flex-col gap-6 md:flex-row">
   <nav class="flex shrink-0 gap-0.5 overflow-x-auto md:w-44 md:flex-col" aria-label="Settings">
-    <% settings_tabs = [ [ "Trackers", settings_connections_path, "hdd-stack" ], ([ "qui", settings_qui_connections_path, "arrow-left-right" ] if Integration.qui.available_to?(Current.user)),
-         [ "Preferences", edit_settings_preferences_path, "sliders" ] ] %>
-    <% settings_tabs << [ "Invites", settings_invites_path, "envelope-paper" ] unless Rails.application.config.x.single_user_mode %>
-    <% settings_tabs.concat([ [ "Account", settings_account_path, "person" ], [ "Data", settings_data_path, "database" ],
-         [ "Developer", settings_developer_path, "code-slash" ] ]) %>
-    <% settings_tabs.compact.each do |label, path, icon| %>
+    <% [ [ "Trackers", settings_connections_path, "hdd-stack" ], ([ "qui", settings_qui_connections_path, "arrow-left-right" ] if Integration.qui.available_to?(Current.user)),
+         [ "Preferences", edit_settings_preferences_path, "sliders" ], [ "Invites", settings_invites_path, "envelope-paper" ],
+         [ "Account", settings_account_path, "person" ], [ "Data", settings_data_path, "database" ],
+         [ "Developer", settings_developer_path, "code-slash" ] ].compact.each do |label, path, icon| %>
       <%= nav_link label, path, icon:, active: request.path.start_with?(path) || (path == settings_account_path && request.path == edit_password_path) %>
     <% end %>
   </nav>
