@@ -7,6 +7,23 @@ JOBS="${SHERLOCK_BUILD_JOBS:-2}"
 die(){ printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 step(){ printf '\n==> %s\n' "$*"; }
 need(){ command -v "$1" >/dev/null 2>&1 || die "Missing build tool: $1 (root access is not used)."; }
+
+# RubyGems uses the private OpenSSL runtime later in this bootstrap. Give it
+# the host's trusted CA bundle rather than the private OpenSSL empty default.
+if [[ -z "${SSL_CERT_FILE:-}" ]]; then
+ for ca_file in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/ca-bundle.pem; do
+  if [[ -r "$ca_file" ]]; then SSL_CERT_FILE="$ca_file"; break; fi
+ done
+fi
+[[ -n "${SSL_CERT_FILE:-}" && -r "$SSL_CERT_FILE" ]] ||
+ die "No readable system CA bundle found. Set SSL_CERT_FILE to a trusted PEM bundle."
+if [[ -z "${SSL_CERT_DIR:-}" ]]; then
+ for ca_dir in /etc/ssl/certs /etc/pki/tls/certs; do
+  if [[ -d "$ca_dir" ]]; then SSL_CERT_DIR="$ca_dir"; break; fi
+ done
+fi
+[[ -z "${SSL_CERT_DIR:-}" || -d "$SSL_CERT_DIR" ]] || die "SSL_CERT_DIR is not a directory: $SSL_CERT_DIR"
+export SSL_CERT_FILE SSL_CERT_DIR
 fetch(){
  local url="$1" file="$2" sha="$3"
  if [[ -f "$file" ]] && printf '%s  %s\n' "$sha" "$file" | sha256sum -c --status; then return; fi
