@@ -7,15 +7,17 @@ Rails.application.routes.draw do
 
   resource :first_run, only: %i[show create]
   resource :session, only: %i[new create destroy]
-  get "join" => "joins#new", as: :new_join
-  get "join/:code" => "joins#show", as: :join
-  post "join/:code" => "joins#create"
-  scope "join/:code", as: :join, module: :joins do
-    resource :profile, only: %i[create destroy]
-    resource :check, only: :create
+  unless Rails.application.config.x.single_user_mode
+    get "join" => "joins#new", as: :new_join
+    get "join/:code" => "joins#show", as: :join
+    post "join/:code" => "joins#create"
+    scope "join/:code", as: :join, module: :joins do
+      resource :profile, only: %i[create destroy]
+      resource :check, only: :create
+    end
+    # Members put this link on their tracker profile to opt in. It only explains itself.
+    get "opt-in/:code" => "opt_ins#show", as: :opt_in
   end
-  # Members put this link on their tracker profile to opt in. It only explains itself.
-  get "opt-in/:code" => "opt_ins#show", as: :opt_in
   resource :password, only: %i[edit update]
   resource :privacy, only: :show, controller: "privacy"
 
@@ -63,7 +65,7 @@ Rails.application.routes.draw do
     resource :developer, only: :show, controller: "developer" do
       resource :metrics_token, only: %i[create destroy]
     end
-    resources :invites, only: %i[index create destroy], param: :code
+    resources :invites, only: %i[index create destroy], param: :code unless Rails.application.config.x.single_user_mode
     resource :account, only: %i[show destroy]
     resources :sessions, only: :destroy
     resource :other_sessions, only: :destroy
@@ -73,18 +75,20 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
-    root to: redirect("/admin/users")
+    root to: redirect(Rails.application.config.x.single_user_mode ? "/admin/sites" : "/admin/users")
     resources :setup_skips, only: :create
-    resources :users, only: %i[index show update] do
-      scope module: :users do
-        resource :password_reset, only: :create
-        resource :disable, only: %i[create destroy]
-        resource :branch_disable, only: :create
-        resources :grants, only: %i[create destroy], param: :slug
-        resources :integration_grants, only: %i[create destroy], param: :slug
+    unless Rails.application.config.x.single_user_mode
+      resources :users, only: %i[index show update] do
+        scope module: :users do
+          resource :password_reset, only: :create
+          resource :disable, only: %i[create destroy]
+          resource :branch_disable, only: :create
+          resources :grants, only: %i[create destroy], param: :slug
+          resources :integration_grants, only: %i[create destroy], param: :slug
+        end
       end
+      resources :invites, only: %i[index create destroy], param: :code
     end
-    resources :invites, only: %i[index create destroy], param: :code
     resources :sites, only: %i[index show update], param: :slug do
       scope module: :sites do
         resource :setup, only: %i[new create]
