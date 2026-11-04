@@ -140,15 +140,15 @@ abort "First-run accepted an invalid setup token" unless web.response.status == 
 abort "Invalid setup token created an account" if User.exists?
 
 web.post("/first_run", params: { user: attributes, setup_token: ENV.fetch("FIRST_RUN_TOKEN") })
-abort "First-run did not create the admin with the valid token (HTTP #{web.response.status})" unless web.response.redirect?
+abort "First-run did not create the admin with the valid token (HTTP #{web.response.status})" unless (300..399).cover?(web.response.status)
 user = User.find_by!(username: "single-admin")
 abort "First account was not made admin" unless user.is_admin?
 user.complete_onboarding!
 
 web.get("/dashboard")
-abort "Single-user dashboard failed to render (HTTP #{web.response.status})" unless web.response.success?
+abort "Single-user dashboard failed to render (HTTP #{web.response.status})" unless (200..299).cover?(web.response.status)
 web.get("/admin/sites")
-abort "Single-user Admin/Sites page failed to render (HTTP #{web.response.status})" unless web.response.success?
+abort "Single-user Admin/Sites page failed to render (HTTP #{web.response.status})" unless (200..299).cover?(web.response.status)
 web.get("/join")
 abort "Join route should be disabled in single-user mode" unless web.response.status == 404
 
@@ -161,12 +161,26 @@ begin
     INSERT INTO sherlockdb.users (username, password_digest, created_at, updated_at)
     VALUES ('direct-sql-second-account', 'not-a-login-digest', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   SQL
-  abort "PostgreSQL trigger allowed direct SQL to create a second account"
-rescue ActiveRecord::StatementInvalid => error
-  raise unless error.message.include?("one account only")
+  abort "PostgreSQL unique index allowed direct SQL to create a second account"
+rescue ActiveRecord::RecordNotUnique => error
+  raise unless error.message.include?("users_single_user_mode_idx")
 end
 
-puts "PASS: single-user routes, token gate, rendered pages, Rails invariant and PostgreSQL trigger"
+# A multi-row INSERT in one SQL statement must also fail atomically; this is why the database
+# boundary is a unique index rather than a row trigger that only counts existing rows.
+begin
+  User.connection.execute(<<~SQL)
+    INSERT INTO sherlockdb.users (username, password_digest, created_at, updated_at)
+    VALUES
+      ('direct-sql-row-a', 'not-a-login-digest', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+      ('direct-sql-row-b', 'not-a-login-digest', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  SQL
+  abort "PostgreSQL unique index allowed a multi-row insert"
+rescue ActiveRecord::RecordNotUnique => error
+  raise unless error.message.include?("users_single_user_mode_idx")
+end
+
+puts "PASS: single-user routes, token gate, rendered pages, Rails invariant and PostgreSQL unique index"
 RUBY
 chown sherlock-runtime-test:sherlock-runtime-test "$SINGLE_USER_SMOKE"
 
