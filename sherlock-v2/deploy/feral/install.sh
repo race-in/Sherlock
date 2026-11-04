@@ -223,7 +223,19 @@ info "Validating rendered database configuration"
   . "$ENV_FILE"
   set +a
   ruby -rjson -rerb -ryaml -e '
-    config = YAML.load(ERB.new(File.read(ARGV.fetch(0))).result)
+    source = ERB.new(File.read(ARGV.fetch(0))).result
+    # Psych 4+ disables YAML aliases by default; older Psych versions enable
+    # them and do not accept the aliases keyword. Detect support at runtime so
+    # the same installer works with the legacy Ruby 2.3 and private Ruby 4.
+    load_parameters = YAML.method(:load).parameters
+    supports_aliases_option = load_parameters.any? do |kind, name|
+      kind == :keyrest || name == :aliases
+    end
+    config = if supports_aliases_option
+      YAML.load(source, aliases: true)
+    else
+      YAML.load(source)
+    end
     production = config.fetch("production")
     abort "production database host mismatch" unless production.fetch("host") == ENV.fetch("DB_HOST")
     abort "production database name mismatch" unless production.fetch("database") == ENV.fetch("DB_NAME")
