@@ -140,6 +140,7 @@ parse_args() {
   done
   [[ -z "$OPT_PROXY" || "$OPT_PROXY" == nginx || "$OPT_PROXY" == none ]] || die "--proxy must be nginx or none"
   [[ -z "$OPT_PORT" || "$OPT_PORT" =~ ^[0-9]+$ ]] || die "--port must be a number"
+  [[ -z "$OPT_PORT" || ( "$OPT_PORT" -ge 1 && "$OPT_PORT" -le 65535 ) ]] || die "--port must be between 1 and 65535"
   [[ -z "$OPT_PG_VERSION" || "$OPT_PG_VERSION" =~ ^[0-9]+$ ]] || die "--pg-version must be a number like 18"
   [[ "$INSTALL_DIR" == /* ]] || die "--install-dir must be an absolute path"
 }
@@ -495,7 +496,7 @@ write_env_file() {
     echo "DB_USER=$DB_USER"
     echo "DB_PASSWORD=$DB_PASSWORD"
     echo "SOLID_QUEUE_IN_PUMA=true"
-    echo "METRICS_BIND=$(pick "" METRICS_BIND "$metrics_bind")"
+    echo "METRICS_BIND=$metrics_bind"
     echo "# --- your own settings (RAILS_LOG_LEVEL, JOB_CONCURRENCY, METRICS_PORT, ...) ---"
     if [[ -f "$ENV_FILE" ]]; then
       grep -vE '^(# Managed by deploy|# After editing|# --- your own|$|(RAILS_ENV|APP_HOST|FORCE_SSL|PORT|BIND_ADDRESS|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|SOLID_QUEUE_IN_PUMA|METRICS_BIND)=)' "$ENV_FILE" || true
@@ -569,19 +570,31 @@ trap cleanup_node EXIT
 # ---------------------------------------------------------------------------------------------
 sync_source() {
   step "Copying the app to $INSTALL_DIR"
+  # Never let rsync --delete turn an unrelated /opt/sherlock directory into a data-loss event.
+  if [[ -e "$INSTALL_DIR" && ! -f "$INSTALL_DIR/.sherlock-native-install" ]]; then
+    die "$INSTALL_DIR exists but is not marked as a Sherlock native installation; refusing to sync over it."
+  fi
+
+  # A real credentials directory may contain keys from a manual/older install.
+  # Never recursively delete it; require the operator to migrate or back it up.
+  if [[ -d "$INSTALL_DIR/config/credentials" && ! -L "$INSTALL_DIR/config/credentials" ]]; then
+    if find "$INSTALL_DIR/config/credentials" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+      die "$INSTALL_DIR/config/credentials is a non-empty real directory. Back up/migrate its contents to $CRED_DIR before retrying."
+    fi
+    rmdir "$INSTALL_DIR/config/credentials"
+  fi
+
   if [[ "$(realpath "$SRC_DIR")" != "$(realpath "$INSTALL_DIR")" ]]; then
     rsync -a --delete \
       --exclude '/.git' --exclude '/.forgejo' --exclude '/.bundle' \
+      --exclude '/.sherlock-native-install' \
       --exclude '/node_modules' --exclude '/vendor/bundle' \
       --exclude '/tmp' --exclude '/log' --exclude '/config/credentials' \
       --exclude '/public/assets' --exclude '/app/assets/builds' \
       "$SRC_DIR/" "$INSTALL_DIR/"
   fi
   install -d "$INSTALL_DIR/tmp/pids" "$INSTALL_DIR/tmp/cache" "$INSTALL_DIR/log" "$INSTALL_DIR/app/assets/builds"
-  # config/credentials holds the production key and encrypted file; it lives in /etc/sherlock.
-  if [[ -e "$INSTALL_DIR/config/credentials" && ! -L "$INSTALL_DIR/config/credentials" ]]; then
-    rm -rf "$INSTALL_DIR/config/credentials"
-  fi
+  # Production credentials live outside the application tree.
   ln -sfn "$CRED_DIR" "$INSTALL_DIR/config/credentials"
 
   # Same bundler settings the Dockerfile uses, in the app's own config so the service sees them too.
@@ -593,6 +606,9 @@ BUNDLE_PATH: "vendor/bundle"
 BUNDLE_WITHOUT: "development:test"
 EOF
   chown -R "$APP_USER:$APP_USER" "$INSTALL_DIR"
+  printf 'managed_by=sherlock-deploy/install.sh\\n' > "$INSTALL_DIR/.sherlock-native-install"
+  chown root:"$APP_USER" "$INSTALL_DIR/.sherlock-native-install"
+  chmod 0640 "$INSTALL_DIR/.sherlock-native-install"
 }
 
 build_app() {
