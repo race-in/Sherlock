@@ -137,7 +137,7 @@ SQL
 runuser -u sherlock-runtime-test -- env \
   HOME="$APP_HOME" PATH="$RUNTIME_PATH" \
   BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT=development \
-  RAILS_ENV=test CI=true \
+  RAILS_ENV=test CI=true APP_VERSION=v0.0.0-ci \
   TEST_DB_HOST=127.0.0.1 TEST_DB_PORT="$PG_PORT" TEST_DB_USER="$DB_ROLE" \
   TEST_DB_PASSWORD="$DB_PASSWORD" TEST_DB_NAME="$DB_NAME" \
   bash -ec '
