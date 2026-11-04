@@ -5,6 +5,19 @@ class UserTest < ActiveSupport::TestCase
     assert_not Rails.application.config.x.single_user_mode
   end
 
+  test "single-user mode blocks additional accounts at the database write boundary" do
+    original = Rails.application.config.x.single_user_mode
+    Rails.application.config.x.single_user_mode = true
+    user = User.new(username: "carol", password: "long-enough-pw", time_zone: "UTC")
+
+    assert_no_difference -> { User.count } do
+      error = assert_raises(ActiveRecord::RecordInvalid) { user.save! }
+      assert_includes error.record.errors.full_messages, "This Sherlock instance is configured for one account only."
+    end
+  ensure
+    Rails.application.config.x.single_user_mode = original
+  end
+
   test "an invited account starts with isolated tracker data and remains in its inviter branch" do
     alice, bob = users(:alice), users(:bob)
     invite = alice.created_invites.create!
