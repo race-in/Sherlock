@@ -20,7 +20,7 @@ cd Sherlock/sherlock-v2
 sudo ./deploy/install.sh --domain stats.example.com --letsencrypt you@example.com
 ```
 
-Replace the example hostname and email. The installer builds the pinned Ruby runtime, downloads and checksum-verifies the Node.js build runtime, installs PostgreSQL, creates encrypted Rails credentials, configures systemd and Nginx, obtains a Let's Encrypt certificate, and checks the local Rails health endpoint. It enables single-user mode and prints a 64-character one-time setup token only while the database has no account; enter that token on the first-run page. Keep the token private. Existing databases with more than one account are rejected without deleting data.
+Replace the example hostname and email. The installer builds the pinned Ruby runtime, downloads and checksum-verifies the Node.js build runtime, installs PostgreSQL, creates encrypted Rails credentials, configures systemd and Nginx, obtains a Let's Encrypt certificate, and checks the local Rails health endpoint. It enables single-user mode and prints a 64-character first-run setup token when the database has no account; enter that token on the first-run page. Keep the token private. The token remains in the root-only environment file and the first-run page becomes unavailable once the account exists. Existing databases with more than one account are rejected without deleting data.
 
 The canonical application installer is **[`sherlock-v2/deploy/install.sh`](sherlock-v2/deploy/install.sh)**. The root-level `install.sh` and the root `scripts/` directory are retained for the older separate-source deployment scaffold; do not use that legacy entry point for the bundled application.
 
