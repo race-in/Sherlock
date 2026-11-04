@@ -27,7 +27,7 @@ Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 DEB822
 
 APT_SOURCE_ROOT="$TMP" bash "$PREPARER"
-grep -Fq 'https://archive.debian.org/debian bullseye main' "$TMP/etc/apt/sources.list"
+grep -Fq 'http://archive.debian.org/debian bullseye main' "$TMP/etc/apt/sources.list"
 ! grep -q 'security.debian.org' "$TMP/etc/apt/sources.list"
 grep -Fq 'Suites: bullseye bullseye-updates' "$TMP/etc/apt/sources.list.d/debian.sources"
 ! grep -q 'bullseye-security' "$TMP/etc/apt/sources.list.d/debian.sources"
