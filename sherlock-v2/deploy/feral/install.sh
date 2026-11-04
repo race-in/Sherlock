@@ -155,7 +155,8 @@ export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 mkdir -p "$BUNDLE_APP_CONFIG"
 bundle config set --local path "$HOME/.local/share/sherlock-feral/bundle"
 bundle config set --local build.pg "--with-pg-config=$PG_CONFIG --with-pg-include=$PG_INCLUDE --with-pg-lib=$PG_LIB"
-env "BINDGEN_EXTRA_CLANG_ARGS_x86_64-unknown-linux-gnu=$BINDGEN_GCC_ARGS" bundle install
+# rb-sys reads RBCONFIG_CPPFLAGS above when constructing bindgen arguments.
+bundle install
 
 info "Preparing application directory"
 mkdir -p "$APP_DIR"
