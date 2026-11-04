@@ -121,6 +121,18 @@ runuser -u sherlock-runtime-test -- env \
     bundle exec rails --version
   ' -- "$APP_DIR"
 
+# Exercise the same frontend build path as deploy/install.sh. This catches Node/npm,
+# lockfile, esbuild, Rails asset-pipeline and production asset configuration regressions.
+runuser -u sherlock-runtime-test -- env \\
+  HOME="$APP_HOME" PATH="$RUNTIME_PATH" \\
+  BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT=development \\
+  RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid \\
+  bash -ec '
+    cd "$1"
+    npm ci --no-audit --no-fund --loglevel=error
+    bundle exec rails assets:precompile
+  ' -- "$APP_DIR"
+
 # Run the real Rails suite against the PostgreSQL 18 cluster provisioned for this Debian matrix job.
 PG_PORT=$(pg_lsclusters --no-header | awk '$1 == 18 && $4 == "online" {print $3; exit}')
 [[ "$PG_PORT" =~ ^[0-9]+$ ]] || { echo "PostgreSQL 18 cluster is not online." >&2; exit 1; }
