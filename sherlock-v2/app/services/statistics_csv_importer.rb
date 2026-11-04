@@ -86,8 +86,9 @@ class StatisticsCsvImporter
     raw = value.to_s
     raise ArgumentError, "#{field} must be a non-negative whole number." unless raw.match?(/\A\d+\z/)
 
-    number = Integer(raw, 10)
     limit = BIGINT_FIELDS.include?(field) ? MAX_BIGINT : MAX_INTEGER
+    raise ArgumentError, "#{field} is too large." if raw.length > limit.to_s.length
+    number = Integer(raw, 10)
     raise ArgumentError, "#{field} is too large." if number > limit
     number
   end
