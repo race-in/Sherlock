@@ -214,7 +214,7 @@ class User < ApplicationRecord
     end.flatten.join("\n") + "\n"
   end
 
-  IMPORT_COLUMNS = Snapshot.column_names - %w[id connection_id updated_at]
+  IMPORT_COLUMNS = Snapshot.column_names - %w[id connection_id updated_at created_by_user_id]
   CROSS_SEED_IMPORT_COLUMNS = CrossSeedSnapshot.column_names - %w[id connection_id updated_at]
 
   # Adds the history from an #export file, from this Sherlock or a self-hosted one, to the trackers
@@ -249,7 +249,8 @@ class User < ApplicationRecord
         row["created_at"] = Time.iso8601(row.fetch("created_at")).change(usec: 0)
         raise ArgumentError if row["created_at"].future?
         # Numbers only. A plain cast would turn junk into 0, and 0 isn't the same as not reported.
-        row.except("created_at", "user_class").each_value { Float(_1) unless _1.nil? }
+        row["source"] = "json_import"
+        row.except("created_at", "user_class", "source", "note").each_value { Float(_1) unless _1.nil? }
         row.merge("updated_at" => row["created_at"]) if known.add?(row["created_at"].to_i)
       end
       relation.insert_all!(rows) if rows.any?
