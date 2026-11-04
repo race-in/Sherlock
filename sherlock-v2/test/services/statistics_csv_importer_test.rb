@@ -1,3 +1,4 @@
+require "csv"
 require "test_helper"
 
 class StatisticsCsvImporterTest < ActiveSupport::TestCase
