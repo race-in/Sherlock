@@ -24,6 +24,28 @@ tar -czf "$TMP/good.tar.gz" \
   -C "$TMP/etc" sherlock.env
 bash "$RESTORE" --verify "$TMP/good.tar.gz"
 
+# Dump and credentials must come from one atomic backup run and the same DB.
+STAMP=20261104T071500.123456789Z-12345
+PAIR_DUMP="$TMP/sherlockdb_prod-$STAMP.dump"
+PAIR_SECRETS="$TMP/sherlock-secrets-$STAMP.tar.gz"
+printf 'dummy dump bytes\n' > "$PAIR_DUMP"
+cp "$TMP/good.tar.gz" "$PAIR_SECRETS"
+bash "$RESTORE" --verify-pair "$PAIR_DUMP" "$PAIR_SECRETS"
+
+MISMATCH_DUMP="$TMP/sherlockdb_prod-20261104T071501.123456789Z-12346.dump"
+printf 'dummy dump bytes\n' > "$MISMATCH_DUMP"
+if bash "$RESTORE" --verify-pair "$MISMATCH_DUMP" "$PAIR_SECRETS" >/dev/null 2>&1; then
+  echo "ERROR: mismatched dump/secrets backup pair was accepted." >&2
+  exit 1
+fi
+
+WRONG_DB_DUMP="$TMP/another_database-$STAMP.dump"
+printf 'dummy dump bytes\n' > "$WRONG_DB_DUMP"
+if bash "$RESTORE" --verify-pair "$WRONG_DB_DUMP" "$PAIR_SECRETS" >/dev/null 2>&1; then
+  echo "ERROR: dump for a different database was accepted." >&2
+  exit 1
+fi
+
 mkdir -p "$TMP/evil"
 printf 'payload\n' > "$TMP/evil/payload"
 tar -czf "$TMP/evil.tar.gz" -C "$TMP/evil" payload
