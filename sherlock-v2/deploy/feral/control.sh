@@ -58,7 +58,7 @@ start() {
   export PIDFILE="$PID_FILE"
   export PORT="${PORT:-18443}"
   export BINDING="${BINDING:-127.0.0.1}"
-  nohup bundle exec puma -C config/puma.rb -b "tcp://$BINDING:$PORT" >>"$LOG_FILE" 2>&1 </dev/null &
+  nohup bundle exec puma -C deploy/feral/puma.rb >>"$LOG_FILE" 2>&1 </dev/null &
   local pid=$!
   printf '%s\n' "$pid" > "$PID_FILE"
   chmod 600 "$PID_FILE"
