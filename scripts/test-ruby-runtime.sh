@@ -126,7 +126,7 @@ runuser -u sherlock-runtime-test -- env \
 runuser -u sherlock-runtime-test -- env \
   HOME="$APP_HOME" PATH="$RUNTIME_PATH" \
   BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT=development \
-  RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid \\
+  RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid \
   bash -ec '
     cd "$1"
     npm ci --no-audit --no-fund --loglevel=error
