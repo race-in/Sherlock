@@ -201,11 +201,11 @@ repository. Nothing of Debian's own packages is replaced.
 ./deploy/install.sh --domain sherlock.example.com --letsencrypt you@example.com
 ```
 
-That installs everything, creates the database, the encrypted credentials and a `sherlock` systemd service,
-puts nginx in front of it and gets a certificate. The first run compiles Ruby, so give it 10 to 20 minutes.
-Without `--letsencrypt` nginx serves plain HTTP on port 80, and with `--no-ssl` Sherlock stops insisting on
-HTTPS (private networks only). `./deploy/install.sh --help` lists everything, including `--proxy none` if you
-bring your own proxy, and `--db-host` to use a PostgreSQL you already have.
+That installs everything, creates the database, encrypted credentials and a `sherlock` systemd service,
+puts nginx in front of it and obtains a certificate. The first run compiles Ruby, so allow 10 to 20 minutes
+or longer on a small VPS. For plain HTTP on a private network, pass `--no-ssl` (do not omit both SSL options);
+for a different TLS-terminating proxy, use `--proxy none` and configure that proxy yourself.
+`./deploy/install.sh --help` lists all options, including `--db-host` to use an existing PostgreSQL server.
 
 - **Update:** unpack the new version and run `./deploy/install.sh` again. It keeps your settings, database and
   credentials, and rebuilds the rest.
