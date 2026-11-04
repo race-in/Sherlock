@@ -121,14 +121,15 @@ install -o root -g root -m 0755 "$SCRIPT_DIR/scripts/patch-native-app.sh" /usr/l
 runuser -u "$APP_USER" -- bash /usr/local/libexec/sherlock/patch-native-app.sh "$APP_DIR"
 
 log "Building Ruby ${RUBY_VERSION} against the host OpenSSL (>= 1.1.1)"
-if [[ ! -x /usr/local/bin/ruby-build ]]; then
-  if [[ ! -d /usr/local/src/ruby-build/.git ]]; then
-    git clone --depth 1 https://github.com/rbenv/ruby-build.git /usr/local/src/ruby-build
-  else
-    git -C /usr/local/src/ruby-build pull --ff-only
-  fi
-  /usr/local/src/ruby-build/install.sh
+RUBY_BUILD_TAG=v20261023
+RUBY_BUILD_COMMIT=b6a92c15f0df872047c74f7dfa0b92dfd4de8a92
+RUBY_BUILD_DIR="/usr/local/src/ruby-build-$RUBY_BUILD_TAG"
+if [[ ! -d "$RUBY_BUILD_DIR/.git" ]]; then
+  git clone --depth 1 --branch "$RUBY_BUILD_TAG" https://github.com/rbenv/ruby-build.git "$RUBY_BUILD_DIR"
 fi
+ACTUAL_RUBY_BUILD_COMMIT=$(git -C "$RUBY_BUILD_DIR" rev-parse HEAD)
+[[ "$ACTUAL_RUBY_BUILD_COMMIT" == "$RUBY_BUILD_COMMIT" ]] || die "ruby-build $RUBY_BUILD_TAG commit mismatch: $ACTUAL_RUBY_BUILD_COMMIT"
+"$RUBY_BUILD_DIR/install.sh"
 if [[ ! -x "$RUBY_PREFIX/bin/ruby" ]]; then
   install -d -m 0755 "$RUBY_PREFIX_BASE"
   MAKE_OPTS=-j2 RUBY_BUILD_BUILD_PATH=/var/tmp/ruby-build ruby-build "$RUBY_VERSION" "$RUBY_PREFIX"
