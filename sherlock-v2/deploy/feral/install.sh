@@ -59,7 +59,7 @@ done
 
 [[ $EUID -ne 0 ]] || die "Do not execute this installer as the superuser."
 [[ -f "$SRC_DIR/Gemfile" && -f "$SRC_DIR/config/application.rb" ]] || die "Run from a Sherlock source checkout."
-CURRENT_BRANCH="$(git -C "$SRC_DIR" branch --show-current 2>/dev/null || true)"
+CURRENT_BRANCH="$(git -C "$SRC_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 [[ "$CURRENT_BRANCH" == "feature/feral-rootless-edition" ]] ||
   die "Install only from feature/feral-rootless-edition (current checkout: ${CURRENT_BRANCH:-detached/unknown})."
 [[ "$(uname -s)" == Linux ]] || die "Feral deployment requires Linux."
