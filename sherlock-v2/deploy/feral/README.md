@@ -20,7 +20,7 @@ The adapter deliberately checks these prerequisites before changing files:
 
 The branch bootstrap builds private zlib, libyaml, OpenSSL, Ruby and PostgreSQL
 client libraries/tools under the user's home directory. It also installs a temporary
-Node.js glibc-2.17-compatible build runtime for asset compilation. No system library
+temporary Node.js 22 glibc-2.17-compatible build runtime for asset compilation. No system library
 or package is changed.
 
 ## Intended layout
@@ -34,9 +34,9 @@ or package is changed.
 
 Run this read-only report over SSH before attempting installation:
 
-\`\`\`sh
+```sh
 bash sherlock-v2/deploy/feral/diagnose.sh
-\`\`\`
+```
 
 It reports Debian/glibc, compiler/build tools, Ruby/OpenSSL, Node, PostgreSQL client tools, storage and limits. It does not read credentials or modify files. Keep the output so the Debian 9 runtime strategy can be checked against the actual shared-hosting environment.
 
