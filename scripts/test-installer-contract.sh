@@ -115,6 +115,18 @@ grep -Fq 'source_commit=%s' "$BUNDLED_INSTALLER" || {
   echo "ERROR: native install marker must record the bundled source revision." >&2
   exit 1
 }
+grep -Fq 'echo "SINGLE_USER_MODE=true"' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: native installer must enable single-user mode." >&2
+  exit 1
+}
+grep -Fq 'prepare_first_run_token' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: native installer must create or retain the first-run token." >&2
+  exit 1
+}
+grep -Fq 'account_count <= 1' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: native installer must reject legacy databases with multiple accounts." >&2
+  exit 1
+}
 grep -Fq 'PG_DUMP_BIN=${PG_DUMP_BIN:-$(command -v pg_dump || true)}' "$ROOT/scripts/backup.sh" || {
   echo "ERROR: backups must use an installed PostgreSQL client, not a hard-coded PG18 path." >&2
   exit 1
