@@ -26,7 +26,7 @@ The native-runtime CI jobs validate the bundled source: Node installs dependenci
 
 | Requirement | Audited upstream baseline | Work still required |
 |---|---|---|
-| Single-user instance | First-run admin + invite-based joins + admin user management | Provision the first account privately; block invite registration and all second-user creation paths; enforce the one-account invariant and test concurrency |
+| Multi-user instance | First-run admin + invite-based joins + admin user management | Preserve invite registration and admin management; verify invitation lifecycle, permissions, account isolation and concurrent first-run protection |
 | Manual statistics | No manual snapshot entry workflow was found in the audited controllers/routes | Add validated manual observations while preserving immutable snapshot history |
 | CSV | CSV export exists for connection history | Add CSV statistics import with preview, transactional writes and an error report |
 | JSON | User/account backup import/export exists | Add a versioned statistics interchange format without breaking the existing account-backup JSON format |
