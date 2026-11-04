@@ -594,7 +594,7 @@ sync_source() {
     rmdir "$INSTALL_DIR/config/credentials"
   fi
 
-  if [[ "$(realpath "$SRC_DIR")" != "$(realpath "$INSTALL_DIR")" ]]; then
+  if [[ "$(realpath -m "$SRC_DIR")" != "$(realpath -m "$INSTALL_DIR")" ]]; then
     rsync -a --delete \
       --exclude '/.git' --exclude '/.forgejo' --exclude '/.bundle' \
       --exclude '/.sherlock-native-install' \
