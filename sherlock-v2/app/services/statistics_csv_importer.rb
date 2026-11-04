@@ -26,6 +26,7 @@ class StatisticsCsvImporter
     table = CSV.parse(csv_text, headers: true, encoding: "bom|utf-8")
     headers = table.headers&.map(&:to_s)
     raise ArgumentError, "CSV needs a header row." if headers.blank?
+    raise ArgumentError, "CSV contains blank column names." if headers.any?(&:blank?)
     raise ArgumentError, "CSV contains duplicate column names." unless headers.uniq == headers
 
     missing = REQUIRED_HEADERS - headers
@@ -40,10 +41,11 @@ class StatisticsCsvImporter
       known = connection.snapshots.pluck(:created_at).to_set(&:to_i)
       batch_id = SecureRandom.uuid
       rows = table.each_with_index.filter_map do |record, index|
+        row_number = index + 2
+        raise ArgumentError, "CSV row #{row_number}: the number of values does not match the header." unless record.fields.length == headers.length
         values = record.to_h
         next if values.values.all?(&:blank?)
 
-        row_number = index + 2
         begin
           timestamp = values["time"].to_s
           raise ArgumentError, "time is required" if timestamp.blank?
