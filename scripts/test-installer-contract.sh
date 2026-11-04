@@ -115,8 +115,12 @@ grep -Fq 'source_commit=%s' "$BUNDLED_INSTALLER" || {
   echo "ERROR: native install marker must record the bundled source revision." >&2
   exit 1
 }
-grep -Fq 'echo "SINGLE_USER_MODE=true"' "$BUNDLED_INSTALLER" || {
-  echo "ERROR: native installer must enable single-user mode." >&2
+grep -Fq 'echo "SINGLE_USER_MODE=false"' "$BUNDLED_INSTALLER" || {
+  echo "ERROR: native installer must preserve the upstream multi-user account model." >&2
+  exit 1
+}
+if grep -Fq 'check_single_user_database' "$BUNDLED_INSTALLER"; then
+  echo "ERROR: native installer must not reject databases with multiple accounts." >&2
   exit 1
 }
 grep -Fq 'prepare_first_run_token' "$BUNDLED_INSTALLER" || {
