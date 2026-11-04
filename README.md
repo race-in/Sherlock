@@ -132,14 +132,15 @@ Do not expose port 3000 publicly. Nginx is the public entry point and proxies to
 First verify the secrets archive and PostgreSQL dump, then restore as root:
 
 ```bash
-sudo bash scripts/restore.sh --verify /var/backups/sherlock/sherlock-secrets-TIMESTAMP.tar.gz
-sudo bash scripts/restore.sh --verify-dump /var/backups/sherlock/sherlockdb_prod-TIMESTAMP.dump
+sudo bash scripts/restore.sh --verify-pair \
+  /var/backups/sherlock/sherlockdb_prod-TIMESTAMP.dump \
+  /var/backups/sherlock/sherlock-secrets-TIMESTAMP.tar.gz
 sudo bash scripts/restore.sh \
   /var/backups/sherlock/sherlockdb_prod-TIMESTAMP.dump \
   /var/backups/sherlock/sherlock-secrets-TIMESTAMP.tar.gz
 ```
 
-The restore script validates the archive member list, file types, and environment values before extraction; checks that the Rails master key matches the encrypted credentials; asks for an explicit `RESTORE` confirmation; restores `/etc/sherlock/sherlock.env` and the Rails credentials with restrictive permissions; reconciles the PostgreSQL role password; replaces the database; and waits for the Rails health endpoint. Use matching files from the same backup run.
+The restore script validates the archive member list, file types, and environment values; verifies the dump and secrets archive have the same generated backup timestamp and database name; checks that the Rails master key matches the encrypted credentials; asks for an explicit `RESTORE` confirmation; restores `/etc/sherlock/sherlock.env` and the Rails credentials with restrictive permissions; reconciles the PostgreSQL role password; replaces the database; and waits for the Rails health endpoint. A mismatched or partial pair is rejected before the live database is changed.
 
 This is designed for a Sherlock installation already provisioned on the target VPS with PostgreSQL 18, the service account, and the application directory. For a new host, run the native installer first, then restore. Confirm the application version is compatible with the database dump before restoring.
 
