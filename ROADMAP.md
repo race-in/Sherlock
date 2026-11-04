@@ -19,7 +19,7 @@ This roadmap records the agreed target configuration. Items below are planned un
 - [ ] Keep upstream attribution, notices, and any required licence terms.
 - [x] Bundle the imported Sherlock v2 application baseline under `sherlock-v2/`, preserving upstream attribution and notices.
 - [x] Record the upstream source inventory and schema/import/export contract in `docs/UPSTREAM_AUDIT.md`.
-- [ ] Complete a clean full Rails test baseline on the bundled source in the Debian CI matrix.
+- [x] Complete a clean full Rails test baseline and dependency/security checks on the bundled source in CI.
 
 **Gate:** retain evidence of the maintainer permission already obtained for this project and preserve all upstream attribution. The audited upstream tree has no standalone LICENSE file; do not imply an OSI/open-source licence that is not present.
 
@@ -79,7 +79,7 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Phase 7 — Production release
 
-- [ ] Run full application tests and security scanning.
+- [x] Run full application tests and dependency/security scanning in CI.
 - [ ] Test fresh install and upgrade on Debian 12 and 13; separately test the EOL Debian 11 path.
 - [ ] Verify systemd restart, Nginx proxy, HTTPS renewal, backup, and restore.
 - [ ] Publish versioned releases and complete operator documentation.
@@ -90,6 +90,10 @@ This roadmap records the agreed target configuration. Items below are planned un
 - [x] Native deployment scaffold, shell regression tests, source audit, and Debian release compatibility jobs.
 - [x] Multi-user + hybrid manual/automatic + CSV/JSON target architecture documented.
 - [ ] Versioned Custom Edition JSON statistics interchange, CSV preview/mapping/error report, and additional tracker integrations.
-- [ ] New manual-statistics and CSV-import CI suite must pass before the feature is marked release-ready.
+- [x] Manual-statistics and CSV-import regression suite passes in the Rails CI job.
+- [x] Preserve the exact local PostgreSQL cluster on upgrades; fail closed if the configured cluster cannot be identified.
+- [x] Create a verified pre-upgrade database and credentials backup before modifying an existing install.
+- [x] Stop the app service before source replacement and database migrations.
+- [x] Persist the release tag in the native environment for footer/update checks.
 - [ ] Full fresh-install verification on real Debian VPS hosts.
 
