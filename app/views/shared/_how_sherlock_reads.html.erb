@@ -7,7 +7,7 @@
     tracker profile with its own key, once you opt in by adding a Sherlock link to it. It sees only what other members of the tracker
     see, so your paranoia settings apply. Sherlock shows your stats only to you.</p>
   <p>For trackers that don't allow this, run your own Sherlock with your own API key. It's simple
-    <%= link_to "with Docker", "#{Rails.configuration.x.source_url}#run-it-yourself-with-docker", class: "link", target: "_blank", rel: "noopener" %>.</p>
+    <%= link_to "on your own Debian server", "#{Rails.configuration.x.source_url}#install-on-debian-without-docker", class: "link", target: "_blank", rel: "noopener" %>.</p>
 <% else %>
   <p>You add one API key per tracker. Sherlock only reads your stats with it.</p>
   <p>Your keys are encrypted. The person running Sherlock could decrypt them in theory, but the code doesn't, except to send each key to its own tracker.</p>

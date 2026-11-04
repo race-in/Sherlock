@@ -47,7 +47,7 @@ module Sherlock
     config.x.version = ENV.fetch("APP_VERSION") { `git describe --tags --abbrev=0 2>/dev/null`.strip.presence || "unknown" }
 
     # The public source repository, linked from the UI and the tracker User-Agent.
-    config.x.source_url = "https://codeberg.org/whatstatus/sherlock-v2"
+    config.x.source_url = "https://github.com/race-in/Sherlock"
 
     # This instance's own host. Members' opt-in links point at it.
     config.x.app_host = ENV["APP_HOST"].presence || "localhost"

@@ -1,11 +1,13 @@
 # Running Sherlock on Debian without Docker
 
+The step-by-step guide is in the [README](README.md#install-on-debian-without-docker). This page is the short reference.
+
 `deploy/install-debian.sh` installs everything natively on Debian 12 or 13 (Debian 11 and Ubuntu 22.04+
 are best effort), on x86_64 or aarch64. It does what the Dockerfile and `bin/docker-entrypoint` do, with
 systemd instead of a container.
 
 ```sh
-git clone <this repository> sherlock && cd sherlock
+git clone https://github.com/race-in/Sherlock.git && cd Sherlock
 # public server with a domain: nginx + free HTTPS certificate
 sudo bash deploy/install-debian.sh --domain sherlock.example.com --letsencrypt you@example.com
 # private network, plain HTTP

@@ -22,9 +22,9 @@
   <div class="card mt-10 flex flex-wrap items-center justify-between gap-4 p-4">
     <div>
       <p class="font-medium">Missing your tracker?</p>
-      <p class="hint mt-1">Open an issue on Codeberg with a sample of its API response.</p>
+      <p class="hint mt-1">Open an issue on GitHub with a sample of its API response.</p>
     </div>
-    <%= link_to "#{Rails.configuration.x.source_url}/src/branch/main/README.md#requesting-a-tracker", class: "btn-secondary", target: "_blank", rel: "noopener" do %>
+    <%= link_to "#{Rails.configuration.x.source_url}/blob/main/README.md#requesting-a-tracker", class: "btn-secondary", target: "_blank", rel: "noopener" do %>
       <i class="bi bi-git"></i> Request a tracker
     <% end %>
   </div>

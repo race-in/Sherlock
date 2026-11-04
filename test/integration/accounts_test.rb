@@ -13,7 +13,7 @@ class AccountsTest < ActionDispatch::IntegrationTest
   test "the privacy policy is public" do
     get privacy_path
     assert_response :success
-    assert_select "a[href='https://codeberg.org/whatstatus/sherlock-v2']"
+    assert_select "a[href='https://github.com/race-in/Sherlock']"
     assert_match(/script-src 'self' 'nonce-[^']+'; style-src/, response.headers["Content-Security-Policy"])
   end
 

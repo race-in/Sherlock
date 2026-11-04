@@ -29,84 +29,150 @@ The screenshots use made-up demo data.
 - Invite only. Users can invite others, and admins see the invite tree at `/admin`.
 - Light and dark theme.
 
-## Run it yourself with Docker
+## Install on Debian (without Docker)
 
-Every release publishes an image to `codeberg.org/whatstatus/sherlock-v2`. You need Docker with
-Compose. Sherlock expects a reverse proxy in front that serves it over HTTPS (Caddy, Traefik,
-nginx). To run it over plain HTTP on a private network, set `FORCE_SSL=false`.
+`deploy/install-debian.sh` installs Sherlock natively on **Debian 12 or 13** (Debian 11 and Ubuntu 22.04+
+are best effort), on x86_64 or aarch64. It runs Sherlock as a systemd service behind nginx. Docker is not
+needed. One command does everything, and you can run it again later to update.
 
-**1. Create your secrets.** This writes `credentials/production.yml.enc` and
-`credentials/production.key`. Back up the key: without it, the saved API keys can't be decrypted.
+### What you need
+
+- A server with Debian 12 or 13, root access, and at least 1.5 GB of RAM plus swap (compiling Ruby is the
+  hungry part) and about 3 GB of free disk.
+- For a public site: a domain name whose DNS record points at the server, and ports 80 and 443 open.
+  For a private network you can skip the domain and use plain HTTP (see below).
+
+### Install
+
+```sh
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/race-in/Sherlock.git
+cd Sherlock
+```
+
+Public site with a domain (nginx plus a free Let's Encrypt HTTPS certificate):
+
+```sh
+sudo bash deploy/install-debian.sh --domain sherlock.example.com --letsencrypt you@example.com
+```
+
+Private network, plain HTTP, reached by IP or local name:
+
+```sh
+sudo bash deploy/install-debian.sh --domain 192.168.1.10 --no-ssl
+```
+
+The first run takes 10 to 25 minutes, mostly compiling Ruby. When it ends, open the address it prints and
+create the first account: **it becomes the admin**. Everyone else joins with invites.
+
+### Options
+
+| Option | What it does |
+|---|---|
+| `--domain HOST` | Host name or IP Sherlock is reached at. Required on the first run. |
+| `--letsencrypt EMAIL` | With nginx: get a free HTTPS certificate for the domain. |
+| `--no-ssl` | Plain HTTP, no redirect to HTTPS, no secure cookies. Only for a private network. |
+| `--proxy nginx\|none` | `nginx` (default) installs nginx and keeps Sherlock on `127.0.0.1`. `none` makes Sherlock listen on `0.0.0.0:PORT` so you can put your own proxy in front. |
+| `--port N` | Port of the Rails server. Default `3000`. |
+| `--db-password PW` | Database password. Default: random, saved in `/etc/sherlock/sherlock.env`. |
+| `-y`, `--yes` | Ask no questions. |
+
+### What the installer does
+
+1. Installs the packages it needs with apt.
+2. Installs PostgreSQL 18 from the official PostgreSQL repository (or the version Debian ships if 18 isn't
+   offered), and creates the database and user.
+3. Builds the Ruby version in `.ruby-version` under `/opt/rubies`, with a ruby-build release pinned by commit.
+4. Downloads the Node.js version in `.node-version` into a temporary folder, checks its checksum, uses it only
+   to build the JavaScript and CSS, and deletes it.
+5. Copies the app to `/opt/sherlock`, installs the gems and builds the assets.
+6. Creates the encrypted credentials in `/etc/sherlock/credentials`.
+7. Runs `db:prepare db:seed`, installs and starts the `sherlock` systemd service, and sets up nginx.
+
+| What | Where |
+|---|---|
+| App | `/opt/sherlock`, run by the system user `sherlock` |
+| Settings | `/etc/sherlock/sherlock.env` (then `sudo systemctl restart sherlock`) |
+| Credentials | `/etc/sherlock/credentials/`: **back up `production.key`**, without it saved API keys can't be decrypted |
+| Service | `sherlock.service` (web server and tracker polling run together) |
+| nginx site | `/etc/nginx/sites-available/sherlock` |
+
+### Everyday use
+
+```sh
+sudo sherlock-ctl status
+sudo sherlock-ctl logs
+sudo sherlock-ctl restart
+curl -fsS http://127.0.0.1:3000/up        # health check
+```
+
+If you lock yourself out of the admin account, run `sudo sherlock-ctl rails 'users:reset_password[username]'`
+to get a temporary password.
+
+### Update
+
+```sh
+cd Sherlock
+sudo -u postgres pg_dump -Fc sherlockdb_prod > ~/sherlock-before-update.dump   # a backup first
+git pull
+sudo bash deploy/install-debian.sh
+```
+
+No options are needed: the database, credentials and settings are kept.
+
+### Backup and restore
+
+Back up the database and the credentials folder together:
+
+```sh
+sudo -u postgres pg_dump -Fc sherlockdb_prod > sherlock.dump
+sudo tar -C /etc -czf sherlock-config.tar.gz sherlock
+```
+
+To restore on a fresh server, run the installer, stop the service, restore the config archive over
+`/etc/sherlock`, then `sudo -u postgres pg_restore --clean --if-exists -d sherlockdb_prod sherlock.dump`
+and start the service again.
+
+### Troubleshooting
+
+- **The installer stopped.** Read the last error, fix it and run the script again. Finished steps are skipped.
+- **`bundle install` failed.** Usually a missing system library; the error names it. Install it with apt and rerun.
+- **Ruby compile ran out of memory.** Add swap (`fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`) and rerun.
+- **The certificate was refused.** Check that DNS points at the server and ports 80 and 443 are open, then rerun.
+- **The site doesn't start.** `sudo sherlock-ctl logs` shows why. A wrong `APP_HOST` in `/etc/sherlock/sherlock.env`
+  makes Sherlock refuse requests: it must match the address in your browser.
+
+More details are in [DEBIAN.md](DEBIAN.md).
+
+## Run it with Docker instead
+
+The repository still has the original `Dockerfile`. Build the image yourself and run it against a PostgreSQL 18
+you provide:
+
+```sh
+git clone https://github.com/race-in/Sherlock.git && cd Sherlock
+docker build -t sherlock .
+```
+
+Create the credentials once (this writes `credentials/production.yml.enc` and `credentials/production.key`;
+back the key up), then start the container against your PostgreSQL 18:
 
 ```sh
 mkdir credentials
 docker run --rm --user "$(id -u):$(id -g)" -e APP_HOST=setup \
-  -v "$PWD/credentials:/rails/config/credentials" codeberg.org/whatstatus/sherlock-v2 sh -c '
+  -v "$PWD/credentials:/rails/config/credentials" sherlock sh -c '
   { echo "secret_key_base: $(bin/rails secret)"; bin/rails db:encryption:init | tail -n 4; } > /tmp/credentials.yml
   EDITOR="cp /tmp/credentials.yml" bin/rails credentials:edit --environment production'
+
+docker run -d --name sherlock --restart unless-stopped -p 3000:3000 \
+  -e APP_HOST=sherlock.example.com -e FORCE_SSL=false \
+  -e RAILS_MASTER_KEY="$(cat credentials/production.key)" \
+  -e DB_HOST=your-postgres-host -e DB_PASSWORD=your-db-password -e SOLID_QUEUE_IN_PUMA=true \
+  -v "$PWD/credentials:/rails/config/credentials:ro" sherlock
 ```
 
-**2. Create a `.env` file** next to it:
-
-```sh
-APP_HOST=sherlock.example.com
-DB_PASSWORD=a-long-random-password
-RAILS_MASTER_KEY=paste-the-contents-of-credentials/production.key
-```
-
-**3. Create `compose.yml`.** Sherlock runs in one container, which serves the site and polls the
-trackers. Leave out the `db` service if you already run Postgres 18, and set `DB_HOST` to it.
-
-```yaml
-services:
-  db:
-    image: postgres:18
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: sherlockdb_prod
-      POSTGRES_USER: sherlockdb_prod_write
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - db:/var/lib/postgresql
-    healthcheck:
-      test: pg_isready -U sherlockdb_prod_write -d sherlockdb_prod
-      interval: 5s
-
-  sherlock:
-    image: codeberg.org/whatstatus/sherlock-v2:latest
-    restart: unless-stopped
-    depends_on:
-      db: { condition: service_healthy }
-    ports: ["3000:3000"]
-    env_file: .env
-    environment:
-      DB_HOST: db
-      SOLID_QUEUE_IN_PUMA: "true"
-    volumes:
-      - ./credentials:/rails/config/credentials:ro
-    healthcheck:
-      test: curl -fs http://localhost:3000/up
-      interval: 5s
-      start_period: 60s
-
-volumes:
-  db:
-```
-
-Without Compose, against a Postgres you already have:
-
-```sh
-docker run -d --name sherlock --restart unless-stopped -p 3000:3000 --env-file .env \
-  -e DB_HOST=your-postgres-host -e SOLID_QUEUE_IN_PUMA=true \
-  -v "$PWD/credentials:/rails/config/credentials:ro" codeberg.org/whatstatus/sherlock-v2:latest
-```
-
-**4. Start it** with `docker compose up -d`, point your proxy at port 3000 and open
-`https://$APP_HOST/` (or `http://$APP_HOST:3000/` with `FORCE_SSL=false`). The first account you create becomes the admin. After that, people join with
-invites.
-
-The container updates the database and the tracker list every time it starts, and polls the
-trackers every hour.
+The container creates the database tables and refreshes the tracker list every time it starts. All variables
+are listed in [Configuration](#configuration).
 
 ### Who can use what
 
@@ -169,6 +235,7 @@ make the server reach into its own network.
 | `FORCE_SSL` | No | `false` serves plain HTTP: no redirect to HTTPS, no secure cookies. Default `true`. |
 | `SOLID_QUEUE_IN_PUMA` | No | Any value runs the worker inside the web container. Leave it unset only if you run `./bin/jobs start` in a container of its own. |
 | `METRICS_PORT` | No | Port of the worker's own Prometheus metrics. Default `9394`. |
+| `METRICS_BIND` | No | Address the worker's metrics listen on. Default `0.0.0.0`; the Debian installer sets `127.0.0.1`. |
 | `JOB_CONCURRENCY` | No | Number of worker processes. Default `1`. |
 | `RAILS_LOG_LEVEL` | No | Default `info`. |
 
@@ -179,15 +246,15 @@ make the server reach into its own network.
   loopback addresses that didn't come through a proxy (no `X-Forwarded-For` header), so scrape it
   directly, not through your public domain.
 - The worker serves poll metrics (`sherlock_polls_total`, `sherlock_poll_duration_seconds`) on
-  `METRICS_PORT`, in the same container.
+  `METRICS_PORT`, in the same process.
 
 If you lock yourself out of the admin account, run
-`docker compose exec sherlock bin/rails users:reset_password[username]` to get a temporary password.
+`sudo sherlock-ctl rails 'users:reset_password[username]'` (Docker: `docker compose exec sherlock bin/rails users:reset_password[username]`) to get a temporary password.
 
 ## Requesting a tracker
 
-Pull requests aren't open yet. To get a tracker supported, open an
-[issue on Codeberg](https://codeberg.org/whatstatus/sherlock-v2/issues) with:
+To get a tracker supported, open an
+[issue on GitHub](https://github.com/race-in/Sherlock/issues) with:
 
 - The tracker's name and URL, and the software it runs (Gazelle, Unit3D, its own).
 - Where users create an API key or find their passkey, and whether that key can do more than read
@@ -200,11 +267,14 @@ Pull requests aren't open yet. To get a tracker supported, open an
 Sherlock only supports trackers with an API that takes a per-user key (an API key or passkey). It
 never asks for passwords or cookies.
 
-To work on Sherlock locally, run `bin/setup`. It starts Postgres in Docker, installs everything and
-starts the app.
+To work on Sherlock locally, run `bin/setup`. It starts Postgres in Docker (or uses one already listening on
+port 5448), installs everything and starts the app.
 
 ## Credits
 
 Sherlock started as a PHP app. We don't know who originally wrote it, but its source code was
 maintained in [jimrollenhagen/sherlock](https://github.com/jimrollenhagen/sherlock). The icon and the
 color theme come from that original.
+
+This repository (https://github.com/race-in/Sherlock) is a fork that adds a native Debian installer to the upstream project at
+[codeberg.org/whatstatus/sherlock-v2](https://codeberg.org/whatstatus/sherlock-v2).
