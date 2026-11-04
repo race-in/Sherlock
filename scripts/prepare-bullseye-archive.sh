@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-[[ $EUID -eq 0 ]] || { echo "Run as root." >&2; exit 1; }
+[[ $EUID -eq 0 || -n "${APT_SOURCE_ROOT:-}" ]] || { echo "Run as root." >&2; exit 1; }
 ROOT=${APT_SOURCE_ROOT:-/}
 APT_DIR="$ROOT/etc/apt"
 [[ -d "$APT_DIR" ]] || { echo "APT directory not found: $APT_DIR" >&2; exit 1; }
