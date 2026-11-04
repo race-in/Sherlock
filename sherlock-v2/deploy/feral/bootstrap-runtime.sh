@@ -51,6 +51,28 @@ if [[ ! -x "$PREFIX/bin/openssl" ]] || ! "$PREFIX/bin/openssl" version | grep -F
 fi
 "$PREFIX/bin/openssl" version | grep -F 'OpenSSL 3.5.9' >/dev/null || die "OpenSSL verification failed."
 
+step "Build PostgreSQL 16.15 client libraries and tools"
+if [[ ! -x "$PREFIX/bin/pg_config" || ! -x "$PREFIX/bin/pg_isready" ]]; then
+ fetch https://ftp.postgresql.org/pub/source/v16.15/postgresql-16.15.tar.bz2 "$WORK/src/postgresql-16.15.tar.bz2" c1575341fa7bd40f5274ea465b34390f4dc64cdd0770af327005caaeb9f6b7ed
+ rm -rf "$WORK/build/postgresql-16.15"; mkdir -p "$WORK/build/postgresql-16.15"
+ tar -xjf "$WORK/src/postgresql-16.15.tar.bz2" -C "$WORK/build"
+ (
+  cd "$WORK/build/postgresql-16.15"
+  CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib -Wl,-rpath,$PREFIX/lib" \
+   ./configure --prefix="$PREFIX" --with-openssl --without-readline --without-zlib \
+    --without-icu --without-llvm --without-gssapi --without-ldap --without-pam \
+    --without-perl --without-python --without-tcl --without-systemd
+  make -j"$JOBS" -C src/interfaces/libpq
+  make -j"$JOBS" -C src/bin/pg_config
+  make -j"$JOBS" -C src/bin/pg_isready
+  make -C src/interfaces/libpq install
+  make -C src/bin/pg_config install
+  make -C src/bin/pg_isready install
+ ) >"$LOG_DIR/postgresql-client-build.log" 2>&1 || { tail -n 80 "$LOG_DIR/postgresql-client-build.log" >&2; die "PostgreSQL client build failed; see $LOG_DIR/postgresql-client-build.log"; }
+fi
+"$PREFIX/bin/pg_config" --version | grep -F 'PostgreSQL 16.15' >/dev/null || die "PostgreSQL client version check failed."
+"$PREFIX/bin/pg_isready" --version >/dev/null || die "pg_isready self-test failed."
+
 step "Build Ruby 4.0.9"
 if [[ ! -x "$PREFIX/bin/ruby" ]] || [[ "$("$PREFIX/bin/ruby" -e 'print RUBY_VERSION' 2>/dev/null || true)" != 4.0.9 ]]; then
  fetch https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.9.tar.xz "$WORK/src/ruby-4.0.9.tar.xz" a8057adb39f51ad6dc3106237504c93dd792bb515837b4fe7817ae21ed7e51f4
