@@ -137,6 +137,10 @@ systemctl start sherlock
 
 This assumes the PostgreSQL role, database environment file, and service account still exist. The credentials archive contains sensitive decryption material; store it securely.
 
+## Security
+
+See [SECURITY.md](SECURITY.md) for private vulnerability reporting and deployment safety guidance.
+
 ## Current scope
 
 This repository is a **native deployment scaffold**, not yet the complete Sherlock Custom Edition. It does not implement single-user-only enforcement, manual statistics entry, CSV/JSON import/export workflows, or additional tracker adapters. The upstream app may still retain its existing multi-user/invite behavior.
