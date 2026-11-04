@@ -28,18 +28,20 @@ class User < ApplicationRecord
   validates :password, length: { minimum: 10, maximum: 72 }, allow_nil: true
   validates :time_zone, inclusion: { in: ->(_) { TZInfo::Timezone.all_identifiers }, message: "isn't a time zone we know" }
   validates :invite_limit, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
-  validate :enforce_single_user_mode, on: :create
+  before_create :enforce_single_user_mode
 
   scope :enabled, -> { where(is_disabled: false) }
 
-  # Serializes every app-level account creation before checking the one-account invariant.
-  # The lock and existence check run inside the save transaction, so concurrent Rails requests cannot
-  # both observe an empty users table and create a second account.
+  # before_create runs inside the INSERT transaction. The table lock is therefore held until
+  # commit, so concurrent requests cannot both observe an empty users table and create an account.
   def enforce_single_user_mode
     return unless Rails.application.config.x.single_user_mode
 
     self.class.connection.execute("LOCK TABLE users IN EXCLUSIVE MODE")
-    errors.add(:base, "This Sherlock instance is configured for one account only.") if self.class.exists?
+    return unless self.class.exists?
+
+    errors.add(:base, "This Sherlock instance is configured for one account only.")
+    raise ActiveRecord::RecordInvalid, self
   end
 
   # Users are polled at different points in the hour so trackers never see everyone at once. A user
