@@ -18,7 +18,7 @@
   <ol class="divide-y divide-line border-t border-line">
     <% setup.steps.each.with_index(1) do |step, number| %>
       <% change_paths = { contact: admin_settings_path, first_tracker: admin_sites_path, updates: admin_settings_path } %>
-      <% change_paths[:invites] = admin_invites_path unless Rails.application.config.x.single_user_mode %>
+      <% change_paths[:invites] = Rails.application.config.x.single_user_mode ? nil : admin_invites_path %>
       <% change_path = change_paths.fetch(step.key) %>
       <% open = step == next_step %>
       <% locked = setup.locked?(step) %>
