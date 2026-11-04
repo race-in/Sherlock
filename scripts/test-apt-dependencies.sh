@@ -63,8 +63,8 @@ trap cleanup EXIT
 git clone --depth 1 --no-tags https://codeberg.org/whatstatus/sherlock-v2.git "$TMP_DIR/sherlock"
 runuser -u postgres -- psql -p "$PG_PORT" -v ON_ERROR_STOP=1 \
   -v role_name="$DB_ROLE" -v role_password="$DB_PASSWORD" -v database_name="$DB_NAME" <<'SQL'
-SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'role_name', :'role_password') \\gexec
-SELECT format('CREATE DATABASE %I OWNER %I ENCODING %L', :'database_name', :'role_name', 'UTF8') \\gexec
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'role_name', :'role_password') \gexec
+SELECT format('CREATE DATABASE %I OWNER %I ENCODING %L', :'database_name', :'role_name', 'UTF8') \gexec
 SQL
 
 PGPASSWORD="$DB_PASSWORD" psql -h 127.0.0.1 -p "$PG_PORT" -U "$DB_ROLE" -d "$DB_NAME" \
