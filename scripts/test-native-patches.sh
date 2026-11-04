@@ -43,7 +43,7 @@ printf 'port 3000\n' > "$TMP/bad/config/puma.rb"
 cp "$TMP/app/config/database.yml" "$TMP/bad/config/database.yml"
 mkdir -p "$TMP/bad/config/initializers"
 cp "$TMP/app/config/initializers/yabeda.rb" "$TMP/bad/config/initializers/yabeda.rb"
-if bash "$PATCHER" "$TMP/bad"; then
+if bash "$PATCHER" "$TMP/bad" >/dev/null 2>&1; then
   echo "ERROR: patcher accepted an unknown Puma config." >&2
   exit 1
 fi
