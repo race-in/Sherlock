@@ -99,11 +99,10 @@ Database (default: install PostgreSQL on this machine)
   --pg-version N         PostgreSQL major version to install (default: 18, falls back to 17, then to
                          what Debian ships).
 
-Single-user security
-  The bundled native installer always enables single-user mode. Invite, join and second-account
-  routes are disabled. A random 64-character first-run token is printed at the end of a fresh
-  install; keep it private and enter it when creating the first admin account. Existing databases
-  with more than one account are rejected without deleting data.
+User accounts
+  Sherlock keeps its upstream multi-user invite-based account model. The first admin account is
+  created with a private 64-character setup token printed after a fresh install. After setup,
+  admins can invite other users and manage accounts as usual.
 
 Other
   --install-dir DIR      Where the app lives (default /opt/sherlock).
@@ -538,7 +537,7 @@ write_env_file() {
     echo "DB_NAME=$DB_NAME"
     echo "DB_USER=$DB_USER"
     echo "DB_PASSWORD=$DB_PASSWORD"
-    echo "SINGLE_USER_MODE=true"
+    echo "SINGLE_USER_MODE=false"
     echo "FIRST_RUN_TOKEN=$FIRST_RUN_TOKEN"
     echo "SOLID_QUEUE_IN_PUMA=true"
     echo "METRICS_BIND=$metrics_bind"
@@ -716,21 +715,11 @@ create_credentials() {
   warn "Back up $CRED_DIR/production.key now. Without it the saved API keys can't be decrypted."
 }
 
-check_single_user_database() {
-  local table_exists account_count
-  table_exists=$(db_psql -Atc "SELECT to_regclass('sherlockdb.users') IS NOT NULL")
-  [[ "$table_exists" == t ]] || return 0
-  account_count=$(db_psql -Atc "SELECT count(*) FROM sherlockdb.users")
-  [[ "$account_count" =~ ^[0-9]+$ ]] || die "Could not verify the existing Sherlock account count."
-  (( account_count <= 1 )) || die "This native build is single-user only, but the configured database already contains $account_count accounts. No data was deleted. Export the accounts you need and reduce the database to one account before retrying."
-}
-
 prepare_database() {
   step "Preparing the database"
   check_db_connection
   load_schema_for_old_postgres
   in_app ./bin/rails db:prepare db:seed
-  check_single_user_database
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -903,7 +892,7 @@ summary() {
 
 ${C_GRN}${C_BOLD}Sherlock is installed.${C_OFF}
 
-  Open:          $APP_URL   (private single-user instance; invites and new registrations are disabled)
+  Open:          $APP_URL   (multi-user instance; invite-based registration is available after first setup)
   Settings:      $ENV_FILE   (then: sudo systemctl restart $SERVICE)
   Logs:          sudo sherlock-ctl logs
   Status:        sudo sherlock-ctl status
@@ -914,7 +903,7 @@ ${C_GRN}${C_BOLD}Sherlock is installed.${C_OFF}
 EOF
   if [[ "$account_count" == "0" ]]; then
     echo "  First-run token: $FIRST_RUN_TOKEN"
-    echo "  Enter this token on the first-run page before creating your only admin account."
+    echo "  Enter this token on the first-run page to create the initial admin account."
   fi
   if [[ "$PROXY" == none ]]; then
     echo "  Sherlock listens on 0.0.0.0:$PORT. Put a reverse proxy with HTTPS in front, or firewall the port."
@@ -937,7 +926,6 @@ main() {
   write_env_file
   install_ruby
   check_db_connection
-  check_single_user_database
   sync_source
   build_app
   create_credentials
