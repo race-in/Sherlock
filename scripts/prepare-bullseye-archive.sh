@@ -51,7 +51,7 @@ rewrite_deb822_file() {
   local temp_file
   temp_file=$(mktemp)
   awk '
-    BEGIN { RS = ""; ORS = "\n\n" }
+    BEGIN { RS = ""; ORS = "" }
     function rewrite_uri(value) {
       gsub(/https:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
       gsub(/http:\/\/deb\.debian\.org\/debian/, "https://archive.debian.org/debian", value)
@@ -94,10 +94,12 @@ rewrite_deb822_file() {
         }
       }
       if (drop_stanza) next
+      output = ""
       for (i = 1; i <= count; i++) {
         if (lines[i] ~ /^URIs:[[:space:]]*/) lines[i] = rewrite_uri(lines[i])
-        print lines[i]
+        output = output (i == 1 ? "" : "\n") lines[i]
       }
+      printf "%s\n\n", output
     }
   ' "$source_file" > "$temp_file"
 
