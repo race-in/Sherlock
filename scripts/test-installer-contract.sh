@@ -20,6 +20,14 @@ grep -Fq 'check-nginx-host-conflict.sh' "$INSTALLER" || {
   echo "ERROR: installer does not check for an existing Nginx virtual host." >&2
   exit 1
 }
+grep -Fq 'NODE_MIN_KERNEL=4.18' "$INSTALLER" || {
+  echo "ERROR: Debian 11 Node runtime kernel floor is missing." >&2
+  exit 1
+}
+grep -Fq 'NODE_MIN_KERNEL=5.14' "$INSTALLER" || {
+  echo "ERROR: Debian 12/13 Node runtime kernel floor is missing." >&2
+  exit 1
+}
 if grep -Fq 'rm -f /etc/nginx/sites-enabled/default' "$INSTALLER"; then
   echo "ERROR: installer would remove the server's default Nginx site." >&2
   exit 1
