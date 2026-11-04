@@ -50,7 +50,7 @@ grep -q 'ENCRYPTION_KEYS=.*bundle exec rails db:encryption:init' "$INSTALL"
 grep -q 'nohup' "$CONTROL"
 grep -q 'deploy/feral/puma.rb' "$CONTROL"
 grep -q '127.0.0.1' "$CONTROL"
-grep -q 'JSON.generate(ENV.fetch("DB_PASSWORD"))' "$DATABASE"
+grep -q 'JSON.generate(\[ENV.fetch("DB_PASSWORD")\])\[1\.\.\.-1\]' "$DATABASE"
 
 ruby -rjson -rerb -ryaml -e '
   ENV["DB_HOST"] = "db.example.invalid"
