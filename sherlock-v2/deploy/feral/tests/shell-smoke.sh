@@ -58,7 +58,7 @@ ruby -rjson -rerb -ryaml -e '
   ENV["DB_NAME"] = "postgres"
   ENV["DB_USER"] = "postgres.example"
   ENV["DB_PASSWORD"] = %q{p@ss: # [special] !tag &value "quoted" \ slash}
-  parsed = YAML.safe_load(ERB.new(File.read(ARGV.fetch(0))).result, aliases: true)
+  parsed = YAML.load(ERB.new(File.read(ARGV.fetch(0))).result)
   production = parsed.fetch("production")
   abort "database YAML password escaping failed" unless production.fetch("password") == ENV.fetch("DB_PASSWORD")
   abort "database YAML host interpolation failed" unless production.fetch("host") == ENV.fetch("DB_HOST")
