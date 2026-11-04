@@ -23,7 +23,37 @@ grep -q 'PGSSLMODE=.*require' "$INSTALL"
 grep -q 'CREATE SCHEMA IF NOT EXISTS sherlockdb' "$INSTALL"
 grep -q 'has_schema_privilege' "$INSTALL"
 grep -q 'OpenSSL 3.5.9' "$BOOTSTRAP"
-grep -q '^NODE_VERSION=22.21.1$' "$BOOTSTRAP"
+grep -q '^NODE_VERSION=22.21.1
+grep -q 'linux-x64-glibc-217' "$BOOTSTRAP"
+grep -q 'rustc 1.89.0' "$BOOTSTRAP"
+grep -q 'libclang -v 14.0.6' "$BOOTSTRAP"
+grep -q 'Gem::Version.new("3.2.0")' "$INSTALL"
+grep -q 'command -v cargo' "$INSTALL"
+grep -q 'LIBCLANG_PATH' "$INSTALL"
+grep -q 'RBCONFIG_CPPFLAGS=' "$INSTALL"
+grep -q 'RBCONFIG_CPPFLAGS' "$INSTALL"
+grep -q 'BINDGEN_EXTRA_CLANG_ARGS=' "$INSTALL"
+grep -q 'export BINDGEN_EXTRA_CLANG_ARGS' "$INSTALL"
+grep -q 'GCC_INCLUDE=.*gcc -print-file-name=include' "$INSTALL"
+grep -q 'GCC_FIXED_INCLUDE=.*gcc -print-file-name=include-fixed' "$INSTALL"
+grep -q 'GCC_FIXED_INCLUDE.*limits.h' "$INSTALL"
+grep -q 'BUNDLE_FORCE_RUBY_PLATFORM=true' "$INSTALL"
+! grep -q 'BINDGEN_GCC_ARGS' "$INSTALL"
+grep -q '^bundle install$' "$INSTALL"
+grep -q 'chmod 600' "$INSTALL"
+grep -q 'nohup' "$CONTROL"
+grep -q 'deploy/feral/puma.rb' "$CONTROL"
+grep -q '127.0.0.1' "$CONTROL"
+
+if grep -Eq '(^|[[:space:]])(sudo|systemctl|apt-get)([[:space:]]|$)' "$INSTALL"; then
+  echo "Feral installer must not require root/system services." >&2
+  exit 1
+fi
+
+echo "Feral rootless shell smoke checks passed."
+ "$BOOTSTRAP"
+grep -q 'ENV.fetch("DB_PASSWORD").to_json' "$ROOT/config/database.yml"
+ruby -rjson -rerb -ryaml -e 'ENV["DB_PASSWORD"] = %q{p@ss: # [special] !tag &value}; c = YAML.safe_load(ERB.new(File.read(ARGV[0])).result, aliases: true); abort "DB password YAML round-trip failed" unless c.dig("production", "password") == ENV["DB_PASSWORD"]' "$ROOT/config/database.yml"
 grep -q 'linux-x64-glibc-217' "$BOOTSTRAP"
 grep -q 'rustc 1.89.0' "$BOOTSTRAP"
 grep -q 'libclang -v 14.0.6' "$BOOTSTRAP"
