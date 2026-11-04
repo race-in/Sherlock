@@ -89,6 +89,9 @@ GCC_INCLUDE="$(gcc -print-file-name=include 2>/dev/null || true)"
 # Set both spellings so the GCC 6 internal stdarg.h is visible to libclang.
 BINDGEN_GCC_ARGS="-I$GCC_INCLUDE"
 export BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS:+$BINDGEN_EXTRA_CLANG_ARGS }$BINDGEN_GCC_ARGS"
+# rb-sys reads the exact Cargo target triple, including hyphens. Bash cannot
+# export that name with normal assignment syntax, so pass it through env when
+# invoking Bundler below. Keep the underscore spelling for tools that normalize it.
 export BINDGEN_EXTRA_CLANG_ARGS_x86_64_unknown_linux_gnu="$BINDGEN_GCC_ARGS"
 
 # Pass libpq paths explicitly to the pg gem instead of relying on pg_config's
@@ -150,7 +153,7 @@ export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 mkdir -p "$BUNDLE_APP_CONFIG"
 bundle config set --local path "$HOME/.local/share/sherlock-feral/bundle"
 bundle config set --local build.pg "--with-pg-config=$PG_CONFIG --with-pg-include=$PG_INCLUDE --with-pg-lib=$PG_LIB"
-bundle install
+env "BINDGEN_EXTRA_CLANG_ARGS_x86_64-unknown-linux-gnu=$BINDGEN_GCC_ARGS" bundle install
 
 info "Preparing application directory"
 mkdir -p "$APP_DIR"
