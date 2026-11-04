@@ -85,11 +85,15 @@ export LIBCLANG_PATH
 # inject the GCC include path through rb-sys' RBCONFIG_CPPFLAGS override so it
 # is part of that list (rather than relying on Cargo's target-specific env).
 GCC_INCLUDE="$(gcc -print-file-name=include 2>/dev/null || true)"
-[[ -n "$GCC_INCLUDE" && -r "$GCC_INCLUDE/stdarg.h" && -r "$GCC_INCLUDE/limits.h" ]] ||
-  die "GCC internal headers (stdarg.h/limits.h) were not found; install/enable the GCC development toolchain."
+GCC_FIXED_INCLUDE="$(gcc -print-file-name=include-fixed 2>/dev/null || true)"
+[[ -n "$GCC_INCLUDE" && -r "$GCC_INCLUDE/stdarg.h" ]] ||
+  die "GCC internal stdarg.h was not found; install/enable the GCC development toolchain."
+# Debian GCC keeps the wrapper limits.h in include-fixed, not include.
+[[ -n "$GCC_FIXED_INCLUDE" && -r "$GCC_FIXED_INCLUDE/limits.h" ]] ||
+  die "GCC fixed limits.h was not found under ${GCC_FIXED_INCLUDE:-the GCC include-fixed directory}."
 RUBY_DEFAULT_CPPFLAGS="$(ruby -rrbconfig -e 'print RbConfig::CONFIG.fetch("CPPFLAGS", "")')"
 RBCONFIG_CPPFLAGS="${RBCONFIG_CPPFLAGS:-$RUBY_DEFAULT_CPPFLAGS}"
-RBCONFIG_CPPFLAGS="$RBCONFIG_CPPFLAGS -isystem $GCC_INCLUDE -I$RUNTIME_PREFIX/include"
+RBCONFIG_CPPFLAGS="$RBCONFIG_CPPFLAGS -isystem $GCC_INCLUDE -isystem $GCC_FIXED_INCLUDE -I$RUNTIME_PREFIX/include"
 export RBCONFIG_CPPFLAGS
 
 # Pass libpq paths explicitly to the pg gem instead of relying on pg_config's
