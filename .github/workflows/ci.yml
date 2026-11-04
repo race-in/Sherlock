@@ -21,7 +21,6 @@ jobs:
     name: Shell and workflow validation
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -62,3 +61,32 @@ jobs:
 
       - name: Validate workflow YAML
         run: yamllint --strict -d relaxed .github/workflows/ci.yml
+
+  debian-compatibility:
+    name: Debian ${{ matrix.version }} compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: "11"
+            image: debian:11-slim
+          - version: "12"
+            image: debian:12-slim
+          - version: "13"
+            image: debian:13-slim
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run platform compatibility check
+        env:
+          DEBIAN_IMAGE: ${{ matrix.image }}
+          DEBIAN_VERSION: ${{ matrix.version }}
+        run: |
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/workspace:ro" \
+            --workdir /workspace \
+            "$DEBIAN_IMAGE" \
+            bash scripts/compatibility-check.sh
