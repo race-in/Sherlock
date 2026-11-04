@@ -24,7 +24,7 @@ On Debian 11, after you explicitly accept the EOL warning, the installer backs u
 
 - Ruby 4.0.9, compiled locally by pinned `ruby-build v20261023` (commit SHA verified by the installer)
 - Bundler 4.0.20; application gems install under `/var/lib/sherlock/bundle`, owned by the dedicated service user (not the root-owned Ruby installation).
-- Node.js 26.12.0 official Linux binary, SHA-256 verified against Node.js `SHASUMS256.txt`
+- Official Node.js Linux binary with SHA-256 verification against Node.js `SHASUMS256.txt` (24.22.2 on Debian 11; 26.12.0 on Debian 12/13)
 - PostgreSQL 18
 - Puma managed by systemd; Solid Queue runs inside Puma for the single-server setup
 - Nginx reverse proxy and Let's Encrypt TLS
@@ -73,7 +73,7 @@ The installer:
 3. Configures PGDG for Debian 12/13, or the frozen `apt-archive.postgresql.org` Bullseye repository for Debian 11.
 4. Installs PostgreSQL 18 and creates a dedicated database role. The database is created after credentials are ready; Rails loads `db/structure.sql`, which creates the `sherlockdb` schema.
 5. Clones the authorized app source to `/opt/sherlock` and applies three small, idempotent deployment-only patches: bind Puma and worker metrics to loopback, and separate the database connection pool setting.
-6. Builds Ruby 4.0.9, installs the checksum-verified Node.js 26.12.0 binary, then installs Bundler gems into the service-owned `/var/lib/sherlock/bundle` path and builds JavaScript assets.
+6. Builds Ruby 4.0.9, installs a checksum-verified Node.js runtime compatible with the host Debian release (Node 24.22.2 on Debian 11; Node 26.12.0 on Debian 12/13), then installs Bundler gems into the service-owned `/var/lib/sherlock/bundle` path and builds JavaScript assets.
 7. Creates encrypted Rails production credentials and a root-managed environment file.
 8. Creates/prepares the PostgreSQL database, compiles production assets, configures systemd and Nginx, and requests a Let's Encrypt certificate.
 
@@ -85,7 +85,7 @@ It refuses to overwrite an existing `/opt/sherlock` directory or an existing dat
 - `scripts/check-nginx-host-conflict.sh`: refuses an existing exact `server_name` collision before adding the Sherlock virtual host; existing/default Nginx sites are left intact.
 - `scripts/prepare-bullseye-archive.sh`: backs up and adapts official Debian 11 APT source entries after EOL consent.
 - `scripts/compatibility-check.sh`: reports supported Debian releases, CPU architecture, and glibc compatibility.
-- `scripts/test-native-patches.sh` `, `scripts/test-bullseye-archive.sh`, `scripts/test-nginx-host-conflict.sh`, and `scripts/test-installer-contract.sh`: regression tests run in CI, including Ruby/ERB syntax checks for deployment patches.
+- `scripts/test-native-patches.sh`, `scripts/test-bullseye-archive.sh`, `scripts/test-backup-restore.sh`, `scripts/test-nginx-host-conflict.sh`, and `scripts/test-installer-contract.sh`: regression tests run in CI, including Ruby/ERB syntax checks for deployment patches.
 - `scripts/test-apt-dependencies.sh`: verifies that the native installer dependency set and PostgreSQL 18 packages resolve from each Debian release's configured APT repositories.
 - `scripts/test-node-runtime.sh`: downloads the selected official Node.js runtime, verifies its published SHA-256 checksum, runs Node.js/npm, and runs the upstream Sherlock frontend build on each Debian image. `scripts/test-ruby-runtime.sh` compiles the pinned Ruby 4.0.9 toolchain, installs Bundler 4.0.20, and resolves the upstream Sherlock production gems.
 
@@ -160,7 +160,7 @@ The supplied upstream archive did not contain a standalone LICENSE file. Before 
 ## Validation status
 
 - GitHub Actions validates Bash syntax, ShellCheck, workflow YAML, deployment patch tests, Bullseye APT-source migration tests, simulated native dependency installation, the actual checksum-verified Node.js/npm binaries, the upstream frontend build, and the pinned Ruby/Bundler/gem installation against Debian 11/12/13 images.
-- The CI matrix checks Debian 11/12/13 release, architecture, and glibc compatibility in containers.
+- The CI matrix checks Debian 11/12/13 release and x86_64/glibc compatibility in containers. The installer and runtime scripts also support ARM64, but ARM64 has not yet been exercised by this CI matrix.
 - The native patcher was smoke-tested against the supplied Sherlock v2 source archive; Puma Ruby syntax and `database.yml` ERB syntax were checked locally.
 - Full package installation, PostgreSQL repository resolution, systemd startup, DNS, and HTTPS still need verification on real Debian 11/12/13 VPS instances.
 - Debian 11 uses an archived PostgreSQL repository and an end-of-life operating system; it is a compatibility path, not the recommended production target.
@@ -172,5 +172,6 @@ The supplied upstream archive did not contain a standalone LICENSE file. Before 
 - [PostgreSQL PGDG archive](https://apt-archive.postgresql.org/)
 - [Node.js build/platform requirements](https://github.com/nodejs/node/blob/main/BUILDING.md)
 - [Node.js 26.12.0 release downloads](https://nodejs.org/en/download/archive/v26.12.0)
+- [Node.js 24.22.2 release downloads](https://nodejs.org/en/download/archive/v24.22.2)
 - [ruby-build v20261023 release](https://github.com/rbenv/ruby-build/releases/tag/v20261023)
 - [Ruby/OpenSSL compatibility](https://ruby.github.io/openssl/)
