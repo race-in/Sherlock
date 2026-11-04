@@ -35,13 +35,13 @@ tar -czf "$SECRETS_TMP" \
 {
   printf 'created_at_utc=%s\n' "$STAMP"
   APP_COMMIT=""
-if APP_COMMIT=$(runuser -u sherlock -- git -C /opt/sherlock rev-parse --verify HEAD 2>/dev/null); then
-  :
-elif [[ -f /opt/sherlock/.sherlock-native-install ]]; then
-  APP_COMMIT=$(sed -n 's/^source_commit=//p' /opt/sherlock/.sherlock-native-install | head -n 1)
-fi
-APP_COMMIT=${APP_COMMIT:-unversioned-native-install}
-printf 'application_commit=%s\n' "$APP_COMMIT"
+  if APP_COMMIT=$(runuser -u sherlock -- git -C /opt/sherlock rev-parse --verify HEAD 2>/dev/null); then
+    :
+  elif [[ -f /opt/sherlock/.sherlock-native-install ]]; then
+    APP_COMMIT=$(sed -n 's/^source_commit=//p' /opt/sherlock/.sherlock-native-install | head -n 1)
+  fi
+  APP_COMMIT=${APP_COMMIT:-unversioned-native-install}
+  printf 'application_commit=%s\\n' "$APP_COMMIT"
   printf 'database=%s\n' "$DB_NAME"
   printf 'secrets_archive=%s\n' "sherlock-secrets-$STAMP.tar.gz"
   printf 'postgres_client_version=%s\n' "$("$PG_DUMP_BIN" --version)"
