@@ -65,4 +65,16 @@ if bash "$PATCHER" "$TMP/symlink" >/dev/null 2>&1; then
 fi
 grep -Fq 'port ENV.fetch("PORT", 3000)' "$TMP/real/config/puma.rb"
 
+# Exercise the patcher against the exact bundled Rails source, not just synthetic fixtures.
+cp -a "$ROOT/sherlock-v2" "$TMP/bundled-app"
+bash "$PATCHER" "$TMP/bundled-app"
+grep -Fq 'bind "tcp://127.0.0.1:' "$TMP/bundled-app/config/puma.rb"
+grep -Fq 'pool: <%= ENV.fetch("DB_POOL")' "$TMP/bundled-app/config/database.yml"
+grep -Fq 'Host: ENV.fetch("METRICS_BIND", "127.0.0.1")' "$TMP/bundled-app/config/initializers/yabeda.rb"
+ruby -c "$TMP/bundled-app/config/puma.rb"
+ruby -c "$TMP/bundled-app/config/initializers/yabeda.rb"
+ruby -rerb -e 'RubyVM::InstructionSequence.compile(ERB.new(File.read(ARGV.fetch(0))).src)' \
+  "$TMP/bundled-app/config/database.yml"
+bash "$PATCHER" "$TMP/bundled-app"
+
 echo "PASS: native application patch syntax, idempotency, drift detection, and preflight atomicity"
