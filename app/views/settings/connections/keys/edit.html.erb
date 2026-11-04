@@ -1,0 +1,8 @@
+<%= render layout: "settings/frame" do %>
+  <%= link_to settings_connection_path(@connection), class: "hint inline-flex items-center gap-1 hover:text-ink" do %><i class="bi bi-arrow-left"></i> <%= @connection.site.display_name %><% end %>
+  <h2 class="heading mt-2 text-2xl">Replace <%= @connection.site.display_name %> key</h2>
+  <p class="mt-1 text-ink-soft">Sherlock tests the new key first. If <%= @connection.site.display_name %> refuses it, the old key stays.</p>
+  <div class="mt-5 max-w-xl">
+    <%= render "connections/key_form", site: @connection.site, error: @error, url: settings_connection_key_path(@connection), method: :patch %>
+  </div>
+<% end %>

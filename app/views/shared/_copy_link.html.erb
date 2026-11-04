@@ -1,0 +1,8 @@
+<%# A link shown in full that copies itself when clicked, such as an invite link. %>
+<%# locals: (url:) %>
+<button type="button" class="group flex items-center gap-2 text-left min-w-64 font-mono text-xs whitespace-normal break-all text-ink hover:text-accent cursor-pointer"
+  data-controller="clipboard" data-clipboard-text-value="<%= url %>" data-action="clipboard#copy" title="Copy link">
+  <%= url %>
+  <i class="bi bi-clipboard shrink-0 text-muted group-hover:text-accent" aria-hidden="true"></i>
+  <span class="sr-only">Copy link</span>
+</button>

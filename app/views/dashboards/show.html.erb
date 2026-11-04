@@ -1,0 +1,156 @@
+<%# While the admin sets up, the dashboard is only the setup: the charts come once it's done. %>
+<% setup = AdminSetup.new(Current.user) if Current.user.is_admin? %>
+<% setting_up = setup && !setup.complete? %>
+<% changes = @connections.filter_map { _1.change(since: 1.day.ago) } %>
+<%# The tab shows the buffer change over the last 24 hours, number first so it survives a narrow tab. %>
+<% content_for :title, changes.any? ? human_bytes(changes.sum(&:buffer), signed: true) : "Dashboard" %>
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="heading text-3xl">Dashboard</h1>
+    <% if !setting_up && (last = @connections.filter_map(&:polled_at).max) %>
+      <p class="hint mt-1">Updated <%= clock(last) %> · next <%= clock(Current.user.next_poll_at) %></p>
+    <% end %>
+  </div>
+  <% if !setting_up && @connections.any? %>
+    <div class="flex min-w-0 max-w-full items-center gap-2">
+      <%= range_picker @range %>
+      <%= button_to refresh_path, class: "btn-quiet", disabled: @refreshing, title: @refreshing ? "Updating trackers" : "Update all trackers now",
+            aria: { label: @refreshing ? "Updating trackers" : "Update all trackers now", busy: @refreshing } do %><i class="bi bi-arrow-clockwise <%= "motion-safe:animate-spin" if @refreshing %>"></i><% end %>
+    </div>
+  <% end %>
+</div>
+
+<% if Current.user.is_admin? && flash[:invite_code] && (invite = Invite.find_by(code: flash[:invite_code]))&.usable? %>
+  <% sites = invite.joinable_sites.map(&:name).to_sentence(last_word_connector: " or ", two_words_connector: " or ") %>
+  <section class="card mb-6 border-accent p-6 sm:p-8" data-controller="clipboard scroll-top" data-clipboard-text-value="<%= join_url(invite.code) %>">
+    <div class="flex items-start gap-4">
+      <span class="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-up-soft text-2xl text-up" aria-hidden="true"><i class="bi bi-envelope-check"></i></span>
+      <div class="min-w-0 flex-1">
+        <h2 class="heading text-2xl">Your invite link is ready</h2>
+        <p class="mt-1 text-ink-soft">
+          Share it with friends, or with people on your trackers you'd like on this Sherlock.
+          <% if invite.open? && sites.present? %>Anyone who sees it could use it, so people join by adding their Sherlock link to their <%= sites %> profile. That makes it safe to post in that tracker's forum.<% end %>
+        </p>
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <code class="min-w-0 flex-1 rounded-lg border border-line bg-sunken px-4 py-3 font-mono text-sm break-all text-ink"><%= join_url(invite.code) %></code>
+          <button type="button" class="btn-primary shrink-0 px-5 py-3 text-base" data-action="clipboard#copy"><i class="bi bi-clipboard"></i> Copy link</button>
+        </div>
+        <p class="hint mt-3">
+          <%= invite.max_uses.nil? ? "Works for any number of people" : invite.max_uses == 1 ? "Works for one person" : "Works for up to #{number_with_delimiter invite.max_uses} people" %>,
+          <%= invite.expires_at ? "until #{l(invite.expires_at.to_date, format: :long)}" : "and never expires" %>.
+          <%= link_to "See all your invites", admin_invites_path, class: "link" %> in Admin → Invites.
+        </p>
+      </div>
+    </div>
+  </section>
+<% end %>
+
+<% if setting_up %>
+  <%= render "dashboards/setup", setup: %>
+<% elsif @connections.empty? %>
+  <div class="card px-6 py-16 text-center">
+    <% if Site.available_to(Current.user).exists? %>
+      <p class="text-lg font-medium">No trackers yet</p>
+      <p class="mt-1 text-ink-soft">Add one, and Sherlock starts charting it right away.</p>
+      <%= link_to "Add tracker", tracker_selection_path, class: "btn-primary mt-4" %>
+    <% else %>
+      <p class="text-lg font-medium">No trackers are open to you yet</p>
+      <p class="mt-1 text-ink-soft">The person who runs this Sherlock hasn't turned on a tracker for you. Ask them, or the person who invited you.</p>
+    <% end %>
+  </div>
+<% else %>
+  <%= render "connections/problems", connections: @connections %>
+
+  <%# The first day: one snapshot draws no line yet, and the 24-hour numbers are 0. Say that's expected. %>
+  <% first = @connections.filter_map { _1.snapshots.minimum(:created_at) }.min %>
+  <% if first && first > 1.day.ago && !Current.user.dismissed?("first_numbers") %>
+    <section class="card mb-6 flex items-start gap-4 p-5">
+      <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl text-accent" aria-hidden="true"><i class="bi bi-hourglass-split"></i></span>
+      <div class="flex-1">
+        <p class="font-medium">Your first numbers are in</p>
+        <p class="hint mt-1">Sherlock checks your trackers once an hour, next at <%= clock(Current.user.next_poll_at) %>. The charts fill in as you upload and download, and after a day the 24-hour numbers have something to compare. There's nothing else to do.</p>
+      </div>
+      <%= button_to dismissals_path, params: { notice: "first_numbers" }, class: "btn-quiet -mr-2 -mt-2 shrink-0", title: "Dismiss", aria: { label: "Dismiss" } do %><i class="bi bi-x-lg"></i><% end %>
+    </section>
+  <% end %>
+
+  <% latest = @connections.filter_map(&:latest_snapshot) %>
+  <section class="grid gap-3 sm:grid-cols-3">
+    <div class="card p-4"><p class="eyebrow">Total <%= buffer_label.downcase %></p><p class="mt-2 text-2xl"><%= bytes latest.sum(&:buffer) %></p></div>
+    <div class="card p-4"><p class="eyebrow">Total uploaded</p><p class="mt-2 text-2xl"><%= bytes latest.sum(&:uploaded) %></p></div>
+    <div class="card p-4"><p class="eyebrow"><%= buffer_label %>, last 24 hours</p><p class="mt-2 text-2xl"><%= byte_change changes.sum(&:buffer) %></p></div>
+  </section>
+
+  <section class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <% @connections.each do |connection| %>
+      <% snapshot = connection.latest_snapshot %>
+      <% change = connection.change(since: 1.day.ago) %>
+      <%= link_to connection_path(connection), class: "card flex flex-col p-4 hover:border-line-strong" do %>
+        <div class="flex items-center gap-2">
+          <%= site_mark connection.site %>
+          <span class="flex-1 truncate font-medium"><%= connection.site.display_name %></span>
+          <%= status_tag connection %>
+        </div>
+        <dl class="mt-4 grid grid-cols-3 gap-2 text-sm">
+          <div><dt class="eyebrow">Buffer</dt><dd class="mt-1"><%= bytes snapshot&.buffer %></dd></div>
+          <div><dt class="eyebrow">Ratio</dt><dd class="mt-1"><%= ratio snapshot&.ratio %></dd></div>
+          <div><dt class="eyebrow">24h</dt><dd class="mt-1"><%= byte_change change&.buffer %></dd></div>
+        </dl>
+        <% if (tracked_since = connection.snapshots.minimum(:created_at)) %>
+          <%# mt-auto keeps the footer at the bottom when a card has no sparkline yet. %>
+          <div class="mt-auto pt-4">
+            <% chart = sparkline(connection) %>
+            <%= chart %>
+            <p class="hint mt-1 flex justify-between gap-2 text-xs">
+              <span><%= "Buffer, 7 days" if chart %></span>
+              <span>Tracking since <%= tracked_since.in_time_zone.to_date.iso8601 %></span>
+            </p>
+          </div>
+        <% end %>
+      <% end %>
+    <% end %>
+  </section>
+
+  <div class="<%= "is-refreshing" if @refreshing %>">
+    <div class="mt-6 grid gap-4 lg:grid-cols-3">
+      <div class="lg:col-span-2">
+        <%= render "shared/chart", title: buffer_label, unit: "bytes", height: "300px", colors: tracker_colors(@connections),
+              points: @connections.flat_map { |c| chart_points(c.history(@range), :buffer, group: c.site.display_name) } %>
+      </div>
+      <%= render "shared/chart", title: "Upload by tracker", note: ApplicationHelper::RANGE_LABELS[@range], unit: "bytes", type: "donut", height: "300px",
+            colors: tracker_colors(@connections), points: upload_share_points(@connections, @range) %>
+    </div>
+
+    <% cross_seeds = @connections.filter_map { |connection| connection.cross_seed_snapshots.chronological.last&.then { [ connection, _1 ] } } %>
+    <% if cross_seeds.any? %>
+      <section class="card mt-4 overflow-x-auto">
+        <div class="px-4 pt-4">
+          <h2 class="eyebrow">Cross-seeding</h2>
+          <p class="hint mt-1">From qui. Torrents whose files also seed on another tracker.</p>
+        </div>
+        <table class="table mt-2">
+          <thead><tr><th>Tracker</th><th class="text-right">Seeding</th><th class="text-right">Cross-seeded</th><th class="text-right">24h</th><th class="text-right">Cross-seeded size</th><th class="text-right">Uploaded by cross-seeds</th></tr></thead>
+          <tbody>
+            <% cross_seeds.each do |connection, snapshot| %>
+              <tr>
+                <td><%= link_to connection_path(connection), class: "flex items-center gap-2 font-medium hover:underline" do %><%= site_mark connection.site, size: "size-5" %><%= connection.site.display_name %><% end %></td>
+                <td class="text-right"><%= count snapshot.torrents %></td>
+                <td class="text-right"><%= count snapshot.cross_seeded %><% if snapshot.cross_seeded_paused.positive? %> <span class="hint">(<%= count snapshot.cross_seeded_paused %> paused)</span><% end %></td>
+                <td class="text-right"><%= cross_seed_change connection, since: 1.day.ago %></td>
+                <td class="text-right"><%= bytes snapshot.cross_seeded_size %></td>
+                <td class="text-right"><%= bytes snapshot.cross_seeded_uploaded %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </section>
+    <% end %>
+
+    <% if @patterns.any? %>
+      <div class="mt-4">
+        <%= render "shared/chart", title: "Upload per day", note: "All trackers, last #{Patterns::WEEKS} weeks.", unit: "bytes", type: "heatmap", height: "240px",
+              **calendar_heatmap(@patterns) %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

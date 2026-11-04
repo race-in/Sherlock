@@ -1,0 +1,48 @@
+<%= render layout: "settings/frame" do %>
+  <h2 class="section-title mb-3">What Sherlock stores</h2>
+  <section class="card space-y-3 p-5 text-sm text-ink-soft">
+    <p><strong class="font-medium text-ink">Your account:</strong> username (encrypted), a hash of your password, your preferences, and who invited you.</p>
+    <p><strong class="font-medium text-ink">Your trackers:</strong> your username on each tracker, encrypted, and one row of stats per hour. Other users can't see any of it.</p>
+    <p><strong class="font-medium text-ink">Your API keys:</strong> encrypted in the database. A copy of the database alone isn't enough to read them. The person running Sherlock holds the encryption key and can decrypt them if needed.</p>
+    <p><strong class="font-medium text-ink">Your devices:</strong> when each one signed in and was last active. No IP address or browser.</p>
+  </section>
+
+  <h2 class="section-title mt-10 mb-3">Download</h2>
+  <section class="card divide-y divide-line">
+    <div class="flex items-center justify-between gap-4 p-4">
+      <div><p class="font-medium">Everything</p><p class="hint">JSON with your account, invites and every saved update. No keys or password.</p></div>
+      <%= link_to settings_export_path, class: "btn-secondary" do %><i class="bi bi-download"></i> JSON<% end %>
+    </div>
+    <% @connections.each do |connection| %>
+      <div class="flex items-center justify-between gap-4 p-4">
+        <p class="font-medium"><%= connection.site.display_name %></p>
+        <%= link_to connection_history_path(connection, range: "all", format: :csv), class: "btn-secondary" do %><i class="bi bi-download"></i> CSV<% end %>
+      </div>
+    <% end %>
+  </section>
+
+  <h2 class="section-title mt-10 mb-3" id="import">Import</h2>
+  <%= form_with url: settings_import_path, multipart: true, class: "card space-y-3 p-5" do |form| %>
+    <% if (message = flash[:import_notice] || flash[:import_alert]) %>
+      <p class="flex items-start gap-2 rounded-lg border px-4 py-3 text-sm <%= flash[:import_alert] ? "border-down/30 bg-down-soft text-down" : "border-up/30 bg-up-soft text-up" %>" role="status">
+        <i class="bi <%= flash[:import_alert] ? "bi-exclamation-triangle" : "bi-check-circle-fill" %> mt-px" aria-hidden="true"></i><%= message %>
+      </p>
+    <% end %>
+    <p class="text-sm text-ink-soft">Moving from your own Sherlock, or back? Download the JSON there and import it here. Add each tracker with a key first: exports don't include keys. Updates you already have are skipped.</p>
+    <div class="flex flex-wrap items-center gap-3">
+      <%= form.file_field :file, accept: "application/json,.json", required: true, class: "text-sm" %>
+      <%= form.submit "Import", class: "btn-secondary" %>
+    </div>
+  <% end %>
+
+  <h2 class="section-title mt-10 mb-3">Delete account</h2>
+  <%= form_with url: settings_account_path, method: :delete, class: "card space-y-3 p-5",
+        data: { turbo_confirm: "Delete your account and all its data? This can't be undone." } do |form| %>
+    <p class="text-sm text-ink-soft">Deletes your account, keys, trackers and history from the database right away. Nothing is kept or hidden for later, so there's no way to get it back. Download your data first if you might want it.</p>
+    <div>
+      <%= form.label :username, "Type your username to confirm", class: "label" %>
+      <%= form.text_field :username, autocomplete: "off", required: true, class: "input mt-1 max-w-xs" %>
+    </div>
+    <%= form.submit "Delete account", class: "btn-danger" %>
+  <% end %>
+<% end %>

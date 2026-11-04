@@ -1,0 +1,34 @@
+# One database per environment. Solid Queue, Solid Cache and Solid Cable tables live next to the
+# app's tables in the sherlockdb schema, created by normal migrations, so there is no connects_to.
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  # Covers the web threads plus the Solid Queue workers and dispatcher in bin/jobs.
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 10 } %>
+  schema_search_path: sherlockdb
+
+# libpq's GSS setup crashes forked processes on macOS (Solid Queue forks its workers). Local
+# Postgres never uses GSS.
+local: &local
+  <<: *default
+  host: localhost
+  port: 5448
+  gssencmode: disable
+  username: sherlockdb_develop_write
+  password: sherlockdb_develop_write
+
+development:
+  <<: *local
+  database: sherlockdb_develop
+
+test:
+  <<: *local
+  database: sherlockdb_test
+
+production:
+  <<: *default
+  host: <%= ENV.fetch("DB_HOST") { "172.17.0.1" } %>
+  port: <%= ENV.fetch("DB_PORT") { 5432 } %>
+  database: <%= ENV.fetch("DB_NAME") { "sherlockdb_prod" } %>
+  username: <%= ENV.fetch("DB_USER") { "sherlockdb_prod_write" } %>
+  password: <%= ENV["DB_PASSWORD"] %>

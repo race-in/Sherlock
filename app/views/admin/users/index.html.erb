@@ -1,0 +1,35 @@
+<%= render layout: "admin/frame" do %>
+  <div class="mb-3 flex items-center justify-between gap-4">
+    <h2 class="section-title">New users</h2>
+    <nav class="inline-flex items-center rounded-lg border border-line bg-surface p-0.5 text-sm whitespace-nowrap" aria-label="Range">
+      <% { "month" => "30 days", "quarter" => "90 days", "year" => "1 year", "all" => "All time" }.each do |range, label| %>
+        <%= link_to label, admin_users_path(range:, q: @query.presence), class: [ "rounded-md px-2.5 py-1", range == @range ? active_range_class : "text-muted hover:text-ink" ],
+              aria: { current: ("true" if range == @range) } %>
+      <% end %>
+    </nav>
+  </div>
+  <%# The total holds until the next signup, so its last step runs on to now. %>
+  <% total = @users_before %>
+  <% totals = @signups.map { |day, count| { group: "Users", date: day.in_time_zone.iso8601, value: total += count } } %>
+  <div class="mb-8 grid gap-4 lg:grid-cols-2">
+    <%= render "shared/chart", title: "New users per day", unit: "count", type: "bar", step: 1.day,
+          points: @signups.map { |day, count| { group: "New users", date: day.in_time_zone.iso8601, value: count } } %>
+    <%= render "shared/chart", title: "Users in total", unit: "count", step: 1.day,
+          points: totals + [ totals.last.merge(date: Time.current.iso8601) ] %>
+  </div>
+  <div class="mb-3 flex items-center justify-between gap-4">
+    <p class="hint"><%= pluralize @users.size, "user" %>. Each one sits under the person who invited them.</p>
+    <%= form_with url: admin_users_path, method: :get, class: "flex gap-2", role: "search" do |form| %>
+      <%= form.search_field :q, value: @query, placeholder: "Find a person", aria: { label: "Find a person" },
+            autocomplete: "off", data: { "1p-ignore": true, "lpignore": true }, class: "input w-48" %>
+      <%= form.submit "Find", class: "btn-secondary" %>
+    <% end %>
+  </div>
+  <% if @query.present? && !@match %><p class="mb-3 text-sm text-down">No user called <%= @query %>.</p><% end %>
+  <section class="card p-2">
+    <ul>
+      <%= render partial: "admin/users/node", collection: @children[nil] || [], as: :user,
+            locals: { depth: 0, children: @children, connection_counts: @connection_counts, used_invites: @used_invites, last_seen: @last_seen, match: @match } %>
+    </ul>
+  </section>
+<% end %>

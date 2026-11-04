@@ -1,0 +1,8 @@
+<%# What an update check (CheckForUpdateJob) sends, and to whom. Used in Admin → Settings and the setup on
+    the dashboard, so both say the same. %>
+<p class="hint">
+  Once a day, Sherlock asks <%= link_to "Codeberg", "https://codeberg.org", class: "link", target: "_blank", rel: "noopener" %>,
+  the code hosting platform it's published on, for the latest version. Codeberg sees only this server's IP address and Sherlock version
+  (<%= link_to "privacy policy", "https://codeberg.org/codeberg/org/src/branch/main/PrivacyPolicy.md", class: "link", target: "_blank", rel: "noopener" %>).
+  Nothing else phones home, and nothing ever contacts whatstatus.info.
+</p>

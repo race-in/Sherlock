@@ -1,0 +1,9 @@
+<% steps = Current.user.is_admin? ? [ "Welcome", "Preferences", "Set up" ] : [ "Welcome", "Preferences", "Trackers", "Done" ] %>
+<ol class="mb-8 flex flex-wrap gap-x-4 gap-y-2 text-sm" aria-label="Setup steps">
+  <% steps.each_with_index do |name, index| %>
+    <li class="flex items-center gap-1.5 <%= index == current ? "text-ink font-medium" : index < current ? "text-muted" : "text-muted/60" %>">
+      <span class="num inline-flex size-5 items-center justify-center rounded-full text-[11px] <%= index <= current ? "bg-accent text-accent-ink" : "bg-sunken" %>"><%= index + 1 %></span>
+      <%= name %>
+    </li>
+  <% end %>
+</ol>

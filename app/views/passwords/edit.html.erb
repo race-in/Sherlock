@@ -1,0 +1,27 @@
+<% content_for :title, "Change password" %>
+<% forced = Current.user.is_password_change_required? %>
+<div class="<%= forced ? "mx-auto max-w-sm" : "max-w-md" %>">
+  <% unless forced %>
+    <%= link_to settings_account_path, class: "hint inline-flex items-center gap-1 hover:text-ink" do %><i class="bi bi-arrow-left"></i> Account<% end %>
+  <% end %>
+  <h1 class="heading mt-2 text-3xl"><%= forced ? "Set a new password" : "Change password" %></h1>
+  <% if forced %>
+    <p class="mt-2 text-ink-soft">Your password was reset. Enter the temporary password you were given, then pick a new one.</p>
+  <% end %>
+  <%= form_with model: Current.user, scope: :user, url: password_path, method: :patch, class: "mt-6 space-y-4" do |form| %>
+    <%= render "shared/errors", record: Current.user %>
+    <div>
+      <%= form.label :password_challenge, forced ? "Temporary password" : "Current password", class: "label" %>
+      <%= form.password_field :password_challenge, required: true, autocomplete: "current-password", class: "input mt-1" %>
+    </div>
+    <div>
+      <%= form.label :password, "New password", class: "label" %>
+      <%= form.password_field :password, required: true, autocomplete: "new-password", minlength: 10, maxlength: 72, class: "input mt-1" %>
+    </div>
+    <div>
+      <%= form.label :password_confirmation, "Repeat new password", class: "label" %>
+      <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", class: "input mt-1" %>
+    </div>
+    <%= form.submit "Save password", class: "btn-primary" %>
+  <% end %>
+</div>

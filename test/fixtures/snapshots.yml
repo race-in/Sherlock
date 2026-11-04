@@ -1,0 +1,19 @@
+# alice_redacted: one snapshot 3 days ago, one 2 hours ago. 1 GiB = 1073741824.
+alice_old:
+  connection: alice_redacted
+  uploaded: 10737418240
+  downloaded: 5368709120
+  ratio: 2.0
+  required_ratio: 0.6
+  created_at: <%= 3.days.ago.to_fs(:db) %>
+  updated_at: <%= 3.days.ago.to_fs(:db) %>
+
+alice_new:
+  connection: alice_redacted
+  uploaded: 16106127360
+  downloaded: 6442450944
+  ratio: 2.5
+  required_ratio: 0.6
+  seeding: 12
+  created_at: <%= 2.hours.ago.to_fs(:db) %>
+  updated_at: <%= 2.hours.ago.to_fs(:db) %>

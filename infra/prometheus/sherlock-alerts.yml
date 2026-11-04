@@ -1,0 +1,38 @@
+# Prometheus alerting rules for Sherlock's tracker requests. Load with `rule_files:` next to the
+# scrape jobs for the web process (/metrics) and the jobs worker (METRICS_PORT, 9394). Polls also run
+# in the web process when someone presses "Update now", so the rules sum across both.
+groups:
+  - name: sherlock-trackers
+    rules:
+      # Polls run hourly, so three hours without a single 2xx means the tracker stopped answering us.
+      - alert: SherlockTrackerDown
+        expr: |
+          sum by (host) (increase(sherlock_tracker_requests_total[3h])) > 0
+          unless sum by (host) (increase(sherlock_tracker_requests_total{status=~"2.."}[3h])) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "No successful requests to {{ $labels.host }} in 3 hours"
+
+      # 200, 401/403 (one user's key was revoked) and 429 are expected. Anything else, including network
+      # errors like open_timeout, means the tracker or its API changed.
+      - alert: SherlockTrackerUnexpectedStatus
+        expr: sum by (host, status) (increase(sherlock_tracker_requests_total{status!~"200|401|403|429"}[1h])) > 2
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.host }} answered {{ $labels.status }} {{ $value | humanize }} times in the last hour"
+
+      - alert: SherlockTrackerRateLimited
+        expr: sum by (host) (increase(sherlock_tracker_requests_total{status="429"}[1h])) > 3
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.host }} rate limited Sherlock {{ $value | humanize }} times in the last hour"
+
+      # Far more requests than the same hour yesterday: a retry loop or a stuck schedule.
+      - alert: SherlockTrackerRequestSpike
+        expr: |
+          sum by (host) (increase(sherlock_tracker_requests_total[1h])) > 50
+          and sum by (host) (increase(sherlock_tracker_requests_total[1h]))
+            > 3 * sum by (host) (increase(sherlock_tracker_requests_total[1h] offset 1d))
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $value | humanize }} requests to {{ $labels.host }} in the last hour, 3x yesterday"

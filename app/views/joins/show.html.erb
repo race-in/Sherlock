@@ -1,0 +1,71 @@
+<% content_for :title, "Join" %>
+<% claim = profile_claim if @invite.open? %>
+<% sites = @invite.joinable_sites.to_a if @invite.open? %>
+<div class="mx-auto <%= @invite.open? ? "max-w-xl" : "max-w-sm" %>" data-controller="time-zone">
+  <h1 class="heading text-3xl">Join Sherlock</h1>
+  <% if !@invite.open? %>
+    <p class="mt-2 text-ink-soft"><strong class="font-medium text-ink"><%= @invite.created_by_user.username %></strong> invited you. Pick a username and password.</p>
+  <% elsif sites.empty? %>
+    <p class="mt-2 text-ink-soft">This invite can't be used right now. Try again later.</p>
+  <% else %>
+    <% step = claim&.ready? ? 2 : claim ? 1 : 0 %>
+    <ol class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm" aria-label="Join steps">
+      <% [ "Profile", "Sherlock link", "Account" ].each_with_index do |name, index| %>
+        <li class="flex items-center gap-1.5 <%= index == step ? "text-ink font-medium" : index < step ? "text-muted" : "text-muted/60" %>">
+          <span class="num inline-flex size-5 items-center justify-center rounded-full text-[11px] <%= index <= step ? "bg-accent text-accent-ink" : "bg-sunken" %>"><%= index < step ? tag.i(class: "bi bi-check") : index + 1 %></span>
+          <%= name %>
+        </li>
+      <% end %>
+    </ol>
+    <% if step < 2 %>
+      <p class="mt-4 text-ink-soft">Sherlock charts your tracker stats over time. It reads your tracker profile as other members see it, so you never share your API key.</p>
+    <% end %>
+  <% end %>
+
+  <% if @invite.open? && sites.any? && !claim&.ready? %>
+    <div class="mt-6">
+      <%= render "connections/profile_form", sites:, claim:, error: @check_error || @error,
+            profile_path: join_profile_path(@invite), check_path: join_check_path(@invite), continue: nil %>
+    </div>
+  <% elsif !@invite.open? || sites.any? %>
+    <% if claim %>
+      <div class="card mt-6">
+        <div class="flex items-center gap-3 p-4">
+          <%= site_mark claim.site %>
+          <span class="flex-1"><span class="font-medium"><%= claim.site.name %></span> <span class="text-ink-soft">· <%= claim.external_username %></span></span>
+          <span class="tag-up">Found</span>
+        </div>
+        <details class="border-t border-line px-4 py-3 text-sm">
+          <summary class="hint cursor-pointer">What Sherlock can see</summary>
+          <%= render "connections/visibility", site: claim.site, stats: claim.stats %>
+          <%= button_to "Check again", join_check_path(@invite), class: "btn-secondary mt-3" %>
+        </details>
+      </div>
+      <% if @error %>
+        <div class="mt-5 rounded-lg border border-down/30 bg-down-soft px-4 py-3 text-sm text-down" role="alert"><p class="font-medium"><%= @error.message %></p></div>
+      <% end %>
+    <% end %>
+    <section class="<%= claim ? "card mt-8 p-5" : "mt-6" %>">
+      <% if claim %>
+        <h2 class="section-title">Create your Sherlock account</h2>
+        <p class="hint mt-1">Your <%= claim.site.name %> profile is ready. You can now create your Sherlock account.</p>
+      <% end %>
+      <%= form_with model: @user || User.new, scope: :user, url: join_path(@invite.code), method: :post, class: claim ? "mt-4 space-y-4" : "space-y-4" do |form| %>
+        <%= render "shared/errors", record: form.object %>
+        <%= form.hidden_field :time_zone, value: form.object.time_zone, data: { time_zone_target: "field" } %>
+        <div>
+          <%= form.label :username, class: "label" %>
+          <%= form.text_field :username, required: true, autofocus: true, autocomplete: "username", autocapitalize: "none", class: "input mt-1" %>
+          <p class="hint mt-1">Letters, numbers, dots, dashes and underscores. Others never see it.<% if claim %> It can differ from your <%= claim.site.name %> name.<% end %></p>
+        </div>
+        <div>
+          <%= form.label :password, class: "label" %>
+          <%= form.password_field :password, required: true, autocomplete: "new-password", minlength: 10, maxlength: 72, class: "input mt-1" %>
+          <p class="hint mt-1">At least 10 characters. There is no email reset, so keep it somewhere safe.</p>
+        </div>
+        <%= form.submit "Create account", class: "btn-primary w-full" %>
+        <p class="hint text-center">No email, no IP address. Sherlock keeps your username, a hash of your password and the stats it reads. <%= link_to "Privacy", privacy_path, class: "link" %></p>
+      <% end %>
+    </section>
+  <% end %>
+</div>

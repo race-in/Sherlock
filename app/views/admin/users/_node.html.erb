@@ -1,0 +1,17 @@
+<li>
+  <div class="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-sunken <%= "bg-accent-soft" if user == match %>" style="padding-left: <%= depth * 22 + 8 %>px">
+    <% if depth > 0 %><span class="text-line-strong" aria-hidden="true">└</span><% end %>
+    <%= link_to user.username, admin_user_path(user), class: "font-medium hover:underline" %>
+    <% if user.is_admin? %><span class="tag-accent">Admin</span><% end %>
+    <% if user.is_disabled? %><span class="tag-down">Disabled</span><% end %>
+    <span class="hint ml-auto flex gap-4 text-xs whitespace-nowrap">
+      <span><%= pluralize connection_counts.fetch(user.id, 0), "tracker" %></span>
+      <span><%= used_invites.fetch(user.id, 0) %>/<%= user.is_admin? ? "∞" : user.invite_limit %> invites</span>
+      <span class="hidden w-32 text-right sm:inline"><%= last_seen[user.id] ? "seen #{time_ago_in_words(last_seen[user.id])} ago" : "not signed in" %></span>
+      <span class="hidden w-24 text-right sm:inline">joined <%= l user.created_at.to_date, format: :short %></span>
+    </span>
+  </div>
+  <% if (kids = children[user.id]).present? %>
+    <ul><%= render partial: "admin/users/node", collection: kids, as: :user, locals: { depth: depth + 1, children:, connection_counts:, used_invites:, last_seen:, match: } %></ul>
+  <% end %>
+</li>

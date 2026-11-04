@@ -1,0 +1,7 @@
+<%= render layout: "admin/frame" do %>
+  <%= link_to (@site.off? ? admin_sites_path : admin_site_path(@site)), class: "hint inline-flex items-center gap-1 hover:text-ink" do %><i class="bi bi-arrow-left"></i> <%= @site.off? ? "Sites" : @site.name %><% end %>
+  <h2 class="heading mt-2 flex items-center gap-3 text-2xl"><%= site_mark @site, size: "size-7" %><%= @site.off? ? "Add" : "Change" %> <%= @site.name %></h2>
+  <section class="card mt-5 p-5 sm:p-6">
+    <%= render "admin/sites/setups/form", site: @site, share: params[:share], error: flash[:setup_error] %>
+  </section>
+<% end %>

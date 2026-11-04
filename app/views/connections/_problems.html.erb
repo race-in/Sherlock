@@ -1,0 +1,25 @@
+<% problems = connections.select { _1.failing? || _1.needs_key? || _1.needs_check? } %>
+<%# A paused tracker leaves its connections ok, so say why nothing updates. %>
+<% paused = connections.select { (_1.ok? || _1.failing?) && _1.site.paused? }.map(&:site).uniq %>
+<% if problems.any? || paused.any? %>
+  <div class="mb-6 space-y-2">
+    <% paused.each do |site| %>
+      <div class="flex items-start justify-between gap-4 rounded-lg border border-warn/30 bg-warn-soft px-4 py-3 text-sm" role="status">
+        <div>
+          <p class="font-medium text-ink"><%= site.name %> is paused on this Sherlock</p>
+          <p class="text-ink-soft">Because <%= site.pause_message %>. <%= site.paused_until ? "Updates start again on their own at #{clock(site.paused_until)}." : "Updates start again when the admin resumes it." %> Your history is kept.</p>
+        </div>
+        <% if Current.user.is_admin? %><%= link_to "Open", admin_site_path(site), class: "btn-secondary" %><% end %>
+      </div>
+    <% end %>
+    <% problems.each do |connection| %>
+      <div class="flex items-start justify-between gap-4 rounded-lg border border-warn/30 bg-warn-soft px-4 py-3 text-sm" role="alert">
+        <div>
+          <p class="font-medium text-ink"><%= connection.site.display_name %> <%= connection.needs_key? ? "needs a new API key" : connection.needs_check? ? "stopped updating" : "isn't updating" %></p>
+          <p class="text-ink-soft"><%= connection.error_message %></p>
+        </div>
+        <%= link_to "Fix", connection.needs_key? ? edit_settings_connection_key_path(connection) : settings_connection_path(connection), class: "btn-secondary" %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

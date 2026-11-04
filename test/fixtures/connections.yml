@@ -1,0 +1,16 @@
+alice_redacted:
+  user: alice
+  site: redacted
+  external_username: alice_red
+  external_user_id: "469"
+  credential: alice-secret-key
+  status: ok
+  polled_at: <%= 1.hour.ago.to_fs(:db) %>
+
+bob_redacted:
+  user: bob
+  site: redacted
+  external_username: bob_red
+  external_user_id: "470"
+  credential: bob-secret-key
+  status: ok

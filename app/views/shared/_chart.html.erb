@@ -1,0 +1,59 @@
+<%# locals: (title:, points:, unit:, type: "line", height: "260px", labels: {}, colors: {}, note: nil, sample: nil, step: nil, mirror: nil, actions: nil) %>
+<%# Points: { group:, date:, value: } for line, area and bar; { group:, value: } for column and donut;
+    { x:, y:, value: } for heatmap, with labels: { x: [...], y: [...] } giving the order of each axis.
+    colors: { group: "#rrggbb" } overriding the palette, for groups that are trackers.
+    sample: from chart_sample, draws grey placeholder history before tracking began.
+    step: the interval of the data. A bar is as wide as the time it covers, and a day or more labels only days.
+    mirror: a group drawn below zero, so a bar chart's two groups don't cover each other.
+    actions: buttons for the header, next to Table. %>
+<% content_for :page_javascript, flush: true do %>
+  <%= javascript_include_tag "charts", "data-turbo-track": "reload", type: "module" %>
+  <%= stylesheet_link_tag "charts", "data-turbo-track": "reload" %>
+<% end unless content_for?(:charts_loaded) %>
+<% content_for :charts_loaded, "1", flush: true %>
+<section class="card p-4" data-controller="chart"
+         data-action="turbo:before-morph-element->chart#keepCanvas turbo:before-morph-attribute->chart#keepTableToggle turbo:morph-element->chart#morphed"
+         data-chart-points-value="<%= points.to_json %>" data-chart-unit-value="<%= unit %>" data-chart-type-value="<%= type %>"
+         data-chart-labels-value="<%= labels.to_json %>" data-chart-colors-value="<%= colors.to_json %>" data-chart-sample-value="<%= (sample || {}).to_json %>"
+         data-chart-filled-value="<%= Current.user.is_chart_filled? %>" data-chart-dots-value="<%= Current.user.is_chart_points_shown? %>"
+         data-chart-binary-value="<%= Current.user.byte_unit_iec? %>" data-chart-height-value="<%= height %>"
+         data-chart-step-value="<%= step.to_i %>" data-chart-mirror-value="<%= mirror %>" data-chart-title-value="<%= title %>">
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <div>
+      <h2 class="eyebrow"><%= title %></h2>
+      <% if note %><p class="hint mt-1"><%= note %></p><% end %>
+    </div>
+    <% if sample %>
+      <p class="hint ml-auto shrink-0 text-xs">Tracking since <%= l Time.zone.parse(sample[:since]), format: :short %></p>
+    <% end %>
+    <% if actions || points.any? %>
+      <div class="flex shrink-0 items-center gap-1">
+        <%= actions %>
+        <% if points.any? %>
+          <button type="button" class="btn-quiet text-xs" data-action="chart#toggleTable">Table</button>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+  <% if points.empty? && !sample %>
+    <p class="hint py-10 text-center">No data for this range yet.</p>
+  <% else %>
+    <% timed = points.empty? || points.first.key?(:date) %>
+    <% many = timed && points.map { _1[:group] }.uniq.many? %>
+    <div data-chart-target="canvas" class="relative" style="min-height: <%= height %>"></div>
+    <div data-chart-target="table" hidden class="max-h-72 overflow-y-auto">
+      <table class="table">
+        <thead><tr><th><%= timed ? "Time" : "Label" %></th><% if many %><th>Tracker</th><% end %><th class="text-right">Value</th></tr></thead>
+        <tbody>
+          <% (timed ? points.last(200).reverse : points).each do |point| %>
+            <tr>
+              <td class="<%= "num" if timed %>"><%= timed ? l(Time.zone.parse(point[:date]), format: :short) : point[:group] || "#{point[:y]} #{point[:x]}" %></td>
+              <% if many %><td><%= point[:group] %></td><% end %>
+              <td class="text-right"><%= unit == "bytes" ? bytes(point[:value].round) : unit == "ratio" ? ratio(point[:value]) : count(point[:value].round) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

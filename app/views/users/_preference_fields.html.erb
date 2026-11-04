@@ -1,0 +1,47 @@
+<div>
+  <%= form.label :time_zone, class: "label" %>
+  <%= form.select :time_zone, time_zone_options, {}, class: "input mt-1.5", data: { time_zone_target: "field" } %>
+</div>
+<div>
+  <span class="label">Theme</span>
+  <div class="mt-1.5 grid gap-2 sm:grid-cols-3">
+    <% { "system" => [ "Same as system", "circle-half" ], "light" => [ "Light", "sun" ], "dark" => [ "Dark", "moon" ] }.each do |value, (label, icon)| %>
+      <label class="choice"><%= form.radio_button :theme, value %> <i class="bi bi-<%= icon %> text-muted"></i> <%= label %></label>
+    <% end %>
+  </div>
+</div>
+<%# Onboarding asks only for the basics; the rest is in Settings. %>
+<% if local_assigns[:full] %>
+  <div>
+    <span class="label">Units</span>
+    <div class="mt-1.5 grid gap-2 sm:grid-cols-2">
+      <label class="choice"><%= form.radio_button :byte_unit, "iec" %> <span>TiB, GiB <span class="hint block">1 TiB = 1024 GiB</span></span></label>
+      <label class="choice"><%= form.radio_button :byte_unit, "si" %> <span>TB, GB <span class="hint block">1 TB = 1000 GB</span></span></label>
+    </div>
+  </div>
+  <div>
+    <span class="label">Buffer</span>
+    <div class="mt-1.5 grid gap-2 sm:grid-cols-2">
+      <label class="choice"><%= form.radio_button :buffer_basis, "one_to_one" %> <span>Ratio 1.0 <span class="hint block">Uploaded minus downloaded</span></span></label>
+      <label class="choice"><%= form.radio_button :buffer_basis, "required_ratio" %> <span class="whitespace-normal">Required ratio <span class="hint block">What you can download before you fall below the tracker's required ratio. Trackers that don't report one use 1.0.</span></span></label>
+    </div>
+  </div>
+  <div>
+    <%= form.label :default_range, "Default range", class: "label" %>
+    <%= form.select :default_range, ApplicationHelper::RANGE_LABELS.invert, {}, class: "input mt-1.5 max-w-xs" %>
+  </div>
+  <div>
+    <span class="label">Tracker names</span>
+    <div class="mt-1.5 grid gap-2 sm:grid-cols-2">
+      <label class="choice"><%= form.radio_button :is_tracker_name_short, false %> <span>Full names <span class="hint block">BroadcasTheNet, HDBits</span></span></label>
+      <label class="choice"><%= form.radio_button :is_tracker_name_short, true %> <span>Short codes <span class="hint block">BTN, HDB</span></span></label>
+    </div>
+  </div>
+  <div>
+    <span class="label">Charts</span>
+    <div class="mt-1.5 space-y-2">
+      <label class="choice"><%= form.check_box :is_chart_filled %> Fill the area under charts</label>
+      <label class="choice"><%= form.check_box :is_chart_points_shown %> Show a dot for each data point</label>
+    </div>
+  </div>
+<% end %>

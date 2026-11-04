@@ -1,0 +1,83 @@
+<%= render layout: "admin/frame" do %>
+  <%= link_to admin_users_path, class: "hint inline-flex items-center gap-1 hover:text-ink" do %><i class="bi bi-arrow-left"></i> Invite tree<% end %>
+  <h2 class="heading mt-2 flex items-center gap-2 text-2xl"><%= @user.username %>
+    <% if @user.is_admin? %><span class="tag-accent">Admin</span><% end %>
+    <% if @user.is_disabled? %><span class="tag-down">Disabled</span><% end %></h2>
+  <p class="hint mt-1">Joined <%= l @user.created_at.to_date, format: :long %>.
+    <% if @user.invited_by_user %>Invited by <%= link_to @user.invited_by_user.username, admin_user_path(@user.invited_by_user), class: "link" %>.<% else %>Created by the operator.<% end %></p>
+
+  <% if (password = flash[:temporary_password]) %>
+    <div class="mt-5 rounded-lg border border-warn/30 bg-warn-soft p-4 text-sm" role="alert">
+      <p class="font-medium text-ink">Temporary password for <%= @user.username %></p>
+      <p class="mt-1 text-ink-soft">Send it to them privately. It's shown only this once. They must pick a new one when they sign in.</p>
+      <code class="mt-2 block font-mono text-base text-ink"><%= password %></code>
+    </div>
+  <% end %>
+
+  <div class="mt-6 grid gap-4 lg:grid-cols-2">
+    <section class="card p-4">
+      <h3 class="eyebrow">Invited</h3>
+      <% if @user.invitees.any? %>
+        <ul class="mt-2 space-y-1 text-sm"><% @user.invitees.sort_by(&:username).each do |invitee| %><li><%= link_to invitee.username, admin_user_path(invitee), class: "link" %><% if invitee.is_disabled? %> <span class="tag-down">Disabled</span><% end %></li><% end %></ul>
+      <% else %><p class="hint mt-2">Nobody yet.</p><% end %>
+    </section>
+    <section class="card p-4">
+      <h3 class="eyebrow">Trackers</h3>
+      <% if @connections.any? %>
+        <ul class="mt-2 space-y-1 text-sm"><% @connections.each do |connection| %><li class="flex items-center justify-between"><span><%= connection.site.display_name %></span><%= status_tag connection %></li><% end %></ul>
+      <% else %><p class="hint mt-2">None.</p><% end %>
+    </section>
+  </div>
+
+  <% if @granted_sites.any? || @granted_integrations.any? %>
+    <section class="card mt-4 p-4">
+      <h3 class="eyebrow">Granted trackers and integrations</h3>
+      <% if @user.is_admin? %>
+        <p class="hint mt-2">Admins can use all of them.</p>
+      <% else %>
+        <p class="hint mt-1">The ones that aren't open to everyone. Taking one back stops it updating for <%= @user.username %>, but keeps their key.</p>
+        <ul class="mt-3 space-y-2 text-sm">
+          <% @granted_sites.each do |site| %>
+            <%= render "grant", name: site.display_name, mark: site_mark(site, size: "size-5"), granted: @granted_site_ids.include?(site.id),
+                  create_path: admin_user_grants_path(@user), destroy_path: admin_user_grant_path(@user, site.slug), slug: site.slug %>
+          <% end %>
+          <% @granted_integrations.each do |integration| %>
+            <%= render "grant", name: integration.name, mark: tag.i(class: "bi bi-arrow-left-right inline-flex size-5 items-center justify-center text-muted", aria: { hidden: true }),
+                  granted: @granted_integration_ids.include?(integration.id), slug: integration.slug,
+                  create_path: admin_user_integration_grants_path(@user), destroy_path: admin_user_integration_grant_path(@user, integration.slug) %>
+          <% end %>
+        </ul>
+      <% end %>
+    </section>
+  <% end %>
+
+  <section class="card mt-4 divide-y divide-line">
+    <%= form_with model: @user, url: admin_user_path(@user), method: :patch, class: "flex items-center justify-between gap-4 p-4" do |form| %>
+      <div><p class="font-medium">Invite limit</p><p class="hint"><%= @user.invites_left %> left.</p></div>
+      <div class="flex gap-2"><%= form.number_field :invite_limit, min: 0, max: 100, class: "input w-24" %><%= form.submit "Save", class: "btn-secondary" %></div>
+    <% end %>
+    <div class="flex items-center justify-between gap-4 p-4">
+      <div><p class="font-medium">Reset password</p><p class="hint">Signs them out and shows a temporary password once.</p></div>
+      <%= button_to "Reset password", admin_user_password_reset_path(@user), class: "btn-secondary", form: { data: { turbo_confirm: "Reset #{@user.username}'s password?" } } %>
+    </div>
+    <% unless @user == Current.user %>
+      <div class="flex items-center justify-between gap-4 p-4">
+        <% if @user.is_disabled? %>
+          <div><p class="font-medium">Enable</p><p class="hint">They can sign in again. Paused trackers stay paused.</p></div>
+          <%= button_to "Enable", admin_user_disable_path(@user), method: :delete, class: "btn-secondary" %>
+        <% else %>
+          <div><p class="font-medium">Disable</p><p class="hint">Signs them out, blocks sign in and stops their trackers updating.</p></div>
+          <%= button_to "Disable", admin_user_disable_path(@user), class: "btn-danger", form: { data: { turbo_confirm: "Disable #{@user.username}?" } } %>
+        <% end %>
+      </div>
+      <% branch = @user.branch.to_a %>
+      <% if branch.any? %>
+        <div class="flex items-center justify-between gap-4 p-4">
+          <div><p class="font-medium">Disable whole branch</p><p class="hint"><%= @user.username %> and <%= pluralize branch.size, "person" %> below them: <%= branch.map(&:username).to_sentence %>.</p></div>
+          <%= button_to "Disable branch", admin_user_branch_disable_path(@user), class: "btn-danger",
+                form: { data: { turbo_confirm: "Disable #{branch.size + 1} users: #{([ @user ] + branch).map(&:username).join(", ")}?" } } %>
+        </div>
+      <% end %>
+    <% end %>
+  </section>
+<% end %>
