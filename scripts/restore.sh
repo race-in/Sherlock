@@ -153,12 +153,20 @@ set +a
 read -r -p "This replaces database $DB_NAME. Type RESTORE to continue: " CONFIRM
 [[ "$CONFIRM" == RESTORE ]] || die "Restore cancelled."
 
-systemctl stop sherlock
+DB_PORT=${DB_PORT:-5432}
+DB_HOST=${DB_HOST:-127.0.0.1}
+case "$DB_HOST" in
+  localhost|127.0.0.1|::1) ;;
+  *) die "Automatic restore is limited to a local PostgreSQL server. This backup targets DB_HOST=$DB_HOST; restore it with an external-database-specific procedure instead." ;;
+esac
+
 CREDENTIALS_DIR="$APP_DIR/config/credentials"
 if [[ -L "$CREDENTIALS_DIR" ]]; then
   CREDENTIALS_DIR=$(readlink -f -- "$CREDENTIALS_DIR") || die "Cannot resolve the application's credentials symlink."
   [[ "$CREDENTIALS_DIR" == "$ETC_DIR/credentials" ]] || die "Unexpected credentials symlink target: $CREDENTIALS_DIR"
 fi
+
+systemctl stop sherlock
 install -d -o "$APP_USER" -g "$APP_GROUP" -m 0700 "$CREDENTIALS_DIR"
 install -o "$APP_USER" -g "$APP_GROUP" -m 0600 \
   "$RESTORE_TMP/config/credentials/production.key" \
@@ -169,8 +177,6 @@ install -o "$APP_USER" -g "$APP_GROUP" -m 0600 \
 install -o root -g "$APP_GROUP" -m 0640 \
   "$RESTORE_TMP/sherlock.env" "$ETC_DIR/sherlock.env"
 
-DB_PORT=${DB_PORT:-5432}
-DB_HOST=${DB_HOST:-127.0.0.1}
 runuser -u postgres -- "$PG_BINDIR/psql" -p "$DB_PORT" -v ON_ERROR_STOP=1 \
   -v db_user="$DB_USER" -v db_password="$DB_PASSWORD" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_user', :'db_password')
