@@ -46,6 +46,7 @@ OPT_RUBY_VERSION=""
 OPT_NODE_VERSION=""
 ASSUME_YES=0
 FORCE_OS=0
+FIRST_RUN_TOKEN=""
 
 CODENAME=""
 ARCH=""
@@ -497,6 +498,22 @@ create_user_and_dirs() {
   install -d -o "$APP_USER" -g "$APP_USER" -m 0700 "$CRED_DIR"
 }
 
+prepare_first_run_token() {
+  step "Preparing the one-time first-run token"
+  local existing=""
+  if [[ -f "$ENV_FILE" ]]; then
+    existing=$(sed -n 's/^FIRST_RUN_TOKEN=//p' "$ENV_FILE" | head -n 1)
+  fi
+  if [[ -n "$existing" ]]; then
+    [[ "$existing" =~ ^[a-f0-9]{64}$ ]] || die "FIRST_RUN_TOKEN in $ENV_FILE must be 64 lowercase hexadecimal characters."
+    FIRST_RUN_TOKEN="$existing"
+  else
+    FIRST_RUN_TOKEN=$(openssl rand -hex 32) || die "Could not generate the first-run token."
+  fi
+  [[ "$FIRST_RUN_TOKEN" =~ ^[a-f0-9]{64}$ ]] || die "Generated first-run token failed validation."
+  ok "Token created or retained securely in $ENV_FILE"
+}
+
 write_env_file() {
   step "Writing $ENV_FILE"
   local tmp; tmp="$(mktemp)"
@@ -515,11 +532,13 @@ write_env_file() {
     echo "DB_NAME=$DB_NAME"
     echo "DB_USER=$DB_USER"
     echo "DB_PASSWORD=$DB_PASSWORD"
+    echo "SINGLE_USER_MODE=true"
+    echo "FIRST_RUN_TOKEN=$FIRST_RUN_TOKEN"
     echo "SOLID_QUEUE_IN_PUMA=true"
     echo "METRICS_BIND=$metrics_bind"
     echo "# --- your own settings (RAILS_LOG_LEVEL, JOB_CONCURRENCY, METRICS_PORT, ...) ---"
     if [[ -f "$ENV_FILE" ]]; then
-      grep -vE '^(# Managed by deploy|# After editing|# --- your own|$|(RAILS_ENV|APP_HOST|FORCE_SSL|PORT|BIND_ADDRESS|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|SOLID_QUEUE_IN_PUMA|METRICS_BIND)=)' "$ENV_FILE" || true
+      grep -vE '^(# Managed by deploy|# After editing|# --- your own|$|(RAILS_ENV|APP_HOST|FORCE_SSL|PORT|BIND_ADDRESS|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|SINGLE_USER_MODE|FIRST_RUN_TOKEN|SOLID_QUEUE_IN_PUMA|METRICS_BIND)=)' "$ENV_FILE" || true
     fi
   } > "$tmp"
   install -o root -g "$APP_USER" -m 0640 "$tmp" "$ENV_FILE"
@@ -691,11 +710,21 @@ create_credentials() {
   warn "Back up $CRED_DIR/production.key now. Without it the saved API keys can't be decrypted."
 }
 
+check_single_user_database() {
+  local table_exists account_count
+  table_exists=$(db_psql -Atc "SELECT to_regclass('sherlockdb.users') IS NOT NULL")
+  [[ "$table_exists" == t ]] || return 0
+  account_count=$(db_psql -Atc "SELECT count(*) FROM sherlockdb.users")
+  [[ "$account_count" =~ ^[0-9]+$ ]] || die "Could not verify the existing Sherlock account count."
+  (( account_count <= 1 )) || die "This native build is single-user only, but the configured database already contains $account_count accounts. No data was deleted. Export the accounts you need and reduce the database to one account before retrying."
+}
+
 prepare_database() {
   step "Preparing the database"
   check_db_connection
   load_schema_for_old_postgres
   in_app ./bin/rails db:prepare db:seed
+  check_single_user_database
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -860,11 +889,13 @@ summary() {
   [[ "$FORCE_SSL" == true ]] && scheme=https
   local APP_URL="$scheme://$APP_HOST"
   if [[ "$PROXY" == none && "$FORCE_SSL" == false ]]; then APP_URL="http://${APP_HOST%%:*}:$PORT"; fi
+  local account_count=0
+  account_count=$(db_psql -Atc "SELECT count(*) FROM sherlockdb.users" 2>/dev/null || echo 0)
   cat <<EOF
 
 ${C_GRN}${C_BOLD}Sherlock is installed.${C_OFF}
 
-  Open:          $APP_URL   (the first account you create becomes the admin)
+  Open:          $APP_URL   (private single-user instance; invites and new registrations are disabled)
   Settings:      $ENV_FILE   (then: sudo systemctl restart $SERVICE)
   Logs:          sudo sherlock-ctl logs
   Status:        sudo sherlock-ctl status
@@ -873,6 +904,10 @@ ${C_GRN}${C_BOLD}Sherlock is installed.${C_OFF}
 
   ${C_BOLD}Back up $CRED_DIR/production.key${C_OFF}: without it the saved API keys can't be decrypted.
 EOF
+  if [[ "$account_count" == "0" ]]; then
+    echo "  First-run token: $FIRST_RUN_TOKEN"
+    echo "  Enter this token on the first-run page before creating your only admin account."
+  fi
   if [[ "$PROXY" == none ]]; then
     echo "  Sherlock listens on 0.0.0.0:$PORT. Put a reverse proxy with HTTPS in front, or firewall the port."
   fi
@@ -890,8 +925,10 @@ main() {
     install_local_postgres
     provision_local_database
   fi
+  prepare_first_run_token
   write_env_file
   install_ruby
+  check_single_user_database
   sync_source
   build_app
   create_credentials
