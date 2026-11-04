@@ -43,6 +43,26 @@ if grep -Fq 'rm -f /etc/nginx/sites-enabled/default' "$INSTALLER"; then
   exit 1
 fi
 
+
+grep -Fq '"$RUBY_PREFIX/bin/gem" install bundler -v 4.0.20 --no-document' "$INSTALLER" || {
+  echo "ERROR: installer does not install Bundler into the application Ruby runtime." >&2
+  exit 1
+}
+grep -Fq '"$RUBY_PREFIX/bin/bundle" --version' "$INSTALLER" || {
+  echo "ERROR: installer does not verify the application Ruby Bundler executable." >&2
+  exit 1
+}
+grep -Fq 'APP_GIT_BRANCH =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*
+  echo "ERROR: updater does not use the current deployment repository patcher." >&2
+  exit 1
+}
+
+echo "PASS: installer and updater contracts are safe"
+ "$ROOT/scripts/update.sh" || {
+  echo "ERROR: updater does not validate APP_GIT_BRANCH before git fetch." >&2
+  exit 1
+}
+
 grep -Fq 'PATCHER="$SCRIPT_DIR/scripts/patch-native-app.sh"' "$ROOT/scripts/update.sh" || {
   echo "ERROR: updater does not use the current deployment repository patcher." >&2
   exit 1
