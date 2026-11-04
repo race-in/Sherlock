@@ -81,6 +81,13 @@ fi
 [[ ! -e "$APP_DIR" ]] || die "$APP_DIR already exists; refusing to overwrite an existing installation."
 [[ ! -e "$ETC_DIR/sherlock.env" ]] || die "$ETC_DIR/sherlock.env already exists; refusing to overwrite an existing configuration."
 [[ ! -e /etc/systemd/system/sherlock.service ]] || die "sherlock.service already exists; inspect the existing service before installing."
+[[ ! -e /etc/nginx/sites-available/sherlock && ! -L /etc/nginx/sites-enabled/sherlock ]] ||
+  die "An Nginx site named sherlock already exists; inspect it before installing."
+if [[ -d /etc/nginx/sites-enabled ]]; then
+  if grep -R -E "^[[:space:]]*server_name[[:space:]].*([[:space:]]|^)\${DOMAIN//./\\.}([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null; then
+    die "An existing Nginx site already declares $DOMAIN; refusing to create a duplicate virtual host."
+  fi
+fi
 [[ -f "$SCRIPT_DIR/scripts/patch-native-app.sh" ]] || die "Missing deployment patcher: $SCRIPT_DIR/scripts/patch-native-app.sh"
 if [[ "$DEBIAN_MAJOR" == 11 ]]; then
   [[ -f "$SCRIPT_DIR/scripts/prepare-bullseye-archive.sh" ]] || die "Missing Bullseye archive helper."
@@ -215,13 +222,13 @@ chmod 0600 "$APP_DIR/config/credentials/production.key" "$APP_DIR/config/credent
 
 log 'Creating PostgreSQL database and role'
 DB_PASSWORD=$(openssl rand -hex 32)
-if runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
-  die "Database role $DB_USER already exists; refusing to alter it."
+if runuser -u postgres -- psql -p "$PG_PORT" -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+  die "Database role $DB_USER already exists in PostgreSQL $PG_VERSION on port $PG_PORT; refusing to alter it."
 fi
-if runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
-  die "Database $DB_NAME already exists; refusing to modify it."
+if runuser -u postgres -- psql -p "$PG_PORT" -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+  die "Database $DB_NAME already exists in PostgreSQL $PG_VERSION on port $PG_PORT; refusing to modify it."
 fi
-runuser -u postgres -- psql -v ON_ERROR_STOP=1 <<SQL
+runuser -u postgres -- psql -p "$PG_PORT" -v ON_ERROR_STOP=1 <<SQL
 CREATE ROLE ${DB_USER} LOGIN PASSWORD '${DB_PASSWORD}';
 CREATE DATABASE ${DB_NAME} OWNER ${DB_USER} ENCODING 'UTF8';
 SQL
