@@ -1,13 +1,47 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+umask 077
+
 [[ $EUID -eq 0 ]] || { echo 'Run as root.' >&2; exit 1; }
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 DEST=${1:-/var/backups/sherlock}
 install -d -m 0700 "$DEST"
+TMP_DIR=$(mktemp -d "$DEST/.sherlock-backup.XXXXXX")
+trap 'rm -rf "$TMP_DIR"' EXIT
+
 set -a
 . /etc/sherlock/sherlock.env
 set +a
-PGPASSWORD="$DB_PASSWORD" /usr/lib/postgresql/18/bin/pg_dump -h "${DB_HOST:-127.0.0.1}" -p "${DB_PORT:-5432}" -U "$DB_USER" -d "$DB_NAME" -Fc > "$DEST/${DB_NAME}-$STAMP.dump"
-tar -czf "$DEST/sherlock-credentials-$STAMP.tar.gz" -C /opt/sherlock config/credentials/production.key config/credentials/production.yml.enc
-chmod 0600 "$DEST"/*
-echo "Backup created in $DEST. Store the credentials archive separately and securely."
+
+DB_DUMP_TMP="$TMP_DIR/${DB_NAME}-$STAMP.dump"
+CREDENTIALS_TMP="$TMP_DIR/sherlock-credentials-$STAMP.tar.gz"
+MANIFEST_TMP="$TMP_DIR/manifest.txt"
+
+PGPASSWORD="$DB_PASSWORD" /usr/lib/postgresql/18/bin/pg_dump \
+  -h "${DB_HOST:-127.0.0.1}" -p "${DB_PORT:-5432}" -U "$DB_USER" -d "$DB_NAME" -Fc \
+  --no-owner --no-acl --file="$DB_DUMP_TMP"
+
+tar -czf "$CREDENTIALS_TMP" -C /opt/sherlock \
+  config/credentials/production.key config/credentials/production.yml.enc
+
+{
+  printf 'created_at_utc=%s\n' "$STAMP"
+  printf 'application_commit=%s\n' "$(git -C /opt/sherlock rev-parse HEAD)"
+  printf 'database=%s\n' "$DB_NAME"
+  printf 'postgres_client_version=%s\n' "$(/usr/lib/postgresql/18/bin/pg_dump --version)"
+} > "$MANIFEST_TMP"
+
+chmod 0600 "$DB_DUMP_TMP" "$CREDENTIALS_TMP" "$MANIFEST_TMP"
+DB_FINAL="$DEST/${DB_NAME}-$STAMP.dump"
+CREDENTIALS_FINAL="$DEST/sherlock-credentials-$STAMP.tar.gz"
+MANIFEST_FINAL="$DEST/manifest-$STAMP.txt"
+mv "$DB_DUMP_TMP" "$DB_FINAL"
+mv "$CREDENTIALS_TMP" "$CREDENTIALS_FINAL"
+mv "$MANIFEST_TMP" "$MANIFEST_FINAL"
+rmdir "$TMP_DIR"
+trap - EXIT
+
+printf 'Database backup: %s\n' "$DB_FINAL"
+printf 'Credentials backup: %s\n' "$CREDENTIALS_FINAL"
+printf 'Manifest: %s\n' "$MANIFEST_FINAL"
+echo 'Store all backup files securely and test restoration periodically.'
