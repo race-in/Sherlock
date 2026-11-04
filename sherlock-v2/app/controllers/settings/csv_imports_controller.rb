@@ -19,6 +19,7 @@ class Settings::CsvImportsController < ApplicationController
 
   private
     def done(notice: nil, alert: nil)
-      redirect_to settings_data_path(anchor: "csv-import"), flash: { csv_import_notice: notice, csv_import_alert: alert }.compact
+      flash = { csv_import_notice: notice, csv_import_alert: alert }.compact
+      redirect_to settings_data_path(anchor: "csv-import"), flash:
     end
 end
