@@ -149,6 +149,11 @@ web.get("/dashboard")
 abort "Single-user dashboard failed to render (HTTP #{web.response.status})" unless (200..299).cover?(web.response.status)
 web.get("/admin/sites")
 abort "Single-user Admin/Sites page failed to render (HTTP #{web.response.status})" unless (200..299).cover?(web.response.status)
+web.get("/settings/data")
+abort "Single-user Settings/Data page failed to render (HTTP #{web.response.status})" unless (200..299).cover?(web.response.status)
+site = Site.find_by!(slug: "redacted")
+web.get("/admin/sites/#{site.slug}")
+abort "Single-user Admin/Site detail page failed to render (HTTP #{web.response.status})" unless (200..299).cover?(web.response.status)
 web.get("/join")
 abort "Join route should be disabled in single-user mode" unless web.response.status == 404
 
