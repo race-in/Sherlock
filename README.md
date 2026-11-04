@@ -143,6 +143,7 @@ This repository is a **native deployment scaffold**, not yet the complete Sherlo
 
 The supplied upstream archive did not contain a standalone LICENSE file. Before redistributing or publishing modified upstream source, obtain and verify the maintainer's permission/license. This repository therefore keeps deployment tooling separate from upstream application source.
 - This GitHub repository contains deployment tooling only, not the Rails application source. Do not pass `https://github.com/race-in/Sherlock.git` as the application-source URL to `install.sh`; provide a separate authorized repository containing the complete Rails source tree.
+- This GitHub repository contains deployment tooling only, not the Rails application source. Do not pass `https://github.com/race-in/Sherlock.git` as the application-source URL to `install.sh`; provide a separate authorized repository containing the complete Rails source tree.
 
 ## Validation status
 
