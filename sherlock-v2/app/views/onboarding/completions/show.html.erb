@@ -1,0 +1,21 @@
+<% content_for :title, "Done" %>
+<%= render "onboarding/steps", current: 3 %>
+<h1 class="heading text-3xl">You're set up</h1>
+<% if @connections.any? %>
+  <p class="mt-2 text-ink-soft">Next update at <%= clock(Current.user.next_poll_at) %>. These are your first numbers.</p>
+  <div class="mt-6 grid gap-3 sm:grid-cols-2">
+    <% @connections.each do |connection| %>
+      <% snapshot = connection.latest_snapshot %>
+      <div class="card p-4">
+        <div class="flex items-center gap-2"><%= site_mark connection.site %><span class="font-medium"><%= connection.site.display_name %></span><span class="hint"><%= connection.external_username %></span></div>
+        <dl class="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <div><dt class="eyebrow">Buffer</dt><dd><%= bytes snapshot&.buffer %></dd></div>
+          <div><dt class="eyebrow">Ratio</dt><dd><%= ratio snapshot&.ratio %></dd></div>
+        </dl>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <p class="mt-2 text-ink-soft">You haven't added a tracker yet. You can do that any time from the dashboard.</p>
+<% end %>
+<%= button_to "Go to dashboard", onboarding_completion_path, class: "btn-primary mt-6" %>

@@ -14,13 +14,14 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Phase 0 — Rights and source baseline
 
-- [ ] Obtain written permission or a clear licence that allows modifying and redistributing the upstream Sherlock source.
+- [ ] Keep the maintainer's written permission or a clear licence record with the project governance materials; the source tree itself has no standalone LICENSE file.
 - [ ] Confirm the exact upstream commit to use as the base.
 - [ ] Keep upstream attribution, notices, and any required licence terms.
-- [ ] Import the authorized upstream source into this repository without losing its history where practical.
-- [ ] Run the untouched upstream test suite and record a clean baseline.
+- [x] Bundle the imported Sherlock v2 application baseline under `sherlock-v2/`, preserving upstream attribution and notices.
+- [x] Record the upstream source inventory and schema/import/export contract in `docs/UPSTREAM_AUDIT.md`.
+- [ ] Complete a clean full Rails test baseline on the bundled source in the Debian CI matrix.
 
-**Gate:** do not publish a modified upstream application until the source licence/permission is confirmed. The supplied archive did not contain a standalone LICENSE file.
+**Gate:** retain evidence of the maintainer permission already obtained for this project and preserve all upstream attribution. The audited upstream tree has no standalone LICENSE file; do not imply an OSI/open-source licence that is not present.
 
 ## Phase 1 — Single-user mode
 
@@ -86,7 +87,7 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Current status
 
-- [x] Native deployment scaffold and CI checks for shell scripts, helper tests, and Debian release detection.
+- [x] Native deployment scaffold, shell regression tests, source audit, and Debian release compatibility jobs.
 - [x] Single-user + hybrid manual/automatic + CSV/JSON target architecture documented.
 - [ ] Full Sherlock Custom Edition application features.
 - [ ] Full fresh-install verification on real Debian VPS hosts.

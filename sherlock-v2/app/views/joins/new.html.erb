@@ -1,0 +1,12 @@
+<% content_for :title, "Join" %>
+<div class="mx-auto max-w-sm">
+  <h1 class="heading text-3xl">Join Sherlock</h1>
+  <p class="mt-2 text-ink-soft">Sherlock is invite only. Paste the code or open the link someone sent you. No code yet? Ask for one in the forum.</p>
+  <%= form_with url: new_join_path, method: :get, class: "mt-6 space-y-4" do |form| %>
+    <div>
+      <%= form.label :code, "Invite code", class: "label" %>
+      <%= form.text_field :code, required: true, autofocus: true, autocomplete: "off", class: "input mt-1 font-mono" %>
+    </div>
+    <%= form.submit "Continue", class: "btn-primary w-full" %>
+  <% end %>
+</div>

@@ -19,7 +19,12 @@ DB_DUMP_TMP="$TMP_DIR/${DB_NAME}-$STAMP.dump"
 SECRETS_TMP="$TMP_DIR/sherlock-secrets-$STAMP.tar.gz"
 MANIFEST_TMP="$TMP_DIR/manifest.txt"
 
-PGPASSWORD="$DB_PASSWORD" /usr/lib/postgresql/18/bin/pg_dump \
+PG_DUMP_BIN=${PG_DUMP_BIN:-$(command -v pg_dump || true)}
+[[ -n "$PG_DUMP_BIN" && -x "$PG_DUMP_BIN" ]] || {
+  echo "PostgreSQL pg_dump client is missing; install the matching postgresql-client package." >&2
+  exit 1
+}
+PGPASSWORD="$DB_PASSWORD" "$PG_DUMP_BIN" \
   -h "${DB_HOST:-127.0.0.1}" -p "${DB_PORT:-5432}" -U "$DB_USER" -d "$DB_NAME" -Fc \
   --no-owner --no-acl --file="$DB_DUMP_TMP"
 
@@ -29,10 +34,17 @@ tar -czf "$SECRETS_TMP" \
 
 {
   printf 'created_at_utc=%s\n' "$STAMP"
-  printf 'application_commit=%s\n' "$(runuser -u sherlock -- git -C /opt/sherlock rev-parse HEAD)"
+  APP_COMMIT=""
+if APP_COMMIT=$(runuser -u sherlock -- git -C /opt/sherlock rev-parse --verify HEAD 2>/dev/null); then
+  :
+elif [[ -f /opt/sherlock/.sherlock-native-install ]]; then
+  APP_COMMIT=$(sed -n 's/^source_commit=//p' /opt/sherlock/.sherlock-native-install | head -n 1)
+fi
+APP_COMMIT=${APP_COMMIT:-unversioned-native-install}
+printf 'application_commit=%s\n' "$APP_COMMIT"
   printf 'database=%s\n' "$DB_NAME"
   printf 'secrets_archive=%s\n' "sherlock-secrets-$STAMP.tar.gz"
-  printf 'postgres_client_version=%s\n' "$(/usr/lib/postgresql/18/bin/pg_dump --version)"
+  printf 'postgres_client_version=%s\n' "$("$PG_DUMP_BIN" --version)"
 } > "$MANIFEST_TMP"
 
 chmod 0600 "$DB_DUMP_TMP" "$SECRETS_TMP" "$MANIFEST_TMP"

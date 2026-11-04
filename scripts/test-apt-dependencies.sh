@@ -45,6 +45,14 @@ PG_PORT=$(pg_lsclusters --no-header | awk -v v=18 '$1 == v && $2 == "main" {prin
 pg_ctlcluster 18 main start
 pg_isready -h 127.0.0.1 -p "$PG_PORT"
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+ROOT=$(cd -- "$SCRIPT_DIR/.." && pwd)
+APP_SOURCE_DIR="$ROOT/sherlock-v2"
+[[ -f "$APP_SOURCE_DIR/db/structure.sql" && -f "$APP_SOURCE_DIR/.ruby-version" ]] || {
+  echo "Bundled Sherlock source is incomplete: $APP_SOURCE_DIR" >&2
+  exit 1
+}
+
 TMP_DIR=$(mktemp -d)
 DB_ROLE="sherlock_ci_$(date +%s%N)_role"
 DB_NAME="sherlock_ci_$(date +%s%N)"
@@ -60,7 +68,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-git clone --depth 1 --no-tags https://codeberg.org/whatstatus/sherlock-v2.git "$TMP_DIR/sherlock"
+cp -a "$APP_SOURCE_DIR" "$TMP_DIR/sherlock"
 runuser -u postgres -- psql -p "$PG_PORT" -v ON_ERROR_STOP=1 \
   -v role_name="$DB_ROLE" -v role_password="$DB_PASSWORD" -v database_name="$DB_NAME" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'role_name', :'role_password') \gexec

@@ -6,6 +6,14 @@ APP_DIR=/opt/sherlock
 ETC_DIR=/etc/sherlock
 APP_USER=sherlock
 APP_GROUP=sherlock
+PG_BINDIR=${PG_BINDIR:-}
+if [[ -z "$PG_BINDIR" ]]; then
+  PG_BINDIR=$(pg_config --bindir 2>/dev/null || true)
+fi
+if [[ ! -x "$PG_BINDIR/pg_restore" ]]; then
+  PG_RESTORE_PATH=$(command -v pg_restore || true)
+  [[ -n "$PG_RESTORE_PATH" ]] && PG_BINDIR=$(dirname "$PG_RESTORE_PATH")
+fi
 PG_BINDIR=${PG_BINDIR:-/usr/lib/postgresql/18/bin}
 
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -18,7 +26,7 @@ validate_environment_file() {
     [[ -n "$key" && "$key" =~ ^[A-Z_]+$ ]] || die "Invalid setting in archived environment file."
     [[ "$value" =~ ^[A-Za-z0-9_./:@+-]+$ ]] || die "Unsafe value in archived environment setting: $key"
     case "$key" in
-      RAILS_ENV|APP_HOST|RAILS_MASTER_KEY|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|BUNDLE_PATH|RAILS_MAX_THREADS|DB_POOL|APP_GIT_BRANCH|PORT|FORCE_SSL|SOLID_QUEUE_IN_PUMA|METRICS_HOST|RAILS_LOG_LEVEL) ;;
+      RAILS_ENV|APP_HOST|RAILS_MASTER_KEY|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|BUNDLE_PATH|RAILS_MAX_THREADS|DB_POOL|APP_GIT_BRANCH|PORT|FORCE_SSL|SOLID_QUEUE_IN_PUMA|METRICS_BIND|RAILS_LOG_LEVEL) ;;
       *) die "Unexpected environment setting in archive: $key" ;;
     esac
     [[ -z ${seen[$key]+x} ]] || die "Duplicate environment setting: $key"

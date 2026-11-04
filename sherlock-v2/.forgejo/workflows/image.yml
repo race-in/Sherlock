@@ -1,0 +1,36 @@
+name: Image
+
+# Runs on Codeberg only. GitHub's deploy.yml pushes a tag here for every release, and this publishes
+# the public image codeberg.org/whatstatus/sherlock-v2 with that tag and latest.
+# Codeberg's runners have no Docker daemon, so buildah builds with vfs storage and chroot isolation.
+on:
+  push:
+    tags: [ "*" ]
+
+jobs:
+  image:
+    runs-on: codeberg-medium
+    env:
+      IMAGE: codeberg.org/whatstatus/sherlock-v2
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install buildah
+        run: apt-get update -qq && apt-get install -y -qq buildah ca-certificates
+
+      - name: Build
+        run: |
+          buildah build --storage-driver=vfs --isolation=chroot \
+            --build-arg "APP_VERSION=$TAG" \
+            --tag "$IMAGE:$TAG" --tag "$IMAGE:latest" .
+
+      - name: Push
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          echo "$REGISTRY_TOKEN" | buildah login --username whatstatus --password-stdin codeberg.org
+          buildah push --storage-driver=vfs "$IMAGE:$TAG"
+          buildah push --storage-driver=vfs "$IMAGE:latest"

@@ -1,0 +1,28 @@
+<%= render layout: "admin/frame" do %>
+  <div class="flex flex-col gap-6">
+    <section class="card p-5">
+      <h2 class="section-title">Contact for tracker staff</h2>
+      <div class="mt-3"><%= render "admin/settings/contact_form", setting: @setting %></div>
+    </section>
+
+    <section class="card p-5">
+      <h2 class="section-title">Update checks</h2>
+      <div class="mt-3"><%= render "admin/settings/update_checks_explainer" %></div>
+      <%= form_with model: @setting, url: admin_settings_path, method: :patch, class: "mt-4" do |form| %>
+        <label class="choice w-fit text-base"><%= form.check_box :is_update_check_enabled %> Check for new versions once a day</label>
+        <% if @setting.is_update_check_enabled? %>
+          <p class="hint mt-3">
+            <% if @setting.update_checked_at %>
+              Last checked <%= time_ago_in_words(@setting.update_checked_at) %> ago. The newest version is
+              <span class="font-mono text-ink"><%= @setting.latest_version %></span>, and this Sherlock runs
+              <span class="font-mono"><%= Rails.configuration.x.version %></span>.
+            <% else %>
+              Not checked yet.
+            <% end %>
+          </p>
+        <% end %>
+        <%= form.button class: "btn-primary mt-4 px-5 py-2.5 text-base" do %>Save <i class="bi bi-arrow-right"></i><% end %>
+      <% end %>
+    </section>
+  </div>
+<% end %>

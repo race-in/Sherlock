@@ -1,0 +1,29 @@
+<%# What a profile shows Sherlock, in Sherlock's own names for the stats, the same on every tracker. Green
+    is shown, grey is hidden by the member's paranoia. stats: Engines::Stats from a Check, or a Snapshot. %>
+<%# locals: (site:, stats:) %>
+<% shown = ->(stat) { !stats.public_send(stat).nil? } %>
+<% [ [ "Needed", Engines::PROFILE_NEEDED ], [ "Recommended", site.profile_stats ] ].each do |title, group| %>
+  <p class="eyebrow mt-4"><%= title %></p>
+  <ul class="mt-2 grid gap-1.5 sm:grid-cols-2">
+    <% group.each do |stat| %>
+      <li class="flex items-center gap-2 text-sm <%= shown.(stat) ? "text-ink" : "text-muted" %>">
+        <% if shown.(stat) %>
+          <i class="bi bi-check-circle-fill text-up" aria-hidden="true"></i>
+        <% else %>
+          <i class="bi bi-circle text-line-strong" aria-hidden="true"></i>
+        <% end %>
+        <%= PinnedComparison::STATS.fetch(stat.to_s) %>
+        <span class="sr-only"><%= shown.(stat) ? "shown" : "hidden" %></span>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+<% hidden = (Engines::PROFILE_NEEDED + site.profile_stats).reject { shown.(_1) } %>
+<% if hidden.any? %>
+  <p class="hint mt-4">
+    <%= Engines::PROFILE_NEEDED.any? { hidden.include?(_1) } ? "Sherlock can't track you until uploaded and downloaded show." : "Grey stats are hidden on your #{site.name} profile." %>
+    <%= site.privacy_hint %>
+    <%= link_to site.privacy_settings_url, class: "link", target: "_blank", rel: "noopener noreferrer" do %>Open your <%= site.name %> settings <i class="bi bi-box-arrow-up-right text-xs"></i><% end %>
+  </p>
+<% end %>
+<p class="hint mt-2">Bonus points never show on profiles, so Sherlock can't track them here.</p>

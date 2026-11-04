@@ -1,0 +1,5 @@
+alice_uploaded:
+  user: alice
+  stat: uploaded
+  range: week
+  connection_ids: "{<%= ActiveRecord::FixtureSet.identify(:alice_redacted) %>}"

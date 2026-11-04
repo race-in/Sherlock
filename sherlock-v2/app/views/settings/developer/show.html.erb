@@ -1,0 +1,62 @@
+<%= render layout: "settings/frame" do %>
+  <section class="card divide-y divide-line">
+    <header class="flex items-center gap-3 p-5">
+      <%= image_tag "prometheus.svg", alt: "", class: "size-8 shrink-0" %>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2">
+          <h2 class="font-medium text-ink">Prometheus</h2>
+          <% if Current.user.metrics_token_digest %>
+            <span class="tag-up">Active</span>
+          <% else %>
+            <span class="tag-neutral">Off</span>
+          <% end %>
+        </div>
+        <p class="text-sm text-ink-soft">Scrape your latest stats from your own Prometheus. Each tracker is one <code class="font-mono text-xs">site</code> label. Stats a tracker doesn't report are left out.</p>
+        <%= link_to "Read more about Prometheus", "https://prometheus.io", class: "link mt-1 inline-block text-sm", target: "_blank", rel: "noopener" %>
+      </div>
+    </header>
+
+    <div class="space-y-4 p-5">
+      <% if @token %>
+        <%# The page was rendered for the POST. Moving the address back means a reload doesn't make another token. %>
+        <div class="space-y-2" data-controller="clipboard replace-url" data-clipboard-text-value="<%= @token %>"
+             data-replace-url-url-value="<%= settings_developer_path %>">
+          <p class="label">Your token</p>
+          <div class="flex items-center gap-2">
+            <code class="input truncate font-mono text-xs"><%= @token %></code>
+            <button type="button" class="btn-secondary" data-action="clipboard#copy">Copy</button>
+          </div>
+          <p class="hint">Copy it now. Sherlock only keeps a hash of it, so it can't show it again.</p>
+        </div>
+      <% elsif Current.user.metrics_token_digest %>
+        <p class="text-sm">Scraping is on. Create a new token to replace the current one, or revoke it to turn scraping off.</p>
+      <% else %>
+        <p class="text-sm">Create a token to turn scraping on.</p>
+      <% end %>
+
+      <div class="flex flex-wrap gap-3">
+        <%= button_to Current.user.metrics_token_digest ? "Create a new token" : "Create a token", settings_developer_metrics_token_path,
+              class: "btn-primary", form: { data: { turbo: false } },
+              data: ({ turbo_confirm: "The old token stops working right away." } if Current.user.metrics_token_digest && !@token) %>
+        <% if Current.user.metrics_token_digest %>
+          <%= button_to "Revoke", settings_developer_metrics_token_path, method: :delete, class: "btn-danger" %>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="space-y-2 p-5">
+      <h3 class="label">Scrape config</h3>
+      <p class="text-sm text-ink-soft">Add this to <code class="font-mono text-xs">prometheus.yml</code>. Sherlock updates each tracker once an hour, so scraping more often than every few minutes gains nothing.</p>
+      <% url = URI(users_metrics_url) %>
+<pre class="overflow-x-auto rounded-lg bg-sunken p-4 font-mono text-xs text-ink">scrape_configs:
+  - job_name: sherlock
+    scrape_interval: 5m
+    scheme: <%= url.scheme %>
+    metrics_path: <%= url.path %>
+    authorization:
+      credentials: <%= @token || "YOUR_TOKEN" %>
+    static_configs:
+      - targets: ["<%= url.host %><%= ":#{url.port}" unless url.port == url.default_port %>"]</pre>
+    </div>
+  </section>
+<% end %>

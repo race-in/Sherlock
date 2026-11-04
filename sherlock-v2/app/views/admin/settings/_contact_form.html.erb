@@ -1,0 +1,20 @@
+<%# The contact for tracker staff, with a live preview of the User-Agent every tracker request carries,
+    so the admin sees where it ends up. Used in Admin → Settings and the setup on the dashboard. %>
+<%# locals: (setting:) %>
+<% before, after = Engines::Http.user_agent("\u0000").split("\u0000") %>
+<%= form_with model: setting, url: admin_settings_path, method: :patch, data: { controller: "mirror", mirror_fallback_value: "#sherlockdev on irc.example.com" } do |form| %>
+  <p class="hint">Sherlock sends this header with every request to a tracker. Staff who look at their logs see that Sherlock is asking, where its code is, and how to reach you before they block anything:</p>
+  <code class="mt-2 block rounded-lg border border-line bg-sunken px-3 py-2 font-mono text-xs break-all text-ink-soft">User-Agent: <%= before %><mark class="rounded bg-accent-soft px-1 text-ink" data-mirror-target="output"><%= setting.tracker_contact.presence || "#sherlockdev on irc.example.com" %></mark><%= after %></code>
+  <%= form.label :tracker_contact, "How tracker staff can reach you", class: "label mt-4" %>
+  <div class="mt-1 flex max-w-xl flex-wrap items-center gap-2">
+    <%= form.text_field :tracker_contact, required: true, maxlength: 200, placeholder: "#sherlockdev on irc.example.com", autocomplete: "off", spellcheck: false,
+          class: "input flex-1 py-2.5 text-base", data: { mirror_target: "source", action: "input->mirror#update" } %>
+    <%= form.button class: "btn-primary px-5 py-2.5 text-base" do %>Save <i class="bi bi-arrow-right"></i><% end %>
+  </div>
+  <p class="hint mt-2">Whatever staff can use to find you. For example:</p>
+  <ul class="hint mt-1 flex flex-wrap gap-2">
+    <% [ [ "envelope", "an email address" ], [ "person", "your username on the tracker" ], [ "hash", "an IRC channel and network" ] ].each do |icon, text| %>
+      <li class="flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1"><i class="bi bi-<%= icon %>" aria-hidden="true"></i><%= text %></li>
+    <% end %>
+  </ul>
+<% end %>

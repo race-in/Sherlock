@@ -21,7 +21,7 @@ default: &default
 DB
   cat > "$app/config/initializers/yabeda.rb" <<'YABEDA'
 Yabeda::Prometheus::Exporter.rack_handler.run(Yabeda::Prometheus::Exporter.rack_app,
-  Host: "0.0.0.0", Port: ENV.fetch("METRICS_PORT", 9394).to_i, AccessLog: [])
+  Host: ENV.fetch("METRICS_BIND", "0.0.0.0"), Port: ENV.fetch("METRICS_PORT", 9394).to_i, AccessLog: [])
 YABEDA
 }
 
@@ -31,7 +31,7 @@ make_app "$TMP/app"
 bash "$PATCHER" "$TMP/app"
 grep -Fq "bind \"tcp://127.0.0.1:#{ENV.fetch('PORT', 3000)}\"" "$TMP/app/config/puma.rb"
 grep -Fq 'pool: <%= ENV.fetch("DB_POOL") { ENV.fetch("RAILS_MAX_THREADS") { 10 } } %>' "$TMP/app/config/database.yml"
-grep -Fq 'Host: ENV.fetch("METRICS_HOST", "127.0.0.1")' "$TMP/app/config/initializers/yabeda.rb"
+grep -Fq 'Host: ENV.fetch("METRICS_BIND", "127.0.0.1")' "$TMP/app/config/initializers/yabeda.rb"
 
 ruby -c "$TMP/app/config/puma.rb"
 ruby -c "$TMP/app/config/initializers/yabeda.rb"
@@ -44,14 +44,14 @@ bash "$PATCHER" "$TMP/app"
 # Unknown source in the final patch target must fail before earlier files change.
 mkdir -p "$TMP/bad"
 make_app "$TMP/bad"
-sed -i 's/Host: "0.0.0.0"/Host: "0.0.0.1"/' "$TMP/bad/config/initializers/yabeda.rb"
+sed -i 's/METRICS_BIND", "0.0.0.0"/METRICS_BIND", "0.0.0.1"/' "$TMP/bad/config/initializers/yabeda.rb"
 if bash "$PATCHER" "$TMP/bad" >/dev/null 2>&1; then
   echo "ERROR: patcher accepted an unknown metrics config." >&2
   exit 1
 fi
 grep -Fq 'port ENV.fetch("PORT", 3000)' "$TMP/bad/config/puma.rb"
 grep -Fq 'pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 10 } %>' "$TMP/bad/config/database.yml"
-grep -Fq 'Host: "0.0.0.1"' "$TMP/bad/config/initializers/yabeda.rb"
+grep -Fq 'METRICS_BIND", "0.0.0.1"' "$TMP/bad/config/initializers/yabeda.rb"
 
 # A symlink must not be modified through its target.
 mkdir -p "$TMP/symlink/config/initializers" "$TMP/real/config/initializers"
@@ -64,5 +64,17 @@ if bash "$PATCHER" "$TMP/symlink" >/dev/null 2>&1; then
   exit 1
 fi
 grep -Fq 'port ENV.fetch("PORT", 3000)' "$TMP/real/config/puma.rb"
+
+# Exercise the patcher against the exact bundled Rails source, not just synthetic fixtures.
+cp -a "$ROOT/sherlock-v2" "$TMP/bundled-app"
+bash "$PATCHER" "$TMP/bundled-app"
+grep -Fq 'bind "tcp://127.0.0.1:' "$TMP/bundled-app/config/puma.rb"
+grep -Fq 'pool: <%= ENV.fetch("DB_POOL")' "$TMP/bundled-app/config/database.yml"
+grep -Fq 'Host: ENV.fetch("METRICS_BIND", "127.0.0.1")' "$TMP/bundled-app/config/initializers/yabeda.rb"
+ruby -c "$TMP/bundled-app/config/puma.rb"
+ruby -c "$TMP/bundled-app/config/initializers/yabeda.rb"
+ruby -rerb -e 'RubyVM::InstructionSequence.compile(ERB.new(File.read(ARGV.fetch(0))).src)' \
+  "$TMP/bundled-app/config/database.yml"
+bash "$PATCHER" "$TMP/bundled-app"
 
 echo "PASS: native application patch syntax, idempotency, drift detection, and preflight atomicity"

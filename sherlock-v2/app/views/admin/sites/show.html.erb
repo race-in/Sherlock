@@ -1,0 +1,70 @@
+<%= render layout: "admin/frame" do %>
+  <%= link_to admin_sites_path, class: "hint inline-flex items-center gap-1 hover:text-ink" do %><i class="bi bi-arrow-left"></i> Sites<% end %>
+  <h2 class="heading mt-2 flex items-center gap-3 text-2xl"><%= site_mark @site, size: "size-7" %><%= @site.name %></h2>
+
+  <% if params[:confirm] == "off" %>
+    <section class="card mt-5 border-warn/40 p-5" role="alert">
+      <p class="font-medium">Turn off <%= @site.name %>?</p>
+      <p class="hint mt-1"><%= pluralize @key_count, "member" %> connected <%= @site.name %> with their own key. Their keys are deleted now. Their history stays.</p>
+      <div class="mt-4 flex gap-2">
+        <%= button_to "Turn off and delete #{pluralize @key_count, "key"}", admin_site_path(@site), method: :patch, params: { site: { availability: "off" }, confirmed: 1 }, class: "btn-danger" %>
+        <%= link_to "Cancel", admin_site_path(@site), class: "btn-quiet" %>
+      </div>
+    </section>
+  <% end %>
+
+  <% if @site.paused? %>
+    <div class="mt-5 flex items-center justify-between gap-4 rounded-lg border border-down/30 bg-down-soft px-4 py-3 text-sm" role="alert">
+      <p class="text-down">Paused<%= " until #{clock(@site.paused_until)}" if @site.paused_until %>: <%= @site.pause_message %>. Sherlock sends <%= @site.name %> nothing.</p>
+      <%= button_to "Resume", admin_site_pause_path(@site), method: :delete, class: "btn-secondary shrink-0" %>
+    </div>
+  <% end %>
+
+  <section class="card mt-5 divide-y divide-line">
+    <div class="flex flex-wrap items-start justify-between gap-4 p-5">
+      <div class="min-w-0 flex-1">
+        <p class="eyebrow">Set up for</p>
+        <p class="mt-1 text-lg font-medium"><%= Site::AUDIENCES.fetch(@site.audience) %></p>
+        <p class="hint mt-1">
+          <%= { off: "Nobody can add #{@site.name}, and Sherlock sends it nothing.",
+                only_me: "Your own key reads your account. Nobody else can add #{@site.name}, except the people you pick.",
+                own_keys: "People you invite add their own #{@site.name} key. #{pluralize @key_count, "key"} saved.",
+                opt_in: "Most trackers don't let members give their key to someone else's server, so your key reads their #{@site.name} profile instead, as other members see it. It only does so once they put their Sherlock link on the profile: that's their opt-in, and removing it stops the tracking. You need no link, since your key reads your own account." }.fetch(@site.audience) %>
+          <% unless @site.off? %><%= pluralize @member_count, "other member" %> on <%= @site.name %>.<% end %>
+        </p>
+        <% if @site.audience == :only_me %>
+          <p class="label mt-4">People you picked</p>
+          <% if @granted_users.any? %>
+            <p class="mt-1 text-sm"><%= safe_join(@granted_users.map { link_to _1.username, admin_user_path(_1), class: "link" }, ", ") %></p>
+          <% else %>
+            <p class="hint mt-1">Nobody yet. Pick people on their page in the <%= link_to "Invite tree", admin_users_path, class: "link" %>.</p>
+          <% end %>
+        <% end %>
+      </div>
+      <%= link_to new_admin_site_setup_path(@site), class: @site.off? ? "btn-primary" : "btn-secondary" do %><%= @site.off? ? "Add" : "Change" %> <i class="bi bi-arrow-right"></i><% end %>
+    </div>
+
+    <div class="p-5">
+      <p class="font-medium">Request interval</p>
+      <p class="hint mt-1">The least time between two requests to <%= @site.name %>, from all members, jobs and pages together. Longer is gentler, but fits fewer members: <%= number_with_delimiter @site.capacity %> now.</p>
+      <%= form_with model: @site, url: admin_site_path(@site), method: :patch, class: "mt-3 flex items-center gap-2" do |form| %>
+        <%= form.number_field :request_interval, value: @site.request_interval.to_i, min: 1, max: 3600, class: "input w-24", aria: { label: "Seconds between requests" } %>
+        <span class="text-sm text-ink-soft">seconds</span>
+        <%= form.submit "Save", class: "btn-secondary" %>
+      <% end %>
+    </div>
+
+    <% unless @site.off? %>
+    <div class="flex items-center justify-between gap-4 p-5">
+      <div><p class="font-medium">Pause</p><p class="hint">Stops every request to <%= @site.name %>, for all members, until you resume.</p></div>
+      <% unless @site.paused? %><%= button_to "Pause", admin_site_pause_path(@site), class: "btn-secondary" %><% end %>
+    </div>
+
+    <div class="flex items-center justify-between gap-4 p-5">
+      <div><p class="font-medium">Turn off <%= @site.name %></p><p class="hint">Nobody can add it, it stops updating for everyone, and members' keys for it are deleted. History stays.</p></div>
+      <%= button_to "Turn off", admin_site_path(@site), method: :patch, params: { site: { availability: "off" } }, class: "btn-danger",
+            form: { data: { turbo_confirm: (@key_count.zero? ? "Turn off #{@site.name}? It stops updating for everyone. History stays." : nil) } } %>
+    </div>
+    <% end %>
+  </section>
+<% end %>

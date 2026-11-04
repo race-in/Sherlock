@@ -1,0 +1,40 @@
+<title><%= content_for(:title).presence ? "#{content_for(:title)} · Sherlock" : "Sherlock" %></title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<%# From the home screen, iOS paints the status bar in the theme color, so it matches the blue bar.
+    No apple-mobile-web-app-status-bar-style: since iOS 26.1, black-translucent gets a system blur over the top. %>
+<% case Current.user&.theme %>
+<% when "light" %>
+<meta name="theme-color" content="#3a7dbb">
+<% when "dark" %>
+<meta name="theme-color" content="#24527d">
+<% else %>
+<meta name="theme-color" content="#3a7dbb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#24527d" media="(prefers-color-scheme: dark)">
+<% end %>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sherlock">
+<meta name="robots" content="noindex">
+<%= csrf_meta_tags %>
+<%= csp_meta_tag %>
+<meta name="turbo-refresh-method" content="morph">
+<meta name="turbo-refresh-scroll" content="preserve">
+<%= content_for :head %>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<%# iOS ignores the manifest at launch and shows white unless a startup image matches the screen exactly.
+    Points wide, points high, pixel ratio; each has a portrait and a landscape image in public/splash. %>
+<% [[440, 956, 3], [420, 912, 3], [402, 874, 3], [430, 932, 3], [393, 852, 3], [428, 926, 3], [390, 844, 3],
+    [375, 812, 3], [414, 896, 3], [414, 896, 2], [414, 736, 3], [375, 667, 2],
+    [1032, 1376, 2], [1024, 1366, 2], [834, 1210, 2], [834, 1194, 2], [820, 1180, 2], [834, 1112, 2],
+    [810, 1080, 2], [744, 1133, 2], [768, 1024, 2]].each do |w, h, ratio| %>
+  <% { portrait: [w, h], landscape: [h, w] }.each do |orientation, (x, y)| %>
+<link rel="apple-touch-startup-image" href="/splash/<%= x * ratio %>x<%= y * ratio %>.png"
+      media="(device-width: <%= w %>px) and (device-height: <%= h %>px) and (-webkit-device-pixel-ratio: <%= ratio %>) and (orientation: <%= orientation %>)">
+  <% end %>
+<% end %>
+<link rel="manifest" href="<%= pwa_manifest_path(format: :json) %>">
+<%= stylesheet_link_tag "bootstrap-icons.min", "data-turbo-track": "reload" %>
+<%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
+<%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
+<%= content_for :page_javascript %>

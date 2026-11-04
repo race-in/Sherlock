@@ -1,0 +1,31 @@
+<% content_for :title, "Add tracker" %>
+<% unless Current.user.onboarded? %><%= render "onboarding/steps", current: 2 %><% end %>
+<h1 class="heading text-3xl">Add trackers</h1>
+<p class="mt-2 text-ink-soft">Pick the trackers you want Sherlock to follow. You connect each one next.</p>
+
+<%= form_with url: tracker_selection_path, method: :patch, class: "mt-6", data: { controller: "filter" } do |form| %>
+  <input type="search" placeholder="Search trackers" class="input max-w-xs" data-filter-target="query" data-action="input->filter#apply" aria-label="Search trackers">
+  <% if @sites.empty? %>
+    <p class="card mt-4 p-5 text-ink-soft">No trackers are open to you on this Sherlock yet. Ask the person who runs it, or the person who invited you.</p>
+  <% end %>
+  <div class="mt-4 grid auto-rows-fr gap-2 sm:grid-cols-2">
+    <%= render partial: "site", collection: @sites, locals: { connected_site_ids: @connected_site_ids } %>
+  </div>
+
+  <div class="mt-6 flex gap-2">
+    <%= form.submit "Continue", class: "btn-primary" %>
+    <% unless Current.user.onboarded? %>
+      <%= link_to "Skip for now", onboarding_completion_path, class: "btn-quiet" %>
+    <% end %>
+  </div>
+
+  <div class="card mt-10 flex flex-wrap items-center justify-between gap-4 p-4">
+    <div>
+      <p class="font-medium">Missing your tracker?</p>
+      <p class="hint mt-1">Open an issue on Codeberg with a sample of its API response.</p>
+    </div>
+    <%= link_to "#{Rails.configuration.x.source_url}/src/branch/main/README.md#requesting-a-tracker", class: "btn-secondary", target: "_blank", rel: "noopener" do %>
+      <i class="bi bi-git"></i> Request a tracker
+    <% end %>
+  </div>
+<% end %>

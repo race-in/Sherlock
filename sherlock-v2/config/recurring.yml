@@ -1,0 +1,17 @@
+# Production only. Development seeds demo trackers with fake keys, and polling them hourly would send
+# those keys to real trackers. Poll by hand there: "Test now", or PollAllConnectionsJob.perform_now.
+production:
+  poll_all_connections:
+    class: PollAllConnectionsJob
+    schedule: every hour at minute 0
+  # At a random time over the next six hours, so instances don't all ask Codeberg at once.
+  # The job does nothing while the admin has update checks off.
+  check_for_update:
+    command: "CheckForUpdateJob.set(wait: rand(6 * 3600).seconds).perform_later"
+    schedule: every day at 3:00
+  delete_expired_sessions:
+    command: "Session.expired.delete_all"
+    schedule: every day at 4:30
+  clear_solid_queue_finished_jobs:
+    command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
+    schedule: every hour at minute 12

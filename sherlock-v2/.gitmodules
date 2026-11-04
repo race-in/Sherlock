@@ -1,0 +1,3 @@
+[submodule "public/mirror/unofficial-styles"]
+	path = public/mirror/unofficial-styles
+	url = https://github.com/ligh7s/unofficial-styles

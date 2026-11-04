@@ -1,0 +1,14 @@
+<%# How Sherlock reads trackers, in one place: the onboarding welcome, the landing page and the privacy
+    page. user: nil on public pages. %>
+<%# locals: (user: nil) %>
+<% sites = user ? Site.available_to(user).to_a : Site.everyone.where.not(tier: :unsupported).to_a %>
+<% if sites.any?(&:instance_key?) %>
+  <p><strong class="font-medium text-ink">Don't share your tracker API keys with anyone.</strong> Sherlock doesn't need them: it reads your
+    tracker profile with its own key, once you opt in by adding a Sherlock link to it. It sees only what other members of the tracker
+    see, so your paranoia settings apply. Sherlock shows your stats only to you.</p>
+  <p>For trackers that don't allow this, run your own Sherlock with your own API key. It's simple
+    <%= link_to "with Docker", "#{Rails.configuration.x.source_url}#run-it-yourself-with-docker", class: "link", target: "_blank", rel: "noopener" %>.</p>
+<% else %>
+  <p>You add one API key per tracker. Sherlock only reads your stats with it.</p>
+  <p>Your keys are encrypted. The person running Sherlock could decrypt them in theory, but the code doesn't, except to send each key to its own tracker.</p>
+<% end %>
