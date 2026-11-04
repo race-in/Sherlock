@@ -26,7 +26,7 @@ The native-runtime CI jobs validate the bundled source: Node installs dependenci
 
 | Requirement | Audited upstream baseline | Work still required |
 |---|---|---|
-| Single-user instance | Upstream is multi-user; native deployment layer now has a private first-run token, disabled join/invite/user-management routes, a Rails model guard and a PostgreSQL trigger protected by transaction advisory locking | CI must pass the isolated native-mode HTTP, view-rendering, model and direct-SQL regression test; then verify on a fresh VPS |
+| Single-user instance | Upstream is multi-user; native deployment layer now has a private first-run token, disabled join/invite/user-management routes, a Rails model guard and a PostgreSQL constant-expression unique index | CI must pass the isolated native-mode HTTP, view-rendering, model and direct-SQL regression test; then verify on a fresh VPS |
 | Manual statistics | No manual snapshot entry workflow was found in the audited controllers/routes | Add validated manual observations while preserving immutable snapshot history |
 | CSV | CSV export exists for connection history | Add CSV statistics import with preview, transactional writes and an error report |
 | JSON | User/account backup import/export exists | Add a versioned statistics interchange format without breaking the existing account-backup JSON format |
