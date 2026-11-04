@@ -73,6 +73,7 @@ Rails.application.routes.draw do
     resource :data, only: :show, controller: "data"
     resource :export, only: :show
     resource :import, only: :create
+    resource :csv_import, only: :create
   end
 
   namespace :admin do
