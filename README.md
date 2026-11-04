@@ -4,7 +4,7 @@
 
 A native, self-hosted Sherlock deployment for Debian 11, 12 and 13. The Rails application source is bundled in [`sherlock-v2/`](sherlock-v2/), with its own native installer. Docker is not required.
 
-> **Project status:** this repository bundles the Sherlock v2 application baseline and the upstream multi-user account model in a native deployment. The native installer keeps invite-based registration and account management enabled, and protects initial admin setup with a random first-run token. Manual statistics entry, custom CSV/JSON statistics import, and additional tracker adapters remain roadmap work.
+> **Project status:** this repository bundles the Sherlock v2 application baseline and the upstream multi-user account model in a native deployment. The native installer keeps invite-based registration and account management enabled, and protects initial admin setup with a random first-run token. Manual statistics entry and strict CSV statistics import have now been added on the integration branch; the new application tests and production upgrade path still need CI and VPS verification. A versioned custom JSON statistics format and additional tracker adapters remain roadmap work.
 
 ## Install on a VPS
 
@@ -69,11 +69,11 @@ The installer preserves the existing environment file, database and encrypted cr
 
 ## Application features
 
-The bundled application currently provides tracker dashboards and history, tracker API connections, snapshot charts, comparison views, Prometheus metrics, and qui integration. The upstream invite/account code remains enabled: users can join through invitations and admins can manage accounts. See [the bundled application README](sherlock-v2/README.md) for upstream behavior and configuration details.
+The bundled application provides tracker dashboards and history, tracker API connections, snapshot charts, comparison views, Prometheus metrics, and qui integration. The Custom Edition adds append-only manual statistics points with source/user attribution, a recent-history provenance view, and a strict CSV statistics importer that accepts the existing history-export format, rejects invalid values and future timestamps, skips duplicate observations, and records each import batch. Existing JSON account-data import remains compatible and imported snapshots are marked as JSON imports. The upstream invite/account code remains enabled: users can join through invitations and admins can manage accounts. See [the bundled application README](sherlock-v2/README.md) for upstream behavior and configuration details.
 
 ## Custom Edition roadmap
 
-The target is a self-hosted multi-user instance with automatic and manual statistics, timestamped history, CSV/JSON import/export, and additional permitted tracker integrations. Manual statistics, custom statistics import/export and additional adapters remain planned work, not completed features.
+The target is a self-hosted multi-user instance with automatic and manual statistics, timestamped history, CSV/JSON import/export, and additional permitted tracker integrations. Manual statistics entry and CSV statistics import are implemented on the integration branch but remain subject to the new CI suite and a real VPS upgrade test. A separate versioned JSON statistics interchange format and additional tracker adapters remain planned.
 
 See [ROADMAP.md](ROADMAP.md) for phases, acceptance criteria and release gates. The root legacy installer is a separate deployment scaffold; use only `sherlock-v2/deploy/install.sh` for the bundled native app.
 
