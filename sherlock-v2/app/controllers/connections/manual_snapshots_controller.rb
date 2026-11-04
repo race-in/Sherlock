@@ -4,6 +4,8 @@ class Connections::ManualSnapshotsController < ApplicationController
   MAX_BIGINT = 9_223_372_036_854_775_807
   MAX_INTEGER = 2_147_483_647
 
+  rate_limit to: 20, within: 1.minute, only: :create, with: -> { redirect_to dashboard_path, alert: "Too many manual entries. Wait a minute and try again." }
+
   def create
     @connection = Current.user.connections.find(params[:connection_id])
     input = params.expect(snapshot: %i[
@@ -36,8 +38,9 @@ class Connections::ManualSnapshotsController < ApplicationController
       raw = value.to_s
       raise ArgumentError, "Counts and byte values must be non-negative whole numbers." unless raw.match?(/\A\d+\z/)
 
-      number = Integer(raw, 10)
       limit = %i[uploaded downloaded].include?(field) ? MAX_BIGINT : MAX_INTEGER
+      raise ArgumentError, "A number is too large." if raw.length > limit.to_s.length
+      number = Integer(raw, 10)
       raise ArgumentError, "A number is too large." if number > limit
       number
     end
