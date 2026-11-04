@@ -120,8 +120,12 @@ install -d -o root -g "$APP_GROUP" -m 0750 "$ETC_DIR"
 STAGING_DIR=
 TMP_NODE_DIR=
 cleanup_install_temps() {
-  [[ -n "$TMP_NODE_DIR" && -d "$TMP_NODE_DIR" ]] && rm -rf "$TMP_NODE_DIR"
-  [[ -n "$STAGING_DIR" && -d "$STAGING_DIR" ]] && rm -rf "$STAGING_DIR"
+  if [[ -n "$TMP_NODE_DIR" && -d "$TMP_NODE_DIR" ]]; then
+    rm -rf "$TMP_NODE_DIR"
+  fi
+  if [[ -n "$STAGING_DIR" && -d "$STAGING_DIR" ]]; then
+    rm -rf "$STAGING_DIR"
+  fi
 }
 trap cleanup_install_temps EXIT
 
