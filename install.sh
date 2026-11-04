@@ -278,7 +278,7 @@ User=$APP_USER
 Group=$APP_GROUP
 WorkingDirectory=$APP_DIR
 EnvironmentFile=$ETC_DIR/sherlock.env
-Environment=PATH=$RUBY_PREFIX/bin:$NODE_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=PATH=$RUBY_PREFIX/bin:$NODE_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=WEB_CONCURRENCY=1
 Environment=BUNDLE_DEPLOYMENT=1
 Environment=BUNDLE_WITHOUT=development:test
