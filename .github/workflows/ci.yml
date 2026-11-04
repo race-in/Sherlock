@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Shell and workflow validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install linters
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends shellcheck yamllint
+
+      - name: Check Bash syntax
+        shell: bash
+        run: |
+          mapfile -d '' shell_files < <(
+            find . -type f -name '*.sh' \
+              -not -path './.git/*' \
+              -not -path './vendor/*' \
+              -print0 | sort -z
+          )
+          if (( ${#shell_files[@]} == 0 )); then
+            echo "::error::No shell scripts found."
+            exit 1
+          fi
+          for file in "${shell_files[@]}"; do
+            echo "Checking ${file}"
+            bash -n "$file"
+          done
+
+      - name: Run ShellCheck
+        shell: bash
+        run: |
+          mapfile -d '' shell_files < <(
+            find . -type f -name '*.sh' \
+              -not -path './.git/*' \
+              -not -path './vendor/*' \
+              -print0 | sort -z
+          )
+          shellcheck --shell=bash --severity=error "${shell_files[@]}"
+
+      - name: Validate workflow YAML
+        run: yamllint --strict -d relaxed .github/workflows/ci.yml
