@@ -11,14 +11,14 @@ class FirstRunsController < ApplicationController
   def create
     @user = User.new(params.expect(user: %i[username password time_zone]).merge(is_admin: true))
     unless valid_setup_token?
-      @user.errors.add(:base, "The first-run setup token is missing or incorrect.")
+      @user.errors.add(:base, "The one-time installer token is missing or incorrect.")
       render :show, status: :unprocessable_entity
       return
     end
     # Two requests at once would otherwise both pass require_no_users and make two admins.
     saved = User.transaction do
       User.connection.execute("LOCK TABLE users IN EXCLUSIVE MODE")
-      !User.exists? && @user.save
+      User.none? && @user.save
     end
     if saved
       start_new_session_for @user
