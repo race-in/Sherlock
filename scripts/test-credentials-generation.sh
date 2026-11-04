@@ -29,7 +29,7 @@ for required_key in primary_key deterministic_key key_derivation_salt; do
 done
 
 {
-  printf 'secret_key_base: "%064d"\n' 0"
+  printf 'secret_key_base: "%064d"\n' 0
   printf '%s\n' "$ENCRYPTION_YAML"
 } > "$TMP/credentials.yml"
 
