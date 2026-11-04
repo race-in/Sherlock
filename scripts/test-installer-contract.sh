@@ -33,4 +33,9 @@ if grep -Fq 'rm -f /etc/nginx/sites-enabled/default' "$INSTALLER"; then
   exit 1
 fi
 
-echo "PASS: installer targets the selected PostgreSQL cluster and preserves existing Nginx sites"
+grep -Fq 'PATCHER="$SCRIPT_DIR/scripts/patch-native-app.sh"' "$ROOT/scripts/update.sh" || {
+  echo "ERROR: updater does not use the current deployment repository patcher." >&2
+  exit 1
+}
+
+echo "PASS: installer and updater contracts are safe"
