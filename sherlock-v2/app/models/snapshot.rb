@@ -8,7 +8,6 @@ class Snapshot < ApplicationRecord
   enum :source, { api: "api", manual: "manual", csv_import: "csv_import", json_import: "json_import" }, prefix: true
 
   validates :note, length: { maximum: 500 }, allow_nil: true
-  validates :created_at, comparison: { less_than_or_equal_to: -> { Time.current } }
 
   scope :chronological, -> { order(:created_at) }
 
