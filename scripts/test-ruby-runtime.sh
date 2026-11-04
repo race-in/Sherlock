@@ -199,6 +199,7 @@ runuser -u sherlock-runtime-test -- env \
   bash -ec '
     cd "$1"
     bundle exec rails db:prepare
+    bundle exec rails db:seed
     bundle exec rails runner -e test tmp/single_user_mode_smoke.rb
   ' -- "$APP_DIR"
 
