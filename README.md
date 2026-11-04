@@ -48,12 +48,17 @@ Ruby's bundled OpenSSL extension supports OpenSSL 1.1.1 and newer. The installer
 
 ## Install
 
-Copy this deployment kit to the VPS, then run as root:
+Clone this deployment repository on the VPS. The GitHub repository contains the native installer; the Rails application source remains upstream on Codeberg:
 
 ```bash
-chmod +x install.sh
-./install.sh stats.example.com https://github.com/OWNER/APP-SOURCE.git main
+git clone https://github.com/race-in/Sherlock.git sherlock-deploy
+cd sherlock-deploy
+sudo ./install.sh stats.example.com https://codeberg.org/whatstatus/sherlock-v2.git main
 ```
+
+Replace `stats.example.com` with your real subdomain. Before running the installer, point its DNS A/AAAA record to the VPS and allow inbound TCP 80/443. The installer prompts for the Let's Encrypt email address.
+
+The app source is cloned into `/opt/sherlock` on the VPS and receives three deployment-only patches there: Puma loopback binding, a separate database pool setting, and worker metrics loopback binding. Those patches are local to the VPS; they do not change the upstream Codeberg repository. Do not publish or redistribute patched upstream application source until its licence or maintainer permission has been confirmed.
 
 On Debian 11, accept the EOL warning by typing `YES`, or use:
 
