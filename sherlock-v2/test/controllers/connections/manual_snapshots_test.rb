@@ -56,6 +56,23 @@ class Connections::ManualSnapshotsControllerTest < ActionDispatch::IntegrationTe
     end
   end
 
+  test "zero values remain zero and unreported optional metrics remain nil" do
+    sign_in_as users(:alice)
+    connection = connections(:alice_redacted)
+
+    assert_difference -> { connection.snapshots.count }, 1 do
+      post connection_manual_snapshot_path(connection), params: {
+        snapshot: { uploaded: "0", downloaded: "0", seeding: "", ratio: "" }
+      }
+    end
+
+    snapshot = connection.snapshots.order(created_at: :desc).first
+    assert_equal 0, snapshot.uploaded
+    assert_equal 0, snapshot.downloaded
+    assert_nil snapshot.seeding
+    assert_nil snapshot.ratio
+  end
+
   test "uploaded and downloaded are required and large byte values stay exact" do
     sign_in_as users(:alice)
     connection = connections(:alice_redacted)
