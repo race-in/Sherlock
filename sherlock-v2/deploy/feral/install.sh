@@ -17,7 +17,7 @@ DB_HOST=""
 DB_PORT=5432
 DB_NAME=""
 DB_USER=""
-DB_PASSWORD=""
+DB_PASSWORD="${SHERLOCK_DB_PASSWORD:-}"
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 info() { printf '==> %s\n' "$*"; }
@@ -30,7 +30,7 @@ Usage: bash deploy/feral/install.sh --domain HOST --db-host HOST --db-name NAME 
   --db-port PORT      PostgreSQL port (default 5432)
   --db-name NAME      Database name (required)
   --db-user USER      Database username (required)
-  --db-password PASS  Database password (prompted if omitted)
+  SHERLOCK_DB_PASSWORD may be set to avoid an interactive prompt (keep it out of shell history).
 EOF
 }
 while (($#)); do
@@ -41,7 +41,7 @@ while (($#)); do
     --db-port) DB_PORT="${2:?missing DB port}"; shift 2 ;;
     --db-name) DB_NAME="${2:?missing DB name}"; shift 2 ;;
     --db-user) DB_USER="${2:?missing DB user}"; shift 2 ;;
-    --db-password) DB_PASSWORD="${2:?missing DB password}"; shift 2 ;;
+
     -h|--help) usage; exit 0 ;;
     *) usage >&2; die "Unknown option: $1" ;;
   esac
@@ -89,7 +89,9 @@ PGPASSWORD="$DB_PASSWORD" pg_isready -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -
   die "PostgreSQL is not accepting connections at $DB_HOST:$DB_PORT/$DB_NAME."
 
 info "Checking available disk space and target paths"
+umask 077
 mkdir -p "$(dirname "$APP_DIR")" "$CONF_DIR" "$STATE_DIR"
+chmod 700 "$CONF_DIR" "$STATE_DIR"
 [[ -w "$(dirname "$APP_DIR")" && -w "$CONF_DIR" && -w "$STATE_DIR" ]] || die "Application/config/state paths must be writable."
 if [[ -e "$APP_DIR" && ! -f "$APP_DIR/.sherlock-feral-install" ]]; then
   die "$APP_DIR exists but is not marked as a Feral Sherlock installation; refusing to overwrite it."
@@ -116,6 +118,7 @@ tar -C "$SRC_DIR" --exclude='./.git' --exclude='./node_modules' --exclude='./tmp
   tar -C "$APP_DIR" -xf -
 touch "$APP_DIR/.sherlock-feral-install"
 mkdir -p "$APP_DIR/tmp/pids" "$APP_DIR/log" "$CRED_DIR"
+chmod 700 "$CRED_DIR"
 if [[ -e "$APP_DIR/config/credentials" && ! -L "$APP_DIR/config/credentials" ]]; then
   [[ -d "$APP_DIR/config/credentials" ]] || die "$APP_DIR/config/credentials is not a directory or managed symlink."
   if find "$APP_DIR/config/credentials" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
