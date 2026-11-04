@@ -29,6 +29,16 @@ pretend the Debian 9 system packages satisfy it.
 - Logs and PID: `$HOME/.local/var/sherlock-feral`
 - Backups: `$HOME/.local/var/sherlock-feral/backups`
 
+## Diagnose the Feral slot first
+
+Run this read-only report over SSH before attempting installation:
+
+\`\`\`sh
+bash sherlock-v2/deploy/feral/diagnose.sh
+\`\`\`
+
+It reports Debian/glibc, compiler/build tools, Ruby/OpenSSL, Node, PostgreSQL client tools, storage and limits. It does not read credentials or modify files. Keep the output so the Debian 9 runtime strategy can be checked against the actual shared-hosting environment.
+
 ## Install
 
 From a checkout of this repository:
