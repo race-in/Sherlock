@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT=$PWD
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 INSTALLER="$ROOT/install.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -28,7 +28,6 @@ for required_key in primary_key deterministic_key key_derivation_salt; do
   grep -Eq "^[[:space:]]+$required_key:" <<< "$ENCRYPTION_YAML"
 done
 
-SECRET_KEY_BASE=$(printf '%064d' 0)
 {
   printf 'secret_key_base: %s\n' "$(printf '%064d' 0)"
   printf '%s\n' "$ENCRYPTION_YAML"
