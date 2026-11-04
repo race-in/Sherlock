@@ -65,7 +65,7 @@ APP_NODE_VERSION=$(tr -d '\r\n' < "$APP_DIR/.node-version")
 }
 
 runuser -u sherlock-runtime-test -- env \
-  HOME="$APP_HOME" PATH="$RUBY_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin" \
+  HOME="$APP_HOME" PATH="$RUBY_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
   BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT='development:test' \
   bash -ec '
     cd "$1"
