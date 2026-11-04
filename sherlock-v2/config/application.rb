@@ -19,9 +19,28 @@ require "rails/test_unit/railtie"
 Bundler.require(*Rails.groups)
 
 module Sherlock
+  # Feral's front proxy strips the public subdirectory before forwarding to Puma.
+  # Restore SCRIPT_NAME so Rails helpers, redirects, forms and Turbo requests keep
+  # the public prefix while PATH_INFO remains relative to the Rails application.
+  class FeralRelativeUrlRoot
+    def initialize(app)
+      @app = app
+      @prefix = ENV.fetch("RAILS_RELATIVE_URL_ROOT", "").to_s.sub(%r{/\\z}, "")
+    end
+
+    def call(env)
+      env["SCRIPT_NAME"] = @prefix unless @prefix.empty?
+      @app.call(env)
+    end
+  end
+
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
+
+    # Optional reverse-proxy subdirectory deployment (for example "/sherlock").
+    config.relative_url_root = ENV["RAILS_RELATIVE_URL_ROOT"].presence
+    config.middleware.insert_before 0, Sherlock::FeralRelativeUrlRoot
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
