@@ -145,7 +145,7 @@ jobs:
           TEST_DB_USER: sherlockdb_develop_write
           TEST_DB_PASSWORD: sherlockdb_develop_write
           TEST_DB_NAME: sherlockdb_test
-        run: bin/ci
+        run: bash bin/ci
 
   debian-compatibility:
     name: Debian ${{ matrix.version }} compatibility
