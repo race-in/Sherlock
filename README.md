@@ -22,7 +22,7 @@ On Debian 11, after you explicitly accept the EOL warning, the installer backs u
 
 ## Stack
 
-- Ruby 4.0.9, compiled locally by `ruby-build`
+- Ruby 4.0.9, compiled locally by pinned `ruby-build v20261023` (commit SHA verified by the installer)
 - Bundler 4.0.20
 - Node.js 26.12.0 official Linux binary, SHA-256 verified against Node.js `SHASUMS256.txt`
 - PostgreSQL 18
@@ -163,4 +163,5 @@ The supplied upstream archive did not contain a standalone LICENSE file. Before 
 - [PostgreSQL PGDG archive](https://apt-archive.postgresql.org/)
 - [Node.js build/platform requirements](https://github.com/nodejs/node/blob/main/BUILDING.md)
 - [Node.js 26.12.0 release downloads](https://nodejs.org/en/download/archive/v26.12.0)
+- [ruby-build v20261023 release](https://github.com/rbenv/ruby-build/releases/tag/v20261023)
 - [Ruby/OpenSSL compatibility](https://ruby.github.io/openssl/)
