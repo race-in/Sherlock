@@ -64,15 +64,18 @@ if [[ ! -x "$PREFIX/bin/pg_config" || ! -x "$PREFIX/bin/pg_isready" ]]; then
     --without-perl --without-python --without-tcl --without-systemd
   make -j"$JOBS" -C src/interfaces/libpq
   make -j"$JOBS" -C src/bin/pg_config
+  make -j"$JOBS" -C src/bin/psql
   # pg_isready is built and installed by PostgreSQL's src/bin/scripts directory.
   make -j"$JOBS" -C src/bin/scripts
   make -C src/interfaces/libpq install
   make -C src/bin/pg_config install
+  make -C src/bin/psql install
   make -C src/bin/scripts install
  ) >"$LOG_DIR/postgresql-client-build.log" 2>&1 || { tail -n 80 "$LOG_DIR/postgresql-client-build.log" >&2; die "PostgreSQL client build failed; see $LOG_DIR/postgresql-client-build.log"; }
 fi
 "$PREFIX/bin/pg_config" --version | grep -F 'PostgreSQL 16.15' >/dev/null || die "PostgreSQL client version check failed."
 "$PREFIX/bin/pg_isready" --version >/dev/null || die "pg_isready self-test failed."
+"$PREFIX/bin/psql" --version | grep -F "16.15" >/dev/null || die "psql client self-test failed."
 
 step "Build Ruby 4.0.9"
 if [[ ! -x "$PREFIX/bin/ruby" ]] || [[ "$("$PREFIX/bin/ruby" -e 'print RUBY_VERSION' 2>/dev/null || true)" != 4.0.9 ]]; then
