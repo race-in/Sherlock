@@ -53,6 +53,7 @@ ACTUAL_NODE=$(node --version)
 node -e 'const v = process.versions; if (!v.v8 || !v.modules) process.exit(1); console.log("Node runtime OK:", process.version, "V8", v.v8)'
 npm --version
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 APP_SOURCE_DIR=${APP_SOURCE_DIR:-"$SCRIPT_DIR/../sherlock-v2"}
 [[ -f "$APP_SOURCE_DIR/package.json" && -f "$APP_SOURCE_DIR/package-lock.json" ]] || {
   echo "Bundled Sherlock source is missing package.json or package-lock.json: $APP_SOURCE_DIR" >&2
