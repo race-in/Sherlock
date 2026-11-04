@@ -252,6 +252,7 @@ class User < ApplicationRecord
         # Numbers only. A plain cast would turn junk into 0, and 0 isn't the same as not reported.
         if provenance
           row["source"] = "json_import"
+          row["created_by_user_id"] = id
           row["import_batch_id"] = import_batch_id
         end
         row.except("created_at", "user_class", "source", "note", "import_batch_id").each_value { Float(_1) unless _1.nil? }
