@@ -62,7 +62,7 @@ class UserTest < ActiveSupport::TestCase
     assert_equal [ 10737418240, 16106127360 ], imported.map(&:uploaded)
     assert_equal %w[json_import json_import], imported.map(&:source)
     assert_equal 1, imported.map(&:import_batch_id).uniq.size
-    assert_match(/\\A[0-9a-f-]{36}\\z/, imported.first.import_batch_id)
+    assert_match(/\A[0-9a-f-]{36}\z/, imported.first.import_batch_id)
     assert_equal [ nil, 12 ], imported.map(&:seeding), "not reported stays nil"
     assert_equal bob_before + 2, bob.connections.sole.snapshots.count
     cross_seed = bob.connections.sole.cross_seed_snapshots.sole
