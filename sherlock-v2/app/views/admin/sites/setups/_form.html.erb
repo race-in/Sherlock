@@ -38,6 +38,7 @@
     </div>
   <% end %>
 
+  <% unless Rails.application.config.x.single_user_mode %>
   <label class="group card flex max-w-2xl cursor-pointer items-start gap-3 p-4 hover:border-line-strong has-checked:border-accent has-checked:bg-accent-soft">
     <%= hidden_field_tag :share, "0", id: nil %>
     <%= check_box_tag :share, "1", shared, class: "mt-1" %>
