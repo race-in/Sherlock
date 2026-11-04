@@ -11,13 +11,16 @@ CRED_DIR="$CONF_DIR/credentials"
 RUNTIME_PREFIX="${SHERLOCK_RUNTIME_PREFIX:-$HOME/.local/opt/sherlock-runtime}"
 NODE_BIN="$RUNTIME_PREFIX/node/node-v22.21.1-linux-x64-glibc-217/bin"
 
+die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+info() { printf '==> %s\n' "$*"; }
+
 # The private OpenSSL build has its own empty CA location. Prefer an explicit
 # existing deployment override, otherwise use the host's public CA bundle.
 if [[ -f "$ENV_FILE" ]]; then
   EXISTING_SSL_CERT_FILE="$(bash -c 'source "$1"; printf "%s" "${SSL_CERT_FILE:-}"' _ "$ENV_FILE")"
   EXISTING_SSL_CERT_DIR="$(bash -c 'source "$1"; printf "%s" "${SSL_CERT_DIR:-}"' _ "$ENV_FILE")"
-  [[ -n "$EXISTING_SSL_CERT_FILE" ]] && export SSL_CERT_FILE="$EXISTING_SSL_CERT_FILE"
-  [[ -n "$EXISTING_SSL_CERT_DIR" ]] && export SSL_CERT_DIR="$EXISTING_SSL_CERT_DIR"
+  if [[ -n "$EXISTING_SSL_CERT_FILE" ]]; then export SSL_CERT_FILE="$EXISTING_SSL_CERT_FILE"; fi
+  if [[ -n "$EXISTING_SSL_CERT_DIR" ]]; then export SSL_CERT_DIR="$EXISTING_SSL_CERT_DIR"; fi
 fi
 if [[ -z "${SSL_CERT_FILE:-}" ]]; then
   for ca_file in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/ca-bundle.pem; do
@@ -48,8 +51,6 @@ DB_USER=""
 DB_PASSWORD="${SHERLOCK_DB_PASSWORD:-}"
 PGSSLMODE="${SHERLOCK_PGSSLMODE:-require}"
 
-die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-info() { printf '==> %s\n' "$*"; }
 usage() {
   cat <<'EOF'
 Usage: bash deploy/feral/install.sh --domain HOST --db-host HOST --db-name NAME --db-user USER [options]
