@@ -81,8 +81,17 @@ shell history or commit it to the repository.
 
 The installer creates encrypted Rails production credentials and a private key under
 `~/.config/sherlock-feral/credentials/`. Database settings and `APP_HOST` are written
-to a private environment file (mode 0600). Back up the credentials directory securely;
-do not publish or share either file.
+to a private environment file (mode 0600). The installer also configures Ruby/OpenSSL
+to use a readable system CA bundle (normally `/etc/ssl/certs/ca-certificates.crt`) and
+persists `SSL_CERT_FILE` / `SSL_CERT_DIR` for Puma and Solid Queue. TLS certificate
+verification remains enabled; do not set `VERIFY_NONE` or disable peer verification.
+
+If the hosting proxy forwards a second Host header (for example, an account-specific
+inner vhost), add it as a comma-separated `APP_HOST_ALIASES` entry in the private
+environment file. The Rails host allowlist reads this setting without weakening
+Host Authorization.
+
+Back up the credentials directory securely; do not publish or share either file.
 
 ## Process controls
 
