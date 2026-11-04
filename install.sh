@@ -45,7 +45,18 @@ case "$ARCH" in
   *) die "Unsupported architecture: $ARCH. Supported: amd64 and arm64." ;;
 esac
 GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
-dpkg --compare-versions "$GLIBC_VERSION" ge 2.28 || die "glibc $GLIBC_VERSION is too old; Node.js ${NODE_VERSION:-26.12.0} requires glibc >= 2.28."
+dpkg --compare-versions "$GLIBC_VERSION" ge 2.28 || die "glibc $GLIBC_VERSION is too old; Node.js 26.12.0 requires glibc >= 2.28."
+
+# Fail before installing or compiling the stack if the public hostname is not ready.
+getent ahosts "$DOMAIN" >/dev/null || die "DNS for $DOMAIN does not resolve yet. Create its A/AAAA record pointing to this VPS and rerun."
+FREE_KB=$(df -Pk /opt | awk 'NR == 2 {print $4}')
+RAM_KB=$(awk '/MemTotal:/ {print $2}' /proc/meminfo)
+if [[ "$FREE_KB" =~ ^[0-9]+$ ]] && (( FREE_KB < 20 * 1024 * 1024 )); then
+  echo "WARNING: less than 20 GiB free on /opt; Ruby/native gem compilation and assets may run out of disk." >&2
+fi
+if [[ "$RAM_KB" =~ ^[0-9]+$ ]] && (( RAM_KB < 3 * 1024 * 1024 )); then
+  echo "WARNING: less than 3 GiB RAM; Ruby compilation may be OOM-killed. 4 GiB or more is recommended." >&2
+fi
 
 if [[ "$DEBIAN_MAJOR" == 11 ]]; then
   cat >&2 <<'WARNING'
@@ -62,6 +73,8 @@ WARNING
 fi
 
 [[ ! -e "$APP_DIR" ]] || die "$APP_DIR already exists; refusing to overwrite an existing installation."
+[[ ! -e "$ETC_DIR/sherlock.env" ]] || die "$ETC_DIR/sherlock.env already exists; refusing to overwrite an existing configuration."
+[[ ! -e /etc/systemd/system/sherlock.service ]] || die "sherlock.service already exists; inspect the existing service before installing."
 [[ -f "$SCRIPT_DIR/scripts/patch-native-app.sh" ]] || die "Missing deployment patcher: $SCRIPT_DIR/scripts/patch-native-app.sh"
 if [[ "$DEBIAN_MAJOR" == 11 ]]; then
   [[ -f "$SCRIPT_DIR/scripts/prepare-bullseye-archive.sh" ]] || die "Missing Bullseye archive helper."
@@ -102,23 +115,35 @@ PG_PORT=$(pg_lsclusters --no-header | awk -v v="$PG_VERSION" '$1 == v && $2 == "
 log 'Preparing dedicated application account and directories'
 getent group "$APP_GROUP" >/dev/null || groupadd --system "$APP_GROUP"
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --gid "$APP_GROUP" --home-dir /var/lib/sherlock --create-home --shell /usr/sbin/nologin "$APP_USER"
-install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$APP_DIR"
 install -d -o root -g "$APP_GROUP" -m 0750 "$ETC_DIR"
 
-log 'Cloning authorized application source'
-git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$APP_DIR"
-chown -R "$APP_USER:$APP_GROUP" "$APP_DIR"
+STAGING_DIR=
+TMP_NODE_DIR=
+cleanup_install_temps() {
+  [[ -n "$TMP_NODE_DIR" && -d "$TMP_NODE_DIR" ]] && rm -rf "$TMP_NODE_DIR"
+  [[ -n "$STAGING_DIR" && -d "$STAGING_DIR" ]] && rm -rf "$STAGING_DIR"
+}
+trap cleanup_install_temps EXIT
+
+log 'Cloning authorized application source into a temporary directory'
+STAGING_DIR=$(mktemp -d /opt/.sherlock-install.XXXXXX)
+git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$STAGING_DIR"
+chown -R "$APP_USER:$APP_GROUP" "$STAGING_DIR"
 for required in .ruby-version .node-version Gemfile.lock package-lock.json config/application.rb; do
-  [[ -f "$APP_DIR/$required" ]] || die "Application source is missing required file: $required"
+  [[ -f "$STAGING_DIR/$required" ]] || die "Application source is missing required file: $required"
 done
-RUBY_VERSION=$(tr -d '\r\n' < "$APP_DIR/.ruby-version")
-NODE_VERSION=$(tr -d '\r\n' < "$APP_DIR/.node-version")
+RUBY_VERSION=$(tr -d '\r\n' < "$STAGING_DIR/.ruby-version")
+NODE_VERSION=$(tr -d '\r\n' < "$STAGING_DIR/.node-version")
 [[ "$RUBY_VERSION" == 4.0.9 ]] || die "Unsupported application Ruby version: $RUBY_VERSION (installer is pinned for 4.0.9)."
 [[ "$NODE_VERSION" == 26.12.0 ]] || die "Unsupported application Node.js version: $NODE_VERSION (installer is pinned for 26.12.0)."
 RUBY_PREFIX="$RUBY_PREFIX_BASE/$RUBY_VERSION"
 install -d -m 0755 /usr/local/libexec/sherlock
 install -o root -g root -m 0755 "$SCRIPT_DIR/scripts/patch-native-app.sh" /usr/local/libexec/sherlock/patch-native-app.sh
-runuser -u "$APP_USER" -- bash /usr/local/libexec/sherlock/patch-native-app.sh "$APP_DIR"
+runuser -u "$APP_USER" -- bash /usr/local/libexec/sherlock/patch-native-app.sh "$STAGING_DIR"
+# Keep generated Rails production secrets out of Git status and accidental commits.
+printf '\n/config/credentials/\n' >> "$STAGING_DIR/.git/info/exclude"
+mv "$STAGING_DIR" "$APP_DIR"
+STAGING_DIR=
 
 log "Building Ruby ${RUBY_VERSION} against the host OpenSSL (>= 1.1.1)"
 RUBY_BUILD_TAG=v20261023
@@ -140,7 +165,6 @@ gem install bundler -v 4.0.20 --no-document
 log "Installing official Node.js ${NODE_VERSION} binary for ${NODE_ARCH}"
 NODE_TARBALL="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
 TMP_NODE_DIR=$(mktemp -d)
-trap 'rm -rf "${TMP_NODE_DIR:-}"' EXIT
 curl -fsSLo "$TMP_NODE_DIR/SHASUMS256.txt" "$NODE_DIST_BASE/v$NODE_VERSION/SHASUMS256.txt"
 curl -fsSLo "$TMP_NODE_DIR/$NODE_TARBALL" "$NODE_DIST_BASE/v$NODE_VERSION/$NODE_TARBALL"
 grep -E "^[0-9a-f]{64}  ${NODE_TARBALL}$" "$TMP_NODE_DIR/SHASUMS256.txt" > "$TMP_NODE_DIR/node.sha256" \
@@ -151,7 +175,7 @@ tar -xJf "$TMP_NODE_DIR/$NODE_TARBALL" -C "$NODE_PREFIX" --strip-components=1
 "$NODE_PREFIX/bin/node" --version | grep -Fx "v$NODE_VERSION" >/dev/null || die 'Installed Node.js version verification failed.'
 "$NODE_PREFIX/bin/npm" --version
 rm -rf "$TMP_NODE_DIR"
-trap - EXIT
+TMP_NODE_DIR=
 
 export PATH="$RUBY_PREFIX/bin:$NODE_PREFIX/bin:$PATH"
 log 'Installing Ruby and JavaScript application dependencies'
@@ -277,16 +301,12 @@ server {
 }
 NGINX
 ln -sfn /etc/nginx/sites-available/sherlock /etc/nginx/sites-enabled/sherlock
-rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl enable --now nginx
 
 if ufw status 2>/dev/null | grep -q 'Status: active'; then
   ufw allow 80/tcp
   ufw allow 443/tcp
-fi
-if ! getent ahosts "$DOMAIN" >/dev/null; then
-  die "DNS does not resolve for $DOMAIN. Create an A/AAAA record pointing to this VPS, then rerun Certbot: certbot --nginx -d $DOMAIN -m $LE_EMAIL --agree-tos --redirect"
 fi
 certbot --nginx -d "$DOMAIN" -m "$LE_EMAIL" --agree-tos --non-interactive --redirect
 
