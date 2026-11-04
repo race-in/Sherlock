@@ -6,6 +6,7 @@ APP_DIR=/opt/sherlock
 ETC_DIR=/etc/sherlock
 APP_USER=sherlock
 APP_GROUP=sherlock
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PG_BINDIR=${PG_BINDIR:-/usr/lib/postgresql/18/bin}
 
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -118,6 +119,11 @@ SECRETS_ARCHIVE=$(realpath -- "$2")
 [[ -x "$PG_BINDIR/pg_restore" ]] || die "PostgreSQL 18 pg_restore is missing."
 verify_backup_pair "$DB_DUMP" "$SECRETS_ARCHIVE"
 "$PG_BINDIR/pg_restore" --list "$DB_DUMP" >/dev/null || die "PostgreSQL dump is invalid or unreadable; the live database has not been changed."
+
+echo "Creating a verified pre-restore backup of the current live database and credentials."
+PRE_RESTORE_BACKUP_OUTPUT=$(bash "$SCRIPT_DIR/backup.sh") \\
+  || die "Pre-restore backup failed; refusing to replace the live database."
+printf '%s\\n' "$PRE_RESTORE_BACKUP_OUTPUT"
 
 RESTORE_TMP=$(mktemp -d /tmp/sherlock-restore.XXXXXX)
 trap 'rm -rf "$RESTORE_TMP"' EXIT
