@@ -155,7 +155,18 @@ abort "Join route should be disabled in single-user mode" unless web.response.st
 second = User.new(username: "second-account", password: "second-user-password", time_zone: "UTC")
 abort "Second account was accepted in single-user mode" if second.save
 abort "Second-account rejection did not report the single-user invariant" unless second.errors.full_messages.any? { |message| message.include?("one account only") }
-puts "PASS: single-user routes, token gate, rendered dashboard/admin pages and one-account invariant"
+
+begin
+  User.connection.execute(<<~SQL)
+    INSERT INTO sherlockdb.users (username, password_digest, created_at, updated_at)
+    VALUES ('direct-sql-second-account', 'not-a-login-digest', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  SQL
+  abort "PostgreSQL trigger allowed direct SQL to create a second account"
+rescue ActiveRecord::StatementInvalid => error
+  raise unless error.message.include?("one account only")
+end
+
+puts "PASS: single-user routes, token gate, rendered pages, Rails invariant and PostgreSQL trigger"
 RUBY
 chown sherlock-runtime-test:sherlock-runtime-test "$SINGLE_USER_SMOKE"
 
