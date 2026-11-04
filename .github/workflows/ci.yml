@@ -98,4 +98,5 @@ jobs:
             bash -ec '
               bash scripts/compatibility-check.sh
               bash scripts/test-apt-dependencies.sh
+              bash scripts/test-node-runtime.sh
             '
