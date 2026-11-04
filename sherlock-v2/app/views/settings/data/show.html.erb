@@ -35,6 +35,23 @@
     </div>
   <% end %>
 
+  <h2 class="section-title mt-10 mb-3" id="csv-import">Import statistics from CSV</h2>
+  <%= form_with url: settings_csv_import_path, multipart: true, class: "card space-y-3 p-5" do |form| %>
+    <% if (message = flash[:csv_import_notice] || flash[:csv_import_alert]) %>
+      <p class="rounded-lg border px-4 py-3 text-sm <%= flash[:csv_import_alert] ? "border-down/30 bg-down-soft text-down" : "border-up/30 bg-up-soft text-up" %>" role="status"><%= message %></p>
+    <% end %>
+    <p class="text-sm text-ink-soft">Choose a tracker and upload its CSV history export. Keep the original header row and ISO 8601 timestamps. Existing timestamps are skipped; every accepted row is appended as an immutable CSV-import observation.</p>
+    <div>
+      <%= form.label :connection_id, "Tracker", class: "label" %>
+      <%= form.select :connection_id, options_from_collection_for_select(@connections, :id, ->(connection) { connection.site.display_name }), { prompt: "Choose a tracker" }, class: "input mt-1 w-full max-w-sm", required: true %>
+    </div>
+    <div>
+      <%= form.label :file, "CSV file", class: "label" %>
+      <%= form.file_field :file, accept: "text/csv,.csv", required: true, class: "mt-1 text-sm" %>
+    </div>
+    <%= form.submit "Import CSV statistics", class: "btn-secondary" %>
+  <% end %>
+
   <h2 class="section-title mt-10 mb-3">Delete account</h2>
   <%= form_with url: settings_account_path, method: :delete, class: "card space-y-3 p-5",
         data: { turbo_confirm: "Delete your account and all its data? This can't be undone." } do |form| %>
