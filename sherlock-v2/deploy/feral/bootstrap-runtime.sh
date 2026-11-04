@@ -52,7 +52,7 @@ fi
 "$PREFIX/bin/openssl" version | grep -F 'OpenSSL 3.5.9' >/dev/null || die "OpenSSL verification failed."
 
 step "Build PostgreSQL 16.15 client libraries and tools"
-if [[ ! -x "$PREFIX/bin/pg_config" || ! -x "$PREFIX/bin/pg_isready" || ! -x "$PREFIX/bin/psql" || ! -r "$PREFIX/include/libpq-fe.h" || ! -r "$PREFIX/include/postgres_ext.h" || ! -r "$PREFIX/include/pg_config_ext.h" ]]; then
+if [[ ! -x "$PREFIX/bin/pg_config" || ! -x "$PREFIX/bin/pg_isready" || ! -x "$PREFIX/bin/psql" || ! -r "$PREFIX/include/libpq-fe.h" || ! -r "$PREFIX/include/postgres_ext.h" || ! -r "$PREFIX/include/pg_config_ext.h" || ! -r "$PREFIX/include/libpq/libpq-fs.h" ]]; then
  fetch https://ftp.postgresql.org/pub/source/v16.15/postgresql-16.15.tar.bz2 "$WORK/src/postgresql-16.15.tar.bz2" c1575341fa7bd40f5274ea465b34390f4dc64cdd0770af327005caaeb9f6b7ed
  rm -rf "$WORK/build/postgresql-16.15"; mkdir -p "$WORK/build/postgresql-16.15"
  tar -xjf "$WORK/src/postgresql-16.15.tar.bz2" -C "$WORK/build"
@@ -72,12 +72,14 @@ if [[ ! -x "$PREFIX/bin/pg_config" || ! -x "$PREFIX/bin/pg_isready" || ! -x "$PR
   # Install both companion headers beside libpq-fe.h for standalone pg gem builds.
   install -m 644 src/include/postgres_ext.h "$PREFIX/include/postgres_ext.h"
   install -m 644 src/include/pg_config_ext.h "$PREFIX/include/pg_config_ext.h"
+  install -d "$PREFIX/include/libpq"
+  install -m 644 src/include/libpq/libpq-fs.h "$PREFIX/include/libpq/libpq-fs.h"
   make -C src/bin/pg_config install
   make -C src/bin/psql install
   make -C src/bin/scripts install
  ) >"$LOG_DIR/postgresql-client-build.log" 2>&1 || { tail -n 80 "$LOG_DIR/postgresql-client-build.log" >&2; die "PostgreSQL client build failed; see $LOG_DIR/postgresql-client-build.log"; }
 fi
-[[ -r "$PREFIX/include/libpq-fe.h" && -r "$PREFIX/include/postgres_ext.h" && -r "$PREFIX/include/pg_config_ext.h" ]] || die "PostgreSQL libpq development headers are incomplete."
+[[ -r "$PREFIX/include/libpq-fe.h" && -r "$PREFIX/include/postgres_ext.h" && -r "$PREFIX/include/pg_config_ext.h" && -r "$PREFIX/include/libpq/libpq-fs.h" ]] || die "PostgreSQL libpq development headers are incomplete."
 "$PREFIX/bin/pg_config" --version | grep -F 'PostgreSQL 16.15' >/dev/null || die "PostgreSQL client version check failed."
 "$PREFIX/bin/pg_isready" --version >/dev/null || die "pg_isready self-test failed."
 "$PREFIX/bin/psql" --version | grep -F "16.15" >/dev/null || die "psql client self-test failed."
