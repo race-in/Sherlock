@@ -268,7 +268,10 @@ if [[ ! -s "$CRED_DIR/production.yml.enc" || ! -s "$CRED_DIR/production.key" ]];
 fi
 
 info "Building frontend assets"
-if [[ ! -d "$APP_DIR/public/assets" || -z "$(find "$APP_DIR/public/assets" -type f -print -quit 2>/dev/null)" ]]; then
+SOURCE_REV="$(git -C "$SRC_DIR" rev-parse HEAD)"
+ASSETS_BUILT_REV=""
+[[ -s "$STATE_DIR/assets-precompiled.commit" ]] && ASSETS_BUILT_REV="$(cat "$STATE_DIR/assets-precompiled.commit")"
+if [[ "$ASSETS_BUILT_REV" != "$SOURCE_REV" ]]; then
   (
     cd "$APP_DIR"
     npm ci --no-audit --no-fund
@@ -289,6 +292,7 @@ if [[ ! -d "$APP_DIR/public/assets" || -z "$(find "$APP_DIR/public/assets" -type
         die "Could not download the x86_64-linux-gnu Tailwind executable gem."
       fi
       TAILWINDCSS_GEM="$TAILWINDCSS_TMP/tailwindcss-ruby-$TAILWINDCSS_VERSION-x86_64-linux-gnu.gem"
+      mkdir -p "$TAILWINDCSS_TMP/unpacked"
       if [[ ! -s "$TAILWINDCSS_GEM" ]] || ! gem unpack "$TAILWINDCSS_GEM" --target "$TAILWINDCSS_TMP/unpacked" >/dev/null; then
         rm -rf "$TAILWINDCSS_TMP"
         die "Could not unpack the native Tailwind executable gem."
@@ -312,6 +316,7 @@ if [[ ! -d "$APP_DIR/public/assets" || -z "$(find "$APP_DIR/public/assets" -type
     SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid RAILS_ENV=production bundle exec rails assets:precompile
   )
   rm -rf "$APP_DIR/node_modules"
+  printf '%s\n' "$SOURCE_REV" > "$STATE_DIR/assets-precompiled.commit"
 fi
 
 info "Running database migrations"
