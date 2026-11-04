@@ -7,12 +7,12 @@ class WhatstatusControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "WhatStatus.info"
     assert_includes response.body, "/session/new"
-    assert_not_includes response.body, "sherlock-v2/releases/tag/"
+    assert_not_includes response.body, "#{Rails.configuration.x.source_url}/releases/tag/"
 
     host! "app.whatstatus.info"
     get root_path
     assert_not_includes response.body, "WhatStatus.info"
     follow_redirect! while response.redirect?
-    assert_includes response.body, "sherlock-v2/releases/tag/#{Rails.configuration.x.version}"
+    assert_includes response.body, "#{Rails.configuration.x.source_url}/releases/tag/#{Rails.configuration.x.version}"
   end
 end
