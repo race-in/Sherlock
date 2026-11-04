@@ -63,11 +63,15 @@ rewrite_deb822_file() {
   awk '
     BEGIN { RS = ""; ORS = "" }
 
-    function is_official_debian_uri(uri, normalized) {
-      normalized = uri
-      if (substr(normalized, length(normalized), 1) == "/") {
-        normalized = substr(normalized, 1, length(normalized) - 1)
+    function normalize_uri(uri) {
+      if (substr(uri, length(uri), 1) == "/") {
+        return substr(uri, 1, length(uri) - 1)
       }
+      return uri
+    }
+
+    function is_official_debian_uri(uri, normalized) {
+      normalized = normalize_uri(uri)
       return normalized == "https://deb.debian.org/debian" ||
              normalized == "http://deb.debian.org/debian" ||
              normalized == "https://ftp.debian.org/debian" ||
@@ -80,10 +84,7 @@ rewrite_deb822_file() {
 
     function rewrite_uri_for_suite(uri, suite, normalized) {
       if (!is_official_debian_uri(uri)) return uri
-      normalized = uri
-      if (substr(normalized, length(normalized), 1) == "/") {
-        normalized = substr(normalized, 1, length(normalized) - 1)
-      }
+      normalized = normalize_uri(uri)
       if (suite == "bullseye-security" ||
           index(normalized, "security.debian.org/debian-security") > 0) {
         return "http://archive.debian.org/debian-security"
@@ -92,7 +93,7 @@ rewrite_deb822_file() {
     }
 
     {
-      count = split($0, lines, "\\n")
+      count = split($0, lines, "\n")
       suites_value = ""
       uris_value = ""
       for (i = 1; i <= count; i++) {
@@ -114,7 +115,7 @@ rewrite_deb822_file() {
         if (uri_items[i] != "" && is_official_debian_uri(uri_items[i])) official = 1
       }
       if (!official || suites_value == "") {
-        printf "%s\\n\\n", $0
+        printf "%s\n\n", $0
         next
       }
 
@@ -137,15 +138,14 @@ rewrite_deb822_file() {
           if (lines[i] ~ /^URIs:[[:space:]]*/ ||
               lines[i] ~ /^Suites:[[:space:]]*/ ||
               lines[i] ~ /^Check-Valid-Until:[[:space:]]*/) continue
-          output = output (output == "" ? "" : "\\n") lines[i]
+          output = output (output == "" ? "" : "\n") lines[i]
         }
-        if (output != "") output = output "\\n"
-        output = output "URIs: " rewritten_uris "\\nSuites: " suite
-        if (rewritten_uris ~ /archive\\.debian\\.org/ &&
-            output !~ /Check-Valid-Until:/) {
-          output = output "\\nCheck-Valid-Until: no"
+        if (output != "") output = output "\n"
+        output = output "URIs: " rewritten_uris "\nSuites: " suite
+        if (index(rewritten_uris, "archive.debian.org") > 0) {
+          output = output "\nCheck-Valid-Until: no"
         }
-        printf "%s\\n\\n", output
+        printf "%s\n\n", output
         emitted++
       }
 
