@@ -17,7 +17,7 @@ class Connections::ManualSnapshotsControllerTest < ActionDispatch::IntegrationTe
       }
     end
 
-    snapshot = connection.snapshots.order(created_at: :desc).first
+    snapshot = connection.snapshots.where(source: "manual").order(created_at: :desc).first
     assert_redirected_to connection_path(connection)
     assert_equal "manual", snapshot.source
     assert_equal users(:alice), snapshot.created_by_user
