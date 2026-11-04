@@ -11,7 +11,7 @@
 #   6. installs and starts the "sherlock" systemd service (web server and tracker polling in one)
 #   7. optionally sets up nginx as the reverse proxy, with a Let's Encrypt certificate
 #
-# Run it as root from the project folder:   sudo ./deploy/install.sh --domain sherlock.example.com
+# Run it as root from the project folder:   sudo bash ./deploy/install.sh --domain sherlock.example.com
 # Run it with --help for all options.
 
 set -Eeuo pipefail
@@ -81,7 +81,7 @@ trap 'on_error $LINENO' ERR
 
 usage() {
   cat <<'EOF'
-Usage: sudo ./deploy/install.sh --domain HOST [options]
+Usage: sudo bash ./deploy/install.sh --domain HOST [options]
 
 Basics
   --domain HOST          Domain Sherlock is served on (APP_HOST). Required on the first run.
