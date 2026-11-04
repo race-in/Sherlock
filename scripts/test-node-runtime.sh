@@ -24,7 +24,7 @@ dpkg --compare-versions "$GLIBC" ge "$MIN_GLIBC" || {
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl xz-utils
+apt-get install -y --no-install-recommends ca-certificates curl xz-utils libatomic1
 
 NODE_DIST_BASE=https://nodejs.org/dist
 NODE_TARBALL="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
