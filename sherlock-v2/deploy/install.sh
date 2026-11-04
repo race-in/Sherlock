@@ -582,6 +582,10 @@ trap cleanup_node EXIT
 # ---------------------------------------------------------------------------------------------
 sync_source() {
   step "Copying the app to $INSTALL_DIR"
+  # Never replace an unexpected file or recursively delete a real credentials directory.
+  if [[ -e "$INSTALL_DIR/config/credentials" && ! -L "$INSTALL_DIR/config/credentials" && ! -d "$INSTALL_DIR/config/credentials" ]]; then
+    die "$INSTALL_DIR/config/credentials exists but is not a directory or managed symlink; refusing to replace it."
+  fi
   # A real credentials directory may contain keys from a manual/older install.
   # Never recursively delete it; require the operator to migrate or back it up.
   if [[ -d "$INSTALL_DIR/config/credentials" && ! -L "$INSTALL_DIR/config/credentials" ]]; then
