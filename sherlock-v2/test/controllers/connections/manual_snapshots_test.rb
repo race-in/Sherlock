@@ -32,11 +32,10 @@ class Connections::ManualSnapshotsControllerTest < ActionDispatch::IntegrationTe
     connection = connections(:alice_redacted)
 
     assert_no_difference -> { connection.snapshots.count } do
-      assert_raises(ActiveRecord::RecordNotFound) do
-        post connection_manual_snapshot_path(connection), params: {
-          snapshot: { uploaded: "1", downloaded: "1" }
-        }
-      end
+      post connection_manual_snapshot_path(connection), params: {
+        snapshot: { uploaded: "1", downloaded: "1" }
+      }
+      assert_response :not_found
     end
   end
 
