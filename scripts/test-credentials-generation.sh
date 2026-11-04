@@ -30,7 +30,7 @@ done
 
 SECRET_KEY_BASE=$(printf '%064d' 0)
 {
-  printf 'secret_key_base: %s\n' "$SECRET_KEY_BASE"
+  printf 'secret_key_base: %s\n' "$(printf '%064d' 0)"
   printf '%s\n' "$ENCRYPTION_YAML"
 } > "$TMP/credentials.yml"
 
