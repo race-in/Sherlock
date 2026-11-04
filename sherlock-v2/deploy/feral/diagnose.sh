@@ -9,7 +9,7 @@ show "kernel" "$(uname -sr 2>/dev/null || echo unknown)"
 show "architecture" "$(uname -m 2>/dev/null || echo unknown)"
 if command -v getconf >/dev/null 2>&1; then show "glibc" "$(getconf GNU_LIBC_VERSION 2>/dev/null || echo unknown)"; fi
 section "Build tools"
-for cmd in gcc make git curl wget tar gzip xz pkg-config; do
+for cmd in gcc make git curl wget tar gzip xz bzip2 pkg-config; do
   if command -v "$cmd" >/dev/null 2>&1; then show "$cmd" "$(command -v "$cmd")"; else show "$cmd" "not found"; fi
 done
 if command -v gcc >/dev/null 2>&1; then show "gcc version" "$(gcc -dumpfullversion -dumpversion 2>/dev/null || gcc --version | head -n 1)"; fi
