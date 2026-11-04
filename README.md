@@ -110,6 +110,8 @@ curl -fsS http://127.0.0.1:3000/up
 
 - Backup: `sudo bash scripts/backup.sh` (writes mode-0600 files into a mode-0700, root-owned directory; each file is finalized by an atomic rename)
 
+- Optional retention cleanup: `sudo bash scripts/prune-backups.sh /var/backups/sherlock 30` removes only backup sets whose manifest, non-empty database dump, and non-empty matching secrets archive are all present and whose manifest is older than the selected retention period. It keeps incomplete, malformed, mismatched, and recent sets. This is a manual, destructive operation; review the target directory and verify at least one known-good restore before running it. No automatic cleanup is enabled by the installer.
+
 Do not expose port 3000 publicly. Nginx is the public entry point and proxies to localhost.
 
 ## Security and backups
