@@ -1,9 +1,20 @@
 <% content_for :title, "Set up Sherlock" %>
 <div class="mx-auto max-w-sm" data-controller="time-zone">
   <h1 class="heading text-3xl">Set up Sherlock</h1>
-  <p class="mt-2 text-ink-soft">Create the first account. It's the admin: it can invite people and reset their passwords.</p>
+  <% if Rails.application.config.x.single_user_mode %>
+    <p class="mt-2 text-ink-soft">Create the only account for this private Sherlock instance. Public registration and invitations are disabled.</p>
+  <% else %>
+    <p class="mt-2 text-ink-soft">Create the first account. It's the admin: it can invite people and reset their passwords.</p>
+  <% end %>
   <%= form_with model: @user, scope: :user, url: first_run_path, class: "mt-6 space-y-4" do |form| %>
     <%= render "shared/errors", record: form.object %>
+    <% if Rails.application.config.x.single_user_mode || ENV["FIRST_RUN_TOKEN"].present? %>
+      <div>
+        <%= label_tag :setup_token, "One-time installer token", class: "label" %>
+        <%= text_field_tag :setup_token, params[:setup_token], required: true, autocomplete: "off", autocapitalize: "none", spellcheck: false, class: "input mt-1" %>
+        <p class="hint mt-1">Enter the 64-character token printed once by the native installer.</p>
+      </div>
+    <% end %>
     <%= form.hidden_field :time_zone, value: form.object.time_zone, data: { time_zone_target: "field" } %>
     <div>
       <%= form.label :username, class: "label" %>
