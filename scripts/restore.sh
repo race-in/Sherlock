@@ -43,10 +43,14 @@ verify_secrets_archive() {
   while IFS= read -r line; do
     [[ "${line:0:1}" == "-" ]] || die "Secrets archive may contain regular files only."
   done <<< "$listing"
-  tmp=$(mktemp -d)
+  tmp=$(mktemp -d /tmp/sherlock-archive-verify.XXXXXX)
+  # Even a rejected archive may contain sensitive credentials. Always remove
+  # the temporary extraction directory if validation exits early.
+  trap 'rm -rf "$tmp"' EXIT
   tar --no-same-owner --no-same-permissions -xzf "$archive" -C "$tmp"
   validate_environment_file "$tmp/sherlock.env"
   rm -rf "$tmp"
+  trap - EXIT
 }
 
 if [[ ${1:-} == --verify ]]; then
