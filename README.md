@@ -15,7 +15,7 @@ Use Debian 12 or 13 for an internet-facing server. Debian 11 is end-of-life and 
 3. Run:
 
 ```bash
-git clone --branch sherlock-v2-native-integration https://github.com/race-in/Sherlock.git
+git clone --recurse-submodules --branch sherlock-v2-native-integration https://github.com/race-in/Sherlock.git
 cd Sherlock/sherlock-v2
 sudo ./deploy/install.sh --domain stats.example.com --letsencrypt you@example.com
 ```
@@ -87,5 +87,5 @@ See [ROADMAP.md](ROADMAP.md) for phases, acceptance criteria and release gates. 
 
 ## Validation
 
-GitHub Actions runs shell syntax checks, ShellCheck, deployment regression tests, source inventory checks, and Debian 11/12/13 compatibility jobs. CI container results do not replace a fresh-install test on real VPS hosts. DNS, certificate issuance, systemd startup, upgrade behavior and restore procedures must be verified in a controlled deployment before production use.
+GitHub Actions runs shell syntax checks, ShellCheck, deployment regression tests, an upstream source inventory, and Debian 11/12/13 compatibility jobs. The Node frontend build, Ruby/Rails tests, and PostgreSQL schema checks validate the bundled `sherlock-v2/` tree; the separate source-inventory job compares against upstream Codeberg. CI container results do not replace a fresh-install test on real VPS hosts. DNS, certificate issuance, systemd startup, upgrade behavior and restore procedures must be verified in a controlled deployment before production use.
 
