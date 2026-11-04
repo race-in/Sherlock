@@ -5,7 +5,7 @@ class StatisticsCsvImporterTest < ActiveSupport::TestCase
     connection = connections(:alice_redacted)
     user = users(:alice)
     observed_at = 4.days.ago.change(usec: 0)
-    headers = [ "time", *History::STATS, *History::STATS.first(3).map { "#{_1}_change" }, "interval_ratio" ]
+    headers = [ "time", *History::STATS, *History::STATS.first(3).map { "#{_1}_change" }, "interval_ratio", "note" ]
     values = headers.index_with { nil }.merge(
       "time" => observed_at.iso8601, "uploaded" => "0", "downloaded" => "0",
       "ratio" => "1.2500", "seeding" => "12", "note" => "Imported from spreadsheet"
