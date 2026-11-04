@@ -35,7 +35,9 @@ class StatisticsCsvImporter
 
       row_number = index + 2
       begin
-        created_at = Time.iso8601(values.fetch("time")).change(usec: 0)
+        timestamp = values.fetch("time")
+        raise ArgumentError, "time must include an explicit UTC offset" unless timestamp.match?(/(?:Z|[+-]\\d{2}:\\d{2})\\z/i)
+        created_at = Time.iso8601(timestamp).change(usec: 0)
         raise ArgumentError, "observation time is in the future" if created_at.future?
 
         attributes = INTEGER_FIELDS.index_with do |field|
