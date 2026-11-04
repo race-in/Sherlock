@@ -1,44 +1,76 @@
 # Sherlock v2 — Native Debian Deployment Kit
 
-This repository currently contains the **native deployment scaffold only**. It does not redistribute the upstream Sherlock application source.
+Native (non-Docker) deployment scaffold for Debian 11, 12, and 13. This repository currently contains deployment tooling only; it does **not** contain the planned Sherlock Custom Edition features.
+
+## Supported platform matrix
+
+| OS | Codename | Runtime | PostgreSQL 18 package source | Notes |
+|---|---|---|---|---|
+| Debian 11 | Bullseye | Ruby 4.0.9 + official Node.js 26.12.0 binary | Frozen PGDG archive | EOL; install requires explicit confirmation |
+| Debian 12 | Bookworm | Ruby 4.0.9 + official Node.js 26.12.0 binary | Current PGDG repository | Supported OS |
+| Debian 13 | Trixie | Ruby 4.0.9 + official Node.js 26.12.0 binary | Current PGDG repository | Supported OS |
+
+Supported CPU architectures: `amd64` and `arm64`.
+
+### Debian 11 warning
+
+Debian 11 Bullseye reached Debian LTS end-of-life on **31 August 2026**. It no longer receives free security updates from Debian LTS. The PostgreSQL project has also moved the Bullseye PGDG repository to its frozen archive; packages there receive no further PGDG updates. For an internet-facing production server, use Debian 12 or 13. The installer requires confirmation on Debian 11 (`Type YES`) or `ALLOW_EOL_DEBIAN11=1`.
+
+Bullseye hosts may also have expired or removed APT security sources. The installer deliberately does not rewrite the host's Debian APT source configuration. Make sure `apt-get update` works before running it; use Debian's archive or an ELTS provider as appropriate.
 
 ## Stack
 
-- Debian 12/13
-- Ruby 4.0.9, Bundler 4.0.20
-- Node.js 26.12.0
+- Ruby 4.0.9, compiled locally by `ruby-build`
+- Bundler 4.0.20
+- Node.js 26.12.0 official Linux binary, SHA-256 verified against Node.js `SHASUMS256.txt`
 - PostgreSQL 18
-- Puma managed by systemd
-- Solid Queue inside Puma for the documented single-server setup
+- Puma managed by systemd; Solid Queue runs inside Puma for the single-server setup
 - Nginx reverse proxy and Let's Encrypt TLS
 - No Docker
 
-## Important scope notice
+Node.js 26's official Linux binaries require glibc 2.28 or newer; the installer checks this before installation and installs `libatomic1`, required by current Node.js Linux binaries. This avoids compiling Node.js with a compiler newer than Debian 11/12's stock GCC.
 
-This is a deployment kit, **not yet Sherlock Custom Edition**. It does not implement the planned single-user-only mode, manual statistics entry, CSV/JSON import, or additional tracker adapters. The upstream app remains unchanged and may retain its upstream multi-user/invite behavior.
-
-The supplied upstream archive did not contain a standalone LICENSE file. Before redistributing or publishing modified upstream source, obtain and verify the maintainer's permission/license. This repository therefore keeps the deployment tooling separate from upstream application source.
+Ruby's bundled OpenSSL extension supports OpenSSL 1.1.1 and newer. The installer checks that Ruby can load OpenSSL after compilation.
 
 ## Requirements
 
-- Debian 12 or 13
-- At least 4 GB RAM and 30 GB free disk recommended
-- A DNS A record such as `stats.example.com` pointing to the VPS
-- TCP 80/443 allowed in provider firewall
-- An authorized Git repository containing the Sherlock application source, including `.ruby-version`, `.node-version`, `Gemfile.lock`, and Rails files
+- Fresh Debian 11, 12, or 13 install (Debian 12/13 strongly recommended)
+- `amd64` or `arm64`
+- At least 4 GB RAM and 30 GB free disk recommended; Ruby and native gems are compiled locally
+- DNS A/AAAA record such as `stats.example.com` pointing to the VPS
+- TCP ports 80 and 443 reachable from the Internet
+- A Git repository containing the Sherlock application source and these exact version files:
+  - `.ruby-version`: `4.0.9`
+  - `.node-version`: `26.12.0`
+  - `Gemfile.lock`, `package-lock.json`, and Rails application files
 
 ## Install
 
-Copy this directory to the VPS and run as root:
+Copy this deployment kit to the VPS, then run as root:
 
 ```bash
 chmod +x install.sh
 ./install.sh stats.example.com https://github.com/OWNER/APP-SOURCE.git main
 ```
 
-The installer installs system packages, builds the pinned Ruby/Node versions, installs PostgreSQL 18, clones the application source into `/opt/sherlock`, prepares credentials/database, builds assets, installs systemd and Nginx, and requests the TLS certificate.
+On Debian 11, accept the EOL warning by typing `YES`, or use:
 
-It refuses to overwrite an existing `/opt/sherlock` installation or an existing database role.
+```bash
+ALLOW_EOL_DEBIAN11=1 ./install.sh stats.example.com https://github.com/OWNER/APP-SOURCE.git main
+```
+
+The installer:
+
+1. Detects Debian release and CPU architecture.
+2. Installs build dependencies, Nginx, Certbot, and PostgreSQL prerequisites.
+3. Configures PGDG for Debian 12/13, or the frozen `apt-archive.postgresql.org` Bullseye repository for Debian 11.
+4. Installs PostgreSQL 18 and creates the database, role, and required `sherlockdb` schema.
+5. Clones the authorized app source to `/opt/sherlock`.
+6. Builds Ruby 4.0.9, installs the checksum-verified Node.js 26.12.0 binary, then installs Bundler/gems/npm dependencies.
+7. Creates encrypted Rails production credentials and a root-managed environment file.
+8. Prepares the database, compiles assets, configures systemd and Nginx, and requests a Let's Encrypt certificate.
+
+It refuses to overwrite an existing `/opt/sherlock` directory or an existing database role.
 
 ## Operations
 
@@ -53,23 +85,35 @@ curl -fsS http://127.0.0.1:3000/up
 - Update: `bash scripts/update.sh` (run as root)
 - Backup: `bash scripts/backup.sh` (run as root)
 
+Do not expose port 3000 publicly. Nginx is the public entry point and proxies to localhost.
+
 ## Security and backups
 
-- Rails binds behind Nginx; do not expose port 3000 publicly.
-- `/etc/sherlock/sherlock.env` is root-owned and group-readable only by the service account group.
-- Back up `/opt/sherlock/config/credentials/production.key` and `production.yml.enc` securely.
+- Rails binds behind Nginx; port 3000 must remain private.
+- `/etc/sherlock/sherlock.env` is root-owned and readable only by the application group.
+- Back up `config/credentials/production.key` securely; without it, encrypted credentials and saved API keys cannot be decrypted.
 - Never commit production keys, API keys, database passwords, or `sherlock.env`.
 - Store the database dump and credential archive separately and securely.
 - Verify restore procedures before relying on backups.
 
-## Files
+## Current scope
 
-- `install.sh`: native Debian installation
-- `templates/sherlock.service`: systemd service template
-- `templates/nginx-http.conf`: HTTP reverse proxy template (Certbot upgrades it to HTTPS)
-- `scripts/update.sh`: fast-forward update and migration
-- `scripts/backup.sh`: PostgreSQL and encrypted Rails credential backup
+This repository is a **native deployment scaffold**, not yet the complete Sherlock Custom Edition. It does not implement single-user-only enforcement, manual statistics entry, CSV/JSON import/export workflows, or additional tracker adapters. The upstream app may still retain its existing multi-user/invite behavior.
+
+The supplied upstream archive did not contain a standalone LICENSE file. Before redistributing or publishing modified upstream source, obtain and verify the maintainer's permission/license. This repository therefore keeps deployment tooling separate from upstream application source.
 
 ## Validation status
 
-Shell syntax was checked locally. The installer has **not** been run on a target VPS, and live DNS/HTTPS/database deployment has not been verified. The custom application features listed above are not implemented in this repository yet.
+- Shell syntax checked locally with `bash -n`.
+- Debian release/architecture/glibc compatibility checks are built into the installer.
+- Actual install, PostgreSQL package resolution, service startup, DNS, and HTTPS still need verification on real Debian 11/12/13 VPS instances.
+- Debian 11 uses an archived PostgreSQL repository and an end-of-life operating system; it is a compatibility path, not the recommended production target.
+
+## References
+
+- [Debian 11 LTS end-of-life announcement](https://www.debian.org/News/2026/20260831)
+- [PostgreSQL Debian installation instructions](https://www.postgresql.org/download/linux/debian/)
+- [PostgreSQL PGDG archive](https://apt-archive.postgresql.org/)
+- [Node.js build/platform requirements](https://github.com/nodejs/node/blob/main/BUILDING.md)
+- [Node.js 26.12.0 release downloads](https://nodejs.org/en/download/archive/v26.12.0)
+- [Ruby/OpenSSL compatibility](https://ruby.github.io/openssl/)
