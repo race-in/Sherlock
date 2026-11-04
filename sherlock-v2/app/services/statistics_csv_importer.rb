@@ -17,7 +17,9 @@ class StatisticsCsvImporter
   MAX_INTEGER = 2_147_483_647
 
   def self.import!(connection:, user:, csv_text:)
-    raise ArgumentError, "Choose one of your own trackers." unless connection.user_id == user.id
+    unless connection.is_a?(Connection) && user.is_a?(User) && connection.user_id == user.id
+      raise ArgumentError, "Choose one of your own trackers."
+    end
 
     csv_text = csv_text.to_s
     raise ArgumentError, "CSV is larger than 50 MB." if csv_text.bytesize > MAX_BYTES
