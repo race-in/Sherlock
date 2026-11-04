@@ -18,9 +18,10 @@ The adapter deliberately checks these prerequisites before changing files:
 - an external PostgreSQL database and credentials
 - a user-writable application directory and an available unprivileged TCP port
 
-A runtime bootstrap for Stretch must build a private OpenSSL and Ruby under the
-user's home directory. That bootstrap is a separate step; the adapter must not
-pretend the Debian 9 system packages satisfy it.
+The branch bootstrap builds private zlib, libyaml, OpenSSL, Ruby and PostgreSQL
+client libraries/tools under the user's home directory. It also installs a temporary
+Node.js glibc-2.17-compatible build runtime for asset compilation. No system library
+or package is changed.
 
 ## Intended layout
 
@@ -49,7 +50,14 @@ cd Sherlock-Feral/sherlock-v2
 bash ./deploy/feral/diagnose.sh
 ```
 
-Review the diagnostic output first. When the private Ruby/OpenSSL runtime and external PostgreSQL prerequisites are ready, install from this same checkout:
+Review the diagnostic output first. Build the private runtimes from this same development branch:
+ 
+```sh
+bash ./deploy/feral/bootstrap-runtime.sh
+```
+
+This is a long native build. If it fails, inspect logs under `~/.local/var/sherlock-feral/`
+and do not continue with the installer. After it succeeds, install from this same checkout:
 
 ```sh
 bash ./deploy/feral/install.sh --domain stats.example.com --port 18443 --db-host DB_HOST --db-name DB_NAME --db-user DB_USER
@@ -62,7 +70,10 @@ before replacing an existing application. It requires the database to be provisi
 outside this installer; the configured DB user must be able to create the
 `sherlockdb` schema and run migrations.
 
-The installer creates private `RAILS_MASTER_KEY` and `SECRET_KEY_BASE` values automatically. Database settings and `APP_HOST` are written to the private environment file (mode 0600). Do not publish or share this file.
+The installer creates encrypted Rails production credentials and a private key under
+`~/.config/sherlock-feral/credentials/`. Database settings and `APP_HOST` are written
+to a private environment file (mode 0600). Back up the credentials directory securely;
+do not publish or share either file.
 
 ## Process controls
 
