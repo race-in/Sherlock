@@ -84,6 +84,7 @@ jobs:
           bash scripts/test-native-upgrade-safety.sh
           bash scripts/test-credentials-generation.sh
           bash scripts/test-prune-backups.sh
+          bash sherlock-v2/deploy/feral/tests/shell-smoke.sh
 
       - name: Validate workflow YAML
         run: yamllint --strict -d relaxed .github/workflows/ci.yml
