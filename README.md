@@ -80,6 +80,7 @@ It refuses to overwrite an existing `/opt/sherlock` directory or an existing dat
 - `scripts/prepare-bullseye-archive.sh`: backs up and adapts official Debian 11 APT source entries after EOL consent.
 - `scripts/compatibility-check.sh`: reports supported Debian releases, CPU architecture, and glibc compatibility.
 - `scripts/test-native-patches.sh` and `scripts/test-bullseye-archive.sh`: regression tests run in CI.
+- `scripts/test-apt-dependencies.sh`: verifies that the native installer dependency set and PostgreSQL 18 packages resolve from each Debian release's configured APT repositories.
 
 ## Operations
 
@@ -155,7 +156,7 @@ The supplied upstream archive did not contain a standalone LICENSE file. Before 
 
 ## Validation status
 
-- GitHub Actions validates Bash syntax, ShellCheck, workflow YAML, deployment patch tests, and Bullseye APT-source migration tests.
+- GitHub Actions validates Bash syntax, ShellCheck, workflow YAML, deployment patch tests, Bullseye APT-source migration tests, and simulated native dependency installation against Debian 11/12/13 package repositories.
 - The CI matrix checks Debian 11/12/13 release, architecture, and glibc compatibility in containers.
 - The native patcher was smoke-tested against the supplied Sherlock v2 source archive; Puma Ruby syntax and `database.yml` ERB syntax were checked locally.
 - Full package installation, PostgreSQL repository resolution, systemd startup, DNS, and HTTPS still need verification on real Debian 11/12/13 VPS instances.
