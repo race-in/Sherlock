@@ -3,7 +3,7 @@ require "csv"
 class StatisticsCsvImporter
   MAX_ROWS = 100_000
   ALLOWED_HEADERS = %w[
-    time uploaded downloaded buffer ratio bonus_points seeding leeching snatched hit_and_runs
+    time uploaded downloaded buffer ratio required_ratio bonus_points seeding leeching snatched hit_and_runs
     uploads forum_posts torrent_comments uploaded_change downloaded_change buffer_change interval_ratio note
   ].freeze
   REQUIRED_HEADERS = %w[time uploaded downloaded].freeze
