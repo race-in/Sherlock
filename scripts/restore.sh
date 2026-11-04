@@ -6,6 +6,14 @@ APP_DIR=/opt/sherlock
 ETC_DIR=/etc/sherlock
 APP_USER=sherlock
 APP_GROUP=sherlock
+PG_BINDIR=${PG_BINDIR:-}
+if [[ -z "$PG_BINDIR" ]]; then
+  PG_BINDIR=$(pg_config --bindir 2>/dev/null || true)
+fi
+if [[ ! -x "$PG_BINDIR/pg_restore" ]]; then
+  PG_RESTORE_PATH=$(command -v pg_restore || true)
+  [[ -n "$PG_RESTORE_PATH" ]] && PG_BINDIR=$(dirname "$PG_RESTORE_PATH")
+fi
 PG_BINDIR=${PG_BINDIR:-/usr/lib/postgresql/18/bin}
 
 die() { echo "ERROR: $*" >&2; exit 1; }
