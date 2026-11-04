@@ -86,7 +86,7 @@ It refuses to overwrite an existing `/opt/sherlock` directory or an existing dat
 - `scripts/compatibility-check.sh`: reports supported Debian releases, CPU architecture, and glibc compatibility.
 - `scripts/test-native-patches.sh` and `scripts/test-bullseye-archive.sh`: regression tests run in CI, including Ruby/ERB syntax checks for deployment patches.
 - `scripts/test-apt-dependencies.sh`: verifies that the native installer dependency set and PostgreSQL 18 packages resolve from each Debian release's configured APT repositories.
-- `scripts/test-node-runtime.sh`: downloads the selected official Node.js runtime, verifies its published SHA-256 checksum, and runs both Node.js and npm inside each Debian image.
+- `scripts/test-node-runtime.sh`: downloads the selected official Node.js runtime, verifies its published SHA-256 checksum, runs Node.js/npm, shallow-clones the upstream Sherlock source from Codeberg, and runs its actual `npm ci` and `npm run build` on each Debian image.
 
 ## Operations
 
@@ -158,7 +158,7 @@ The supplied upstream archive did not contain a standalone LICENSE file. Before 
 
 ## Validation status
 
-- GitHub Actions validates Bash syntax, ShellCheck, workflow YAML, deployment patch tests, Bullseye APT-source migration tests, simulated native dependency installation, and the actual checksum-verified Node.js/npm binaries against Debian 11/12/13 images.
+- GitHub Actions validates Bash syntax, ShellCheck, workflow YAML, deployment patch tests, Bullseye APT-source migration tests, simulated native dependency installation, the actual checksum-verified Node.js/npm binaries, and the upstream Sherlock frontend build against Debian 11/12/13 images.
 - The CI matrix checks Debian 11/12/13 release, architecture, and glibc compatibility in containers.
 - The native patcher was smoke-tested against the supplied Sherlock v2 source archive; Puma Ruby syntax and `database.yml` ERB syntax were checked locally.
 - Full package installation, PostgreSQL repository resolution, systemd startup, DNS, and HTTPS still need verification on real Debian 11/12/13 VPS instances.
