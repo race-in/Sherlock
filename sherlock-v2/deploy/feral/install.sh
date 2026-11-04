@@ -204,6 +204,23 @@ else
   echo "Existing environment file preserved: $ENV_FILE"
 fi
 
+info "Validating rendered database configuration"
+(
+  set -Eeuo pipefail
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+  ruby -rjson -rerb -ryaml -e '
+    config = YAML.safe_load(ERB.new(File.read(ARGV.fetch(0))).result, aliases: true)
+    production = config.fetch("production")
+    abort "production database host mismatch" unless production.fetch("host") == ENV.fetch("DB_HOST")
+    abort "production database name mismatch" unless production.fetch("database") == ENV.fetch("DB_NAME")
+    abort "production database user mismatch" unless production.fetch("username") == ENV.fetch("DB_USER")
+    abort "production database password mismatch" unless production.fetch("password") == ENV.fetch("DB_PASSWORD")
+  ' "$APP_DIR/config/database.yml"
+) || die "Rendered config/database.yml is invalid or does not match the configured database. No Rails task was run."
+
 info "Preparing encrypted Rails production credentials"
 if [[ ! -s "$CRED_DIR/production.yml.enc" || ! -s "$CRED_DIR/production.key" ]]; then
   [[ ! -s "$CRED_DIR/production.yml.enc" && ! -s "$CRED_DIR/production.key" ]] ||
@@ -211,15 +228,18 @@ if [[ ! -s "$CRED_DIR/production.yml.enc" || ! -s "$CRED_DIR/production.key" ]];
   CRED_TMP="$(mktemp "$CONF_DIR/credentials.XXXXXX")"
   chmod 600 "$CRED_TMP"
   (
+    set -Eeuo pipefail
     cd "$APP_DIR"
     set -a; . "$ENV_FILE"; set +a
     export RAILS_ENV=production APP_HOST=setup
+    SECRET_KEY_BASE="$(bundle exec rails secret)" || exit 1
+    ENCRYPTION_KEYS="$(bundle exec rails db:encryption:init)" || exit 1
     {
-      echo "secret_key_base: $(bundle exec rails secret)"
-      bundle exec rails db:encryption:init | tail -n 4
+      printf 'secret_key_base: %s\\n' "$SECRET_KEY_BASE"
+      printf '%s\\n' "$ENCRYPTION_KEYS" | tail -n 4
     } > "$CRED_TMP"
-    EDITOR="cp $CRED_TMP" bundle exec rails credentials:edit --environment production >/dev/null
-  ) || { rm -f "$CRED_TMP"; die "Rails production credentials could not be created."; }
+    EDITOR="cp $CRED_TMP" bundle exec rails credentials:edit --environment production >/dev/null || exit 1
+  ) || { rm -f "$CRED_TMP"; die "Rails production credentials could not be created; inspect the first Rails error above."; }
   rm -f "$CRED_TMP"
   [[ -s "$CRED_DIR/production.yml.enc" && -s "$CRED_DIR/production.key" ]] || die "Rails credentials files were not created."
   chmod 600 "$CRED_DIR/production.key" "$CRED_DIR/production.yml.enc"
