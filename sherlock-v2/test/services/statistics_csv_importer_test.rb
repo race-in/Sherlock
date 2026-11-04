@@ -17,7 +17,7 @@ class StatisticsCsvImporterTest < ActiveSupport::TestCase
       writer << headers.map { values[_1] } # Duplicate inside the same file is ignored.
     end
 
-    assert_equal 1, StatisticsCsvImporter.import!(connection:, user:, csv_text: csv)
+    assert_equal 1, StatisticsCsvImporter.import!(connection:, user:, csv_text: "\uFEFF#{csv}")
     snapshot = connection.snapshots.find_by!(created_at: observed_at)
     assert_equal "csv_import", snapshot.source
     assert_equal user, snapshot.created_by_user
