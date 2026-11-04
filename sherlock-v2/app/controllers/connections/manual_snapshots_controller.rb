@@ -49,8 +49,8 @@ class Connections::ManualSnapshotsController < ApplicationController
       whole, fractional, extra = raw.split(".", 3)
       max_whole = field == :bonus_points ? 14 : 8
       max_fraction = field == :bonus_points ? 2 : 4
-      valid = extra.nil? && whole.match?(/\\A\\d+\\z/) && whole.length <= max_whole &&
-        (fractional.nil? || (fractional.match?(/\\A\\d+\\z/) && fractional.length <= max_fraction))
+      valid = extra.nil? && whole.match?(/\A\d+\z/) && whole.length <= max_whole &&
+        (fractional.nil? || (fractional.match?(/\A\d+\z/) && fractional.length <= max_fraction))
       raise ArgumentError, "Ratios and bonus points exceed the supported precision." unless valid
 
       BigDecimal(raw)
