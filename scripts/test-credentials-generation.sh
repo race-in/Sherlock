@@ -6,7 +6,7 @@ INSTALLER="$ROOT/install.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-grep -Fq 'sed -n "/^active_record_encryption:/,$p"' "$INSTALLER"
+grep -Fq 'sed -n "/^active_record_encryption:/,\\$p"' "$INSTALLER"
 if grep -Fq 'db:encryption:init | tail -n 4' "$INSTALLER"; then
   echo "ERROR: installer still copies the Rails instruction line into credentials." >&2
   exit 1
