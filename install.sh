@@ -46,12 +46,15 @@ case "$ARCH" in
   *) die "Unsupported architecture: $ARCH. Supported: amd64 and arm64." ;;
 esac
 case "$DEBIAN_MAJOR" in
-  11) NODE_BINARY_VERSION=24.22.2; NODE_MIN_GLIBC=2.28 ;;
-  12|13) NODE_BINARY_VERSION=26.12.0; NODE_MIN_GLIBC=2.34 ;;
+  11) NODE_BINARY_VERSION=24.22.2; NODE_MIN_GLIBC=2.28; NODE_MIN_KERNEL=4.18 ;;
+  12|13) NODE_BINARY_VERSION=26.12.0; NODE_MIN_GLIBC=2.34; NODE_MIN_KERNEL=5.14 ;;
 esac
 GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
+KERNEL_VERSION=$(uname -r | cut -d- -f1)
 dpkg --compare-versions "$GLIBC_VERSION" ge "$NODE_MIN_GLIBC" \
   || die "glibc $GLIBC_VERSION is too old for Node.js $NODE_BINARY_VERSION (requires >= $NODE_MIN_GLIBC)."
+dpkg --compare-versions "$KERNEL_VERSION" ge "$NODE_MIN_KERNEL" \
+  || die "Kernel $KERNEL_VERSION is too old for official Node.js $NODE_BINARY_VERSION binaries (requires >= $NODE_MIN_KERNEL)."
 
 # Fail before installing or compiling the stack if the public hostname is not ready.
 getent ahosts "$DOMAIN" >/dev/null || die "DNS for $DOMAIN does not resolve yet. Create its A/AAAA record pointing to this VPS and rerun."
