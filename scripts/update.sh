@@ -5,15 +5,15 @@ APP_DIR=/opt/sherlock
 APP_USER=sherlock
 RUBY_BIN=/opt/rubies/4.0.9/bin
 NODE_BIN=/opt/node/bin
-PATCHER=/usr/local/libexec/sherlock/patch-native-app.sh
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+PATCHER="$SCRIPT_DIR/scripts/patch-native-app.sh"
 MIGRATION_STARTED=0
 PREVIOUS_COMMIT=
 BACKUP_PATH=
 
 [[ $EUID -eq 0 ]] || { echo 'Run as root.' >&2; exit 1; }
 [[ -d "$APP_DIR/.git" ]] || { echo "$APP_DIR is not a Git checkout." >&2; exit 1; }
-[[ -x "$PATCHER" ]] || { echo "Native deployment patcher missing: $PATCHER" >&2; exit 1; }
+[[ -f "$PATCHER" && ! -L "$PATCHER" ]] || { echo "Current deployment patcher missing or unsafe: $PATCHER" >&2; exit 1; }
 [[ -f "$SCRIPT_DIR/backup.sh" ]] || { echo 'backup.sh is missing; refusing to update without a backup.' >&2; exit 1; }
 
 set -a
