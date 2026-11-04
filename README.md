@@ -18,7 +18,7 @@ Supported CPU architectures: `amd64` and `arm64`.
 
 Debian 11 Bullseye reached Debian LTS end-of-life on **31 August 2026**. It no longer receives free security updates from Debian LTS. The PostgreSQL project has also moved the Bullseye PGDG repository to its frozen archive; packages there receive no further PGDG updates. For an internet-facing production server, use Debian 12 or 13. The installer requires confirmation on Debian 11 (`Type YES`) or `ALLOW_EOL_DEBIAN11=1`.
 
-On Debian 11, after you explicitly accept the EOL warning, the installer backs up and rewrites official Bullseye APT source entries to `archive.debian.org`, disables expired security/backports suites, and turns off the stale Release-file date check for the archive. Third-party repositories are left unchanged. These archive packages are frozen; no Debian LTS security updates are available.
+On Debian 11, after you explicitly accept the EOL warning, the installer backs up and rewrites official Bullseye APT source entries to `http://archive.debian.org` so a minimal host can bootstrap before installing CA certificates. APT still verifies signed repository metadata. It disables expired security/backports suites and turns off the stale Release-file date check for the archive. Third-party repositories are left unchanged. These archive packages are frozen; no Debian LTS security updates are available.
 
 ## Stack
 
