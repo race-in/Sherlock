@@ -64,10 +64,11 @@ if [[ ! -x "$PREFIX/bin/pg_config" || ! -x "$PREFIX/bin/pg_isready" ]]; then
     --without-perl --without-python --without-tcl --without-systemd
   make -j"$JOBS" -C src/interfaces/libpq
   make -j"$JOBS" -C src/bin/pg_config
-  make -j"$JOBS" -C src/bin/pg_isready
+  # pg_isready is built and installed by PostgreSQL's src/bin/scripts directory.
+  make -j"$JOBS" -C src/bin/scripts
   make -C src/interfaces/libpq install
   make -C src/bin/pg_config install
-  make -C src/bin/pg_isready install
+  make -C src/bin/scripts install
  ) >"$LOG_DIR/postgresql-client-build.log" 2>&1 || { tail -n 80 "$LOG_DIR/postgresql-client-build.log" >&2; die "PostgreSQL client build failed; see $LOG_DIR/postgresql-client-build.log"; }
 fi
 "$PREFIX/bin/pg_config" --version | grep -F 'PostgreSQL 16.15' >/dev/null || die "PostgreSQL client version check failed."
