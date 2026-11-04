@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+APP_DIR=/opt/sherlock
+ETC_DIR=/etc/sherlock
+APP_USER=sherlock
+APP_GROUP=sherlock
+PG_BINDIR=/usr/lib/postgresql/18/bin
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+
+validate_environment_file() {
+  local file=$1
+  local key value line
+  declare -A seen=()
+  while IFS='=' read -r key value || [[ -n ${key:-} ]]; do
+    [[ -n "$key" && "$key" =~ ^[A-Z_]+$ ]] || die "Invalid setting in archived environment file."
+    [[ "$value" =~ ^[A-Za-z0-9_./:@+-]+$ ]] || die "Unsafe value in archived environment setting: $key"
+    case "$key" in
+      RAILS_ENV|APP_HOST|RAILS_MASTER_KEY|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|BUNDLE_PATH|RAILS_MAX_THREADS|DB_POOL|APP_GIT_BRANCH|PORT|FORCE_SSL|SOLID_QUEUE_IN_PUMA|METRICS_HOST|RAILS_LOG_LEVEL) ;;
+      *) die "Unexpected environment setting in archive: $key" ;;
+    esac
+    [[ -z ${seen[$key]+x} ]] || die "Duplicate environment setting: $key"
+    seen[$key]=1
+  done < "$file"
+  for key in RAILS_ENV APP_HOST RAILS_MASTER_KEY DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD; do
+    [[ -n ${seen[$key]+x} ]] || die "Required environment setting is missing: $key"
+  done
+}
+
+verify_secrets_archive() {
+  local archive=$1
+  local expected actual listing tmp
+  [[ -s "$archive" ]] || die "Secrets archive is missing or empty: $archive"
+  expected=$(printf '%s\n' \
+    'config/credentials/production.key' \
+    'config/credentials/production.yml.enc' \
+    'sherlock.env' | LC_ALL=C sort)
+  actual=$(tar -tzf "$archive" | LC_ALL=C sort) || die "Cannot list secrets archive: $archive"
+  [[ "$actual" == "$expected" ]] || die "Unexpected files in secrets archive; refusing unsafe extraction."
+  listing=$(tar -tvzf "$archive") || die "Cannot inspect secrets archive file types."
+  while IFS= read -r line; do
+    [[ "${line:0:1}" == "-" ]] || die "Secrets archive may contain regular files only."
+  done <<< "$listing"
+  tmp=$(mktemp -d)
+  tar --no-same-owner --no-same-permissions -xzf "$archive" -C "$tmp"
+  validate_environment_file "$tmp/sherlock.env"
+  rm -rf "$tmp"
+}
+
+if [[ ${1:-} == --verify ]]; then
+  [[ $# -eq 2 ]] || die "Usage: $0 --verify <secrets-archive.tar.gz>"
+  verify_secrets_archive "$2"
+  echo "PASS: secrets archive members, file types, and environment file are valid."
+  exit 0
+fi
+
+[[ $EUID -eq 0 ]] || die "Run as root."
+[[ $# -eq 2 ]] || die "Usage: $0 <database.dump> <secrets-archive.tar.gz>"
+[[ -d "$APP_DIR" && -d "$APP_DIR/config/credentials" ]] || die "Sherlock application is not installed at $APP_DIR."
+id "$APP_USER" >/dev/null 2>&1 || die "Service user $APP_USER does not exist."
+getent group "$APP_GROUP" >/dev/null || die "Service group $APP_GROUP does not exist."
+[[ -x "$PG_BINDIR/pg_restore" && -x "$PG_BINDIR/pg_dump" ]] || die "PostgreSQL 18 client tools are missing."
+
+DB_DUMP=$(realpath -- "$1")
+SECRETS_ARCHIVE=$(realpath -- "$2")
+[[ -s "$DB_DUMP" ]] || die "Database dump is missing or empty: $DB_DUMP"
+verify_secrets_archive "$SECRETS_ARCHIVE"
+
+RESTORE_TMP=$(mktemp -d /tmp/sherlock-restore.XXXXXX)
+trap 'rm -rf "$RESTORE_TMP"' EXIT
+tar --no-same-owner --no-same-permissions -xzf "$SECRETS_ARCHIVE" -C "$RESTORE_TMP"
+for required in \
+  "$RESTORE_TMP/config/credentials/production.key" \
+  "$RESTORE_TMP/config/credentials/production.yml.enc" \
+  "$RESTORE_TMP/sherlock.env"; do
+  [[ -s "$required" ]] || die "Required restore file is empty or missing: $required"
+done
+
+RESTORED_KEY=$(tr -d '\r\n' < "$RESTORE_TMP/config/credentials/production.key")
+ENV_KEY=$(sed -n 's/^RAILS_MASTER_KEY=//p' "$RESTORE_TMP/sherlock.env" | head -n 1)
+[[ -n "$RESTORED_KEY" && "$RESTORED_KEY" == "$ENV_KEY" ]] \
+  || die "Rails master key in the environment archive does not match production.key."
+
+set -a
+. "$RESTORE_TMP/sherlock.env"
+set +a
+read -r -p "This replaces database $DB_NAME. Type RESTORE to continue: " CONFIRM
+[[ "$CONFIRM" == RESTORE ]] || die "Restore cancelled."
+
+systemctl stop sherlock
+install -d -o "$APP_USER" -g "$APP_GROUP" -m 0700 "$APP_DIR/config/credentials"
+install -o "$APP_USER" -g "$APP_GROUP" -m 0600 \
+  "$RESTORE_TMP/config/credentials/production.key" \
+  "$APP_DIR/config/credentials/production.key"
+install -o "$APP_USER" -g "$APP_GROUP" -m 0600 \
+  "$RESTORE_TMP/config/credentials/production.yml.enc" \
+  "$APP_DIR/config/credentials/production.yml.enc"
+install -o root -g "$APP_GROUP" -m 0640 \
+  "$RESTORE_TMP/sherlock.env" "$ETC_DIR/sherlock.env"
+
+DB_PORT=${DB_PORT:-5432}
+DB_HOST=${DB_HOST:-127.0.0.1}
+runuser -u postgres -- "$PG_BINDIR/psql" -p "$DB_PORT" -v ON_ERROR_STOP=1 \
+  -v db_user="$DB_USER" -v db_password="$DB_PASSWORD" <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_user', :'db_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_user') \gexec
+SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'db_user', :'db_password') \gexec
+SQL
+
+runuser -u postgres -- "$PG_BINDIR/dropdb" --if-exists --force -p "$DB_PORT" "$DB_NAME"
+runuser -u postgres -- "$PG_BINDIR/createdb" -p "$DB_PORT" --owner "$DB_USER" --encoding UTF8 "$DB_NAME"
+PGPASSWORD="$DB_PASSWORD" "$PG_BINDIR/pg_restore" \
+  --no-owner --no-acl --exit-on-error \
+  -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$DB_DUMP"
+
+systemctl start sherlock
+for attempt in $(seq 1 60); do
+  if curl -fsS http://127.0.0.1:3000/up >/dev/null; then
+    echo "Restore complete; health check passed: https://$APP_HOST"
+    exit 0
+  fi
+  sleep 2
+done
+journalctl -u sherlock -n 100 --no-pager
+die "Restore finished but the application health check failed."
