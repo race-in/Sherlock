@@ -514,11 +514,18 @@ install_ruby() {
   if [[ -x "$RUBY_DIR/bin/ruby" && "$("$RUBY_DIR/bin/ruby" -e 'print RUBY_VERSION')" == "$RUBY_VERSION" ]]; then
     ok "Already built in $RUBY_DIR"
   else
+    RUBY_BUILD_TAG=v20261023
+    RUBY_BUILD_COMMIT=b6a92c15f0df872047c74f7dfa0b92dfd4de8a92
     if [[ -d "$RUBY_BUILD_DIR/.git" ]]; then
-      git -C "$RUBY_BUILD_DIR" pull -q --ff-only || warn "Couldn't update ruby-build, using the copy that is there."
+      git -C "$RUBY_BUILD_DIR" fetch -q --depth 1 origin "refs/tags/$RUBY_BUILD_TAG:refs/tags/$RUBY_BUILD_TAG"
+      git -C "$RUBY_BUILD_DIR" checkout -q --detach "$RUBY_BUILD_TAG"
     else
-      git clone -q --depth 1 https://github.com/rbenv/ruby-build.git "$RUBY_BUILD_DIR"
+      git clone -q --depth 1 --branch "$RUBY_BUILD_TAG" https://github.com/rbenv/ruby-build.git "$RUBY_BUILD_DIR"
     fi
+    local ruby_build_commit
+    ruby_build_commit="$(git -C "$RUBY_BUILD_DIR" rev-parse HEAD)"
+    [[ "$ruby_build_commit" == "$RUBY_BUILD_COMMIT" ]] \
+      || die "ruby-build $RUBY_BUILD_TAG commit mismatch: $ruby_build_commit"
     "$RUBY_BUILD_DIR/bin/ruby-build" --definitions | grep -qx "$RUBY_VERSION" \
       || die "ruby-build doesn't know Ruby $RUBY_VERSION. Check --ruby-version."
     info "Compiling Ruby. This takes 5 to 15 minutes."
