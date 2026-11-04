@@ -26,6 +26,8 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 DOMAIN=${1,,}
 REPO_URL=$2
 BRANCH=${3:-main}
+[[ "$BRANCH" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ && "$BRANCH" != *..* ]] \
+  || die 'Unsafe branch name; use only letters, digits, dots, underscores, slashes, and hyphens.'
 [[ "$DOMAIN" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$ ]] || die "Invalid domain: $DOMAIN"
 [[ "$REPO_URL" =~ ^(https://|ssh://|git@) ]] || die 'Repository URL must use HTTPS, SSH, or git@ syntax.'
 
