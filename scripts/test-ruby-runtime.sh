@@ -9,6 +9,15 @@ RUBY_VERSION=4.0.9
 BUNDLER_VERSION=4.0.20
 RUBY_BUILD_TAG=v20261023
 RUBY_BUILD_COMMIT=b6a92c15f0df872047c74f7dfa0b92dfd4de8a92
+case "$(cut -d. -f1 <<< "$VERSION_ID")" in
+  11) NODE_VERSION=24.22.2 ;;
+  12|13) NODE_VERSION=26.12.0 ;;
+esac
+case "$(dpkg --print-architecture)" in
+  amd64) NODE_ARCH=x64 ;;
+  arm64) NODE_ARCH=arm64 ;;
+  *) echo "Unsupported architecture: $(dpkg --print-architecture)." >&2; exit 1 ;;
+esac
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "$BASH_SOURCE")" && pwd)
 APP_SOURCE_DIR="$SCRIPT_DIR/../sherlock-v2"
@@ -19,12 +28,13 @@ apt-get install -y --no-install-recommends \
   autoconf bison build-essential ca-certificates curl git \
   libdb-dev libffi-dev libgdbm-dev libgmp-dev libncurses-dev \
   libpq-dev libreadline-dev libssl-dev libyaml-dev pkg-config python3 zlib1g-dev \
-  postgresql-18 postgresql-client-18
+  libatomic1 xz-utils postgresql-18 postgresql-client-18
 
 TMP_DIR=$(mktemp -d)
 chmod 0755 "$TMP_DIR"
 RUBY_PREFIX="$TMP_DIR/ruby"
 RUBY_BUILD_DIR="$TMP_DIR/ruby-build"
+NODE_PREFIX="$TMP_DIR/node"
 APP_DIR="$TMP_DIR/sherlock"
 BUNDLE_PATH="$TMP_DIR/bundle"
 APP_HOME="$TMP_DIR/home"
@@ -45,6 +55,24 @@ cleanup() {
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
+
+# Rails test:prepare invokes jsbundling-rails, so provide the official, checksum-verified
+# Node.js runtime used by the native installer. Bullseye needs Node 24 because its glibc is older.
+NODE_DIST_BASE=https://nodejs.org/dist
+NODE_TARBALL="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+mkdir -p "$NODE_PREFIX"
+curl -fsSLo "$TMP_DIR/SHASUMS256.txt" "$NODE_DIST_BASE/v$NODE_VERSION/SHASUMS256.txt"
+curl -fsSLo "$TMP_DIR/$NODE_TARBALL" "$NODE_DIST_BASE/v$NODE_VERSION/$NODE_TARBALL"
+grep -E "^[0-9a-f]{64}  ${NODE_TARBALL}$" "$TMP_DIR/SHASUMS256.txt" > "$TMP_DIR/node.sha256" \
+  || { echo "Official SHA-256 entry missing for $NODE_TARBALL." >&2; exit 1; }
+(cd "$TMP_DIR" && sha256sum --check node.sha256)
+tar -xJf "$TMP_DIR/$NODE_TARBALL" -C "$NODE_PREFIX" --strip-components=1
+[[ "$("$NODE_PREFIX/bin/node" --version)" == "v$NODE_VERSION" ]] || {
+  echo "Node.js runtime version mismatch." >&2
+  exit 1
+}
+"$NODE_PREFIX/bin/npm" --version
+RUNTIME_PATH="$RUBY_PREFIX/bin:$NODE_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 git clone --depth 1 --branch "$RUBY_BUILD_TAG" \
   https://github.com/rbenv/ruby-build.git "$RUBY_BUILD_DIR"
@@ -80,7 +108,7 @@ APP_NODE_VERSION=$(tr -d '\r\n' < "$APP_DIR/.node-version")
 }
 
 runuser -u sherlock-runtime-test -- env \
-  HOME="$APP_HOME" PATH="$RUBY_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  HOME="$APP_HOME" PATH="$RUNTIME_PATH" \
   BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT=development \
   bash -ec '
     cd "$1"
@@ -96,13 +124,13 @@ runuser -u sherlock-runtime-test -- env \
 PG_PORT=$(pg_lsclusters --no-header | awk '$1 == 18 && $4 == "online" {print $3; exit}')
 [[ "$PG_PORT" =~ ^[0-9]+$ ]] || { echo "PostgreSQL 18 cluster is not online." >&2; exit 1; }
 pg_isready -h 127.0.0.1 -p "$PG_PORT"
-SINGLE_USER_DB_NAME="${DB_NAME}_single"
+MULTI_USER_DB_NAME="${DB_NAME}_multi"
 runuser -u postgres -- psql -p "$PG_PORT" -v ON_ERROR_STOP=1 \
   -v role_name="$DB_ROLE" -v role_password="$DB_PASSWORD" -v database_name="$DB_NAME" \
-  -v single_database_name="$SINGLE_USER_DB_NAME" <<'SQL'
+  -v multi_database_name="$MULTI_USER_DB_NAME" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN SUPERUSER PASSWORD %L', :'role_name', :'role_password') \gexec
 SELECT format('CREATE DATABASE %I OWNER %I ENCODING %L', :'database_name', :'role_name', 'UTF8') \gexec
-SELECT format('CREATE DATABASE %I OWNER %I ENCODING %L', :'single_database_name', :'role_name', 'UTF8') \gexec
+SELECT format('CREATE DATABASE %I OWNER %I ENCODING %L',  :'multi_database_name', :'role_name', 'UTF8') \gexec
 SQL
 
 runuser -u sherlock-runtime-test -- env \
@@ -117,58 +145,39 @@ runuser -u sherlock-runtime-test -- env \
     bundle exec rails test
   ' -- "$APP_DIR"
 
-# Exercise the single-user routes, first-run token and account invariant in a clean database.
-# This keeps the upstream multi-user fixtures/tests above unchanged.
-SINGLE_USER_TOKEN=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+# Verify native deployment's default multi-user mode: invite routes remain present and multiple
+# independent accounts can be persisted. This is deliberately not a single-user test.
+MULTI_USER_SMOKE="$APP_DIR/tmp/multi_user_mode_smoke.rb"
 install -d -o sherlock-runtime-test -g sherlock-runtime-test "$APP_DIR/tmp"
-SINGLE_USER_SMOKE="$APP_DIR/tmp/single_user_mode_smoke.rb"
-cat > "$SINGLE_USER_SMOKE" <<'RUBY'
-require "action_dispatch/testing/integration"
-
+cat > "$MULTI_USER_SMOKE" <<'RUBY'
+required = %w[new_join join settings_invites admin_users admin_invites]
 names = Rails.application.routes.named_routes.names.map(&:to_s)
-blocked = %w[join new_join join_profile join_check opt_in settings_invites admin_invites admin_users]
-present = names.select { |name| blocked.any? { |prefix| name == prefix || name.start_with?("#{prefix}_") } }
-abort "Single-user routes are still enabled: #{present.join(', ')}" if present.any?
-required = %w[first_run admin_sites admin_settings dashboard]
 missing = required - names
-abort "Required single-user routes are missing: #{missing.join(', ')}" if missing.any?
+abort "Multi-user routes are missing: #{missing.join(', ')}" if missing.any?
 
-web = ActionDispatch::Integration::Session.new(Rails.application)
-attributes = { username: "single-admin", password: "single-user-password", time_zone: "UTC" }
-web.post("/first_run", params: { user: attributes, setup_token: "wrong-token" })
-abort "First-run accepted an invalid setup token" unless web.response.status == 422
-abort "Invalid setup token created an account" if User.exists?
-
-web.post("/first_run", params: { user: attributes, setup_token: ENV.fetch("FIRST_RUN_TOKEN") })
-abort "First-run did not create the admin with the valid token (HTTP #{web.response.status})" unless web.response.redirect?
-user = User.find_by!(username: "single-admin")
-abort "First account was not made admin" unless user.is_admin?
-user.complete_onboarding!
-
-web.get("/dashboard")
-abort "Single-user dashboard failed to render (HTTP #{web.response.status})" unless web.response.success?
-web.get("/admin/sites")
-abort "Single-user Admin/Sites page failed to render (HTTP #{web.response.status})" unless web.response.success?
-web.get("/join")
-abort "Join route should be disabled in single-user mode" unless web.response.status == 404
-
-second = User.new(username: "second-account", password: "second-user-password", time_zone: "UTC")
-abort "Second account was accepted in single-user mode" if second.save
-abort "Second-account rejection did not report the single-user invariant" unless second.errors.full_messages.any? { |message| message.include?("one account only") }
-puts "PASS: single-user routes, token gate, rendered dashboard/admin pages and one-account invariant"
+2.times do |index|
+  User.create!(
+    username: "multi-user-#{index}",
+    password: "multi-user-password",
+    time_zone: "UTC"
+  )
+end
+abort "Expected two accounts in multi-user mode, found #{User.count}" unless User.count == 2
+puts "PASS: invite/admin routes and multiple account creation are enabled"
 RUBY
-chown sherlock-runtime-test:sherlock-runtime-test "$SINGLE_USER_SMOKE"
+chown sherlock-runtime-test:sherlock-runtime-test "$MULTI_USER_SMOKE"
 
 runuser -u sherlock-runtime-test -- env \
-  HOME="$APP_HOME" PATH="$RUBY_PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  HOME="$APP_HOME" PATH="$RUNTIME_PATH" \
   BUNDLE_PATH="$BUNDLE_PATH" BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT=development \
-  RAILS_ENV=test CI=true SINGLE_USER_MODE=true FIRST_RUN_TOKEN="$SINGLE_USER_TOKEN" \
+  RAILS_ENV=test CI=true SINGLE_USER_MODE=false \
   TEST_DB_HOST=127.0.0.1 TEST_DB_PORT="$PG_PORT" TEST_DB_USER="$DB_ROLE" \
-  TEST_DB_PASSWORD="$DB_PASSWORD" TEST_DB_NAME="$SINGLE_USER_DB_NAME" \
+  TEST_DB_PASSWORD="$DB_PASSWORD" TEST_DB_NAME="$MULTI_USER_DB_NAME" \
   bash -ec '
     cd "$1"
     bundle exec rails db:prepare
-    bundle exec rails runner -e test tmp/single_user_mode_smoke.rb
+    bundle exec rails runner -e test tmp/multi_user_mode_smoke.rb
   ' -- "$APP_DIR"
 
-printf 'PASS: Debian %s compiled Ruby %s, resolved gems, passed Rails tests and passed single-user mode checks on PostgreSQL 18.\n' "$(cut -d. -f1 <<< "$VERSION_ID")" "$RUBY_VERSION"
+printf 'PASS: Debian %s compiled Ruby %s, resolved gems, passed Rails tests and passed multi-user mode checks on PostgreSQL 18.\n' "$(cut -d. -f1 <<< "$VERSION_ID")" "$RUBY_VERSION"
