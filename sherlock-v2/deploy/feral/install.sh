@@ -166,6 +166,12 @@ mkdir -p "$APP_DIR"
 tar -C "$SRC_DIR" --exclude='./.git' --exclude='./node_modules' --exclude='./tmp' -cf - . |
   tar -C "$APP_DIR" -xf -
 touch "$APP_DIR/.sherlock-feral-install"
+# The source .gitattributes enables Rails credentials diffing, which invokes
+# git config. The deployed copy intentionally has no .git directory, so disable
+# only that optional diff integration in the deployed copy.
+if [[ -f "$APP_DIR/.gitattributes" ]]; then
+  sed -i '/^config\/credentials\/.*diff=rails_credentials$/d' "$APP_DIR/.gitattributes"
+fi
 mkdir -p "$APP_DIR/tmp/pids" "$APP_DIR/log" "$CRED_DIR"
 chmod 700 "$CRED_DIR"
 if [[ -e "$APP_DIR/config/credentials" && ! -L "$APP_DIR/config/credentials" ]]; then
