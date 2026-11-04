@@ -21,15 +21,16 @@ class AdminSetup
     @steps ||= begin
       setting = InstanceSetting.current
       skipped = setting.skipped_setup_steps
+      single_user = Rails.application.config.x.single_user_mode
       [
         Step.new(:contact, "Add a contact for tracker staff",
           "An email address, your tracker username or an IRC channel. Every request to a tracker carries it, so staff can reach you before they block anything.",
           InstanceSetting.tracker_contact.present?, false, false),
         Step.new(:first_tracker, "Set up your first tracker",
-          "Choose a tracker you're a member of and add your API key. Sherlock checks it right away. Then decide whether people you invite can track their stats there too.",
+          single_user ? "Choose a tracker you're a member of and add your API key. Sherlock checks it right away." : "Choose a tracker you're a member of and add your API key. Sherlock checks it right away. Then decide whether people you invite can track their stats there too.",
           @admin.connections.exists? || Site.where.not(availability: :off).exists?, false, false),
         Step.new(:invites, "Invite people", "One invite per person, or one for many that you post in a tracker's forum.",
-          @admin.created_invites.exists?, true, skipped.include?("invites")),
+          single_user || @admin.created_invites.exists?, true, single_user || skipped.include?("invites")),
         Step.new(:updates, "Check for updates", "Once a day, Sherlock asks Codeberg for the latest version.",
           setting.is_update_check_enabled?, true, skipped.include?("updates"))
       ]
