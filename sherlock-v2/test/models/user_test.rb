@@ -17,7 +17,7 @@ class UserTest < ActiveSupport::TestCase
     assert_equal [ "Redacted" ], alice.connections.includes(:site).map { _1.site.name }.uniq
     assert_equal [ "Redacted" ], bob.connections.includes(:site).map { _1.site.name }.uniq
     assert_not_equal alice.connections.sole.id, bob.connections.sole.id
-    assert_equal 0, carol.metrics.length
+    assert_empty carol.metrics.strip
   end
 
   test "branch is everyone below a user in the invite tree" do
