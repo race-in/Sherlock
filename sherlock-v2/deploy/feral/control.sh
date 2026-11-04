@@ -40,7 +40,7 @@ is_running() {
   # Avoid signalling an unrelated process if a stale PID file was reused.
   local cmd
   cmd="$(ps -p "$pid" -o args= 2>/dev/null || true)"
-  [[ "$cmd == *"puma"* || "$cmd" == *"rails server"* ]]
+  [[ "$cmd" == *puma* || "$cmd" == *"rails server"* ]]
 }
 
 start() {
