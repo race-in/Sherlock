@@ -186,7 +186,8 @@ ACTUAL_RUBY_VERSION=$("$RUBY_PREFIX/bin/ruby" -e 'print RUBY_VERSION')
 [[ "$ACTUAL_RUBY_VERSION" == "$RUBY_VERSION" ]] \
   || die "Installed Ruby version mismatch: expected $RUBY_VERSION, found $ACTUAL_RUBY_VERSION."
 "$RUBY_PREFIX/bin/ruby" -ropenssl -e 'abort "Ruby OpenSSL extension is not available" unless OpenSSL::OPENSSL_VERSION'
-gem install bundler -v 4.0.20 --no-document
+"$RUBY_PREFIX/bin/gem" install bundler -v 4.0.20 --no-document
+"$RUBY_PREFIX/bin/bundle" --version
 
 log "Installing official Node.js ${NODE_BINARY_VERSION} build runtime for ${NODE_ARCH}"
 NODE_TARBALL="node-v${NODE_BINARY_VERSION}-linux-${NODE_ARCH}.tar.xz"
