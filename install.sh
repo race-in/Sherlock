@@ -2,7 +2,8 @@
 set -Eeuo pipefail
 
 # Native Debian installer. Run as root:
-# ./install.sh <domain> <application-source-git-url> [branch]
+# ./install.sh <stats.example.com> <application-source-git-url> [branch]
+# On Debian 11, confirm its EOL state with ALLOW_EOL_DEBIAN11=1.
 
 APP_USER=sherlock
 APP_GROUP=sherlock
@@ -11,11 +12,9 @@ ETC_DIR=/etc/sherlock
 DB_NAME=sherlockdb_prod
 DB_USER=sherlockdb_prod_write
 PG_VERSION=18
-RUBY_VERSION=4.0.9
-BUNDLER_VERSION=4.0.20
-NODE_VERSION=26.12.0
-RUBY_PREFIX="/opt/rubies/${RUBY_VERSION}"
+RUBY_PREFIX_BASE=/opt/rubies
 NODE_PREFIX=/opt/node
+NODE_DIST_BASE=https://nodejs.org/dist
 
 log() { printf '\n[%s] %s\n' "$(date '+%F %T')" "$*"; }
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -29,48 +28,72 @@ BRANCH=${3:-main}
 [[ "$REPO_URL" =~ ^(https://|ssh://|git@) ]] || die 'Repository URL must use HTTPS, SSH, or git@ syntax.'
 
 . /etc/os-release
-[[ "${ID:-}" == debian ]] || die "This installer supports Debian 12/13; detected ${ID:-unknown}."
-[[ "${VERSION_ID%%.*}" == 12 || "${VERSION_ID%%.*}" == 13 ]] || die "Unsupported Debian version: ${VERSION_ID:-unknown}."
-[[ ! -e "$APP_DIR" ]] || die "$APP_DIR already exists; refusing to overwrite an existing installation."
+[[ "${ID:-}" == debian ]] || die "This installer supports Debian 11/12/13; detected ${ID:-unknown}."
+DEBIAN_MAJOR=${VERSION_ID%%.*}
+case "$DEBIAN_MAJOR" in
+  11) DEBIAN_CODENAME=bullseye ;;
+  12) DEBIAN_CODENAME=bookworm ;;
+  13) DEBIAN_CODENAME=trixie ;;
+  *) die "Unsupported Debian release: ${VERSION_ID:-unknown}. Supported: 11, 12, 13." ;;
+esac
 
+ARCH=$(dpkg --print-architecture)
+case "$ARCH" in
+  amd64) NODE_ARCH=x64 ;;
+  arm64) NODE_ARCH=arm64 ;;
+  *) die "Unsupported architecture: $ARCH. Supported: amd64 and arm64." ;;
+esac
+GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
+dpkg --compare-versions "$GLIBC_VERSION" ge 2.28 || die "glibc $GLIBC_VERSION is too old; Node.js ${NODE_VERSION:-26.12.0} requires glibc >= 2.28."
+
+if [[ "$DEBIAN_MAJOR" == 11 ]]; then
+  cat >&2 <<'WARNING'
+WARNING: Debian 11 (Bullseye) reached Debian LTS end-of-life on 2026-08-31.
+It no longer receives security updates from the Debian LTS team. PostgreSQL 18
+packages for Bullseye are available only from the frozen PGDG archive and will
+not receive further PGDG updates. Debian 12 or 13 is strongly recommended for
+an internet-facing production server.
+WARNING
+  if [[ "${ALLOW_EOL_DEBIAN11:-0}" != 1 ]]; then
+    read -r -p 'Type YES to continue on end-of-life Debian 11: ' EOL_CONFIRM
+    [[ "$EOL_CONFIRM" == YES ]] || die 'Aborted. Upgrade to Debian 12/13 or set ALLOW_EOL_DEBIAN11=1 after accepting the risk.'
+  fi
+fi
+
+[[ ! -e "$APP_DIR" ]] || die "$APP_DIR already exists; refusing to overwrite an existing installation."
 read -r -p "Let's Encrypt email: " LE_EMAIL
 [[ "$LE_EMAIL" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || die 'A valid email address is required.'
 
 export DEBIAN_FRONTEND=noninteractive
-log 'Installing build dependencies, Nginx, Certbot, and PostgreSQL prerequisites'
+log "Installing system dependencies for Debian $DEBIAN_MAJOR ($DEBIAN_CODENAME)"
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl git gnupg build-essential autoconf bison \
-  libssl-dev libyaml-dev libreadline-dev zlib1g-dev libffi-dev libgdbm-dev libncurses-dev \
-  libpq-dev pkg-config python3 make gcc g++ libjemalloc2 postgresql-common nginx certbot \
-  python3-certbot-nginx ufw openssl xz-utils
+apt-get install -y --no-install-recommends \
+  ca-certificates curl git gnupg build-essential autoconf bison \
+  libssl-dev libyaml-dev libreadline-dev zlib1g-dev libffi-dev libgdbm-dev \
+  libncurses-dev libgmp-dev libdb-dev libpq-dev pkg-config python3 make gcc g++ \
+  libjemalloc2 libatomic1 postgresql-common nginx certbot python3-certbot-nginx \
+  ufw openssl xz-utils
 
+log "Configuring PostgreSQL ${PG_VERSION} package repository"
 install -d -m 0755 /usr/share/postgresql-common/pgdg
-curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
-printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' "$VERSION_CODENAME" > /etc/apt/sources.list.d/pgdg.list
+curl -fsSLo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+  https://www.postgresql.org/media/keys/ACCC4CF8.asc
+if [[ "$DEBIAN_MAJOR" == 11 ]]; then
+  # Bullseye's PGDG distribution was archived on 2026-08-31. It is frozen.
+  printf 'deb [check-valid-until=no signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt-archive.postgresql.org/pub/repos/apt bullseye-pgdg main\n' \
+    > /etc/apt/sources.list.d/pgdg.list
+else
+  printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' "$DEBIAN_CODENAME" \
+    > /etc/apt/sources.list.d/pgdg.list
+fi
 apt-get update
-apt-get install -y "postgresql-${PG_VERSION}" "postgresql-client-${PG_VERSION}"
-systemctl enable --now "postgresql@${PG_VERSION}-main"
+apt-get install -y "postgresql-${PG_VERSION}" "postgresql-client-${PG_VERSION}" libpq-dev
+systemctl enable --now postgresql
+
 PG_PORT=$(pg_lsclusters --no-header | awk -v v="$PG_VERSION" '$1 == v && $2 == "main" {print $3; exit}')
-[[ "$PG_PORT" =~ ^[0-9]+$ ]] || die "PostgreSQL ${PG_VERSION} cluster not found."
+[[ "$PG_PORT" =~ ^[0-9]+$ ]] || die "PostgreSQL ${PG_VERSION} main cluster not found. Inspect: pg_lsclusters"
 
-log "Building Ruby ${RUBY_VERSION} and Node.js ${NODE_VERSION}"
-if [[ ! -x /usr/local/bin/ruby-build ]]; then
-  git clone --depth 1 https://github.com/rbenv/ruby-build.git /usr/local/src/ruby-build
-  /usr/local/src/ruby-build/install.sh
-fi
-if [[ ! -x /usr/local/src/node-build/bin/node-build ]]; then
-  git clone --depth 1 https://github.com/nodenv/node-build.git /usr/local/src/node-build
-fi
-if [[ ! -x "$RUBY_PREFIX/bin/ruby" ]]; then
-  RUBY_BUILD_BUILD_PATH=/var/tmp/ruby-build ruby-build "$RUBY_VERSION" "$RUBY_PREFIX"
-fi
-if [[ ! -x "$NODE_PREFIX/bin/node" ]]; then
-  NODE_BUILD_BUILD_PATH=/var/tmp/node-build /usr/local/src/node-build/bin/node-build "$NODE_VERSION" "$NODE_PREFIX"
-fi
-gem install bundler -v "$BUNDLER_VERSION" --no-document
-export PATH="$RUBY_PREFIX/bin:$NODE_PREFIX/bin:$PATH"
-
-log 'Preparing dedicated service account and directories'
+log 'Preparing dedicated application account and directories'
 getent group "$APP_GROUP" >/dev/null || groupadd --system "$APP_GROUP"
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --gid "$APP_GROUP" --home-dir "$APP_DIR" --create-home --shell /usr/sbin/nologin "$APP_USER"
 install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$APP_DIR"
@@ -79,30 +102,74 @@ install -d -o root -g "$APP_GROUP" -m 0750 "$ETC_DIR"
 log 'Cloning authorized application source'
 git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$APP_DIR"
 chown -R "$APP_USER:$APP_GROUP" "$APP_DIR"
-for required in .ruby-version .node-version Gemfile.lock config/application.rb; do
+for required in .ruby-version .node-version Gemfile.lock package-lock.json config/application.rb; do
   [[ -f "$APP_DIR/$required" ]] || die "Application source is missing required file: $required"
 done
-[[ "$(tr -d '\r\n' < "$APP_DIR/.ruby-version")" == "$RUBY_VERSION" ]] || die 'Ruby version does not match installer.'
-[[ "$(tr -d '\r\n' < "$APP_DIR/.node-version")" == "$NODE_VERSION" ]] || die 'Node.js version does not match installer.'
+RUBY_VERSION=$(tr -d '\r\n' < "$APP_DIR/.ruby-version")
+NODE_VERSION=$(tr -d '\r\n' < "$APP_DIR/.node-version")
+[[ "$RUBY_VERSION" == 4.0.9 ]] || die "Unsupported application Ruby version: $RUBY_VERSION (installer is pinned for 4.0.9)."
+[[ "$NODE_VERSION" == 26.12.0 ]] || die "Unsupported application Node.js version: $NODE_VERSION (installer is pinned for 26.12.0)."
+RUBY_PREFIX="$RUBY_PREFIX_BASE/$RUBY_VERSION"
 
-log 'Installing application dependencies'
-runuser -u "$APP_USER" -- env PATH="$RUBY_PREFIX/bin:$NODE_PREFIX/bin:$PATH" RAILS_ENV=production BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT='development:test' bash -c "cd '$APP_DIR' && bundle config set --local deployment true && bundle config set --local without 'development test' && bundle install --jobs 2 --retry 3 && npm ci && npm run build"
+log "Building Ruby ${RUBY_VERSION} against the host OpenSSL (>= 1.1.1)"
+if [[ ! -x /usr/local/bin/ruby-build ]]; then
+  if [[ ! -d /usr/local/src/ruby-build/.git ]]; then
+    git clone --depth 1 https://github.com/rbenv/ruby-build.git /usr/local/src/ruby-build
+  else
+    git -C /usr/local/src/ruby-build pull --ff-only
+  fi
+  /usr/local/src/ruby-build/install.sh
+fi
+if [[ ! -x "$RUBY_PREFIX/bin/ruby" ]]; then
+  install -d -m 0755 "$RUBY_PREFIX_BASE"
+  MAKE_OPTS=-j2 RUBY_BUILD_BUILD_PATH=/var/tmp/ruby-build ruby-build "$RUBY_VERSION" "$RUBY_PREFIX"
+fi
+"$RUBY_PREFIX/bin/ruby" -ropenssl -e 'abort "Ruby OpenSSL extension is not available" unless OpenSSL::OPENSSL_VERSION'
+gem install bundler -v 4.0.20 --no-document
+
+log "Installing official Node.js ${NODE_VERSION} binary for ${NODE_ARCH}"
+NODE_TARBALL="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+TMP_NODE_DIR=$(mktemp -d)
+trap 'rm -rf "${TMP_NODE_DIR:-}"' EXIT
+curl -fsSLo "$TMP_NODE_DIR/SHASUMS256.txt" "$NODE_DIST_BASE/v$NODE_VERSION/SHASUMS256.txt"
+curl -fsSLo "$TMP_NODE_DIR/$NODE_TARBALL" "$NODE_DIST_BASE/v$NODE_VERSION/$NODE_TARBALL"
+grep -E "^[0-9a-f]{64}  ${NODE_TARBALL}$" "$TMP_NODE_DIR/SHASUMS256.txt" > "$TMP_NODE_DIR/node.sha256" \
+  || die "No official SHA-256 checksum found for $NODE_TARBALL"
+(cd "$TMP_NODE_DIR" && sha256sum --check node.sha256)
+install -d -m 0755 "$NODE_PREFIX"
+tar -xJf "$TMP_NODE_DIR/$NODE_TARBALL" -C "$NODE_PREFIX" --strip-components=1
+"$NODE_PREFIX/bin/node" --version | grep -Fx "v$NODE_VERSION" >/dev/null || die 'Installed Node.js version verification failed.'
+"$NODE_PREFIX/bin/npm" --version
+rm -rf "$TMP_NODE_DIR"
+trap - EXIT
+
+export PATH="$RUBY_PREFIX/bin:$NODE_PREFIX/bin:$PATH"
+log 'Installing Ruby and JavaScript application dependencies'
+runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT='development:test' bash -c \
+  "cd '$APP_DIR' && bundle config set --local deployment true && bundle config set --local without 'development test' && bundle install --jobs 2 --retry 3 && npm ci && npm run build"
 
 log 'Creating encrypted production credentials'
 install -d -o "$APP_USER" -g "$APP_GROUP" -m 0700 "$APP_DIR/config/credentials"
 if [[ ! -f "$APP_DIR/config/credentials/production.yml.enc" ]]; then
-  runuser -u "$APP_USER" -- env PATH="$RUBY_PREFIX/bin:$NODE_PREFIX/bin:$PATH" RAILS_ENV=production APP_HOST="$DOMAIN" bash -c "cd '$APP_DIR' && printf 'secret_key_base: %s\n' \"\$(bin/rails secret)\" > /tmp/sherlock-credentials.yml && bin/rails db:encryption:init >> /tmp/sherlock-credentials.yml && EDITOR='cp /tmp/sherlock-credentials.yml' bin/rails credentials:edit --environment production && rm -f /tmp/sherlock-credentials.yml"
+  runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production APP_HOST="$DOMAIN" bash -c \
+    "cd '$APP_DIR' && { echo \"secret_key_base: \$(bin/rails secret)\"; bin/rails db:encryption:init | tail -n 4; } > /tmp/sherlock-credentials.yml && EDITOR='cp /tmp/sherlock-credentials.yml' bin/rails credentials:edit --environment production && rm -f /tmp/sherlock-credentials.yml"
 fi
 [[ -s "$APP_DIR/config/credentials/production.key" ]] || die 'Rails production credentials key missing.'
 chown "$APP_USER:$APP_GROUP" "$APP_DIR/config/credentials/production.key" "$APP_DIR/config/credentials/production.yml.enc"
 chmod 0600 "$APP_DIR/config/credentials/production.key" "$APP_DIR/config/credentials/production.yml.enc"
 
-log 'Creating PostgreSQL database and role'
+log 'Creating PostgreSQL database, role, and required sherlockdb schema'
 DB_PASSWORD=$(openssl rand -hex 32)
-if runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then die "Database role $DB_USER already exists."; fi
-runuser -u postgres -- psql -v ON_ERROR_STOP=1 -v db_password="$DB_PASSWORD" <<SQL
-CREATE ROLE ${DB_USER} LOGIN PASSWORD :'db_password';
+if runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+  die "Database role $DB_USER already exists; refusing to alter it."
+fi
+runuser -u postgres -- psql -v ON_ERROR_STOP=1 <<SQL
+CREATE ROLE ${DB_USER} LOGIN PASSWORD '${DB_PASSWORD}';
 CREATE DATABASE ${DB_NAME} OWNER ${DB_USER} ENCODING 'UTF8';
+SQL
+runuser -u postgres -- psql -v ON_ERROR_STOP=1 -d "$DB_NAME" <<SQL
+CREATE SCHEMA sherlockdb AUTHORIZATION ${DB_USER};
+ALTER ROLE ${DB_USER} SET search_path = 'sherlockdb', 'public';
 SQL
 
 MASTER_KEY=$(tr -d '\r\n' < "$APP_DIR/config/credentials/production.key")
@@ -124,9 +191,12 @@ ENV
 chown root:"$APP_GROUP" "$ETC_DIR/sherlock.env"
 chmod 0640 "$ETC_DIR/sherlock.env"
 
-log 'Preparing database and assets'
-runuser -u "$APP_USER" -- env PATH="$RUBY_PREFIX/bin:$NODE_PREFIX/bin:$PATH" RAILS_ENV=production APP_HOST="$DOMAIN" RAILS_MASTER_KEY="$MASTER_KEY" DB_HOST=127.0.0.1 DB_PORT="$PG_PORT" DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" SECRET_KEY_BASE_DUMMY=1 bash -c "cd '$APP_DIR' && bundle exec rails db:prepare db:seed && bundle exec rails assets:precompile"
+log 'Preparing database and compiling production assets'
+runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production APP_HOST="$DOMAIN" RAILS_MASTER_KEY="$MASTER_KEY" \
+  DB_HOST=127.0.0.1 DB_PORT="$PG_PORT" DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" \
+  SECRET_KEY_BASE_DUMMY=1 bash -c "cd '$APP_DIR' && bundle exec rails db:prepare db:seed && bundle exec rails assets:precompile"
 
+install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$APP_DIR/tmp" "$APP_DIR/log" "$APP_DIR/storage"
 cat > /etc/systemd/system/sherlock.service <<UNIT
 [Unit]
 Description=Sherlock private tracker statistics application
@@ -153,13 +223,12 @@ ReadWritePaths=$APP_DIR/tmp $APP_DIR/log $APP_DIR/storage
 [Install]
 WantedBy=multi-user.target
 UNIT
-install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$APP_DIR/tmp" "$APP_DIR/log" "$APP_DIR/storage"
 systemctl daemon-reload
 systemctl enable --now sherlock
 
 log 'Waiting for Rails health check'
 for i in $(seq 1 60); do
-  curl -fsS http://127.0.0.1:3000/up >/dev/null && break
+  if curl -fsS http://127.0.0.1:3000/up >/dev/null; then break; fi
   [[ "$i" -lt 60 ]] || { journalctl -u sherlock -n 80 --no-pager; die 'Rails health check failed.'; }
   sleep 2
 done
@@ -188,7 +257,9 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl enable --now nginx
 
-if ! getent ahosts "$DOMAIN" >/dev/null; then die "DNS does not resolve for $DOMAIN. Set the DNS A record, then run certbot --nginx -d $DOMAIN -m $LE_EMAIL --agree-tos --redirect"; fi
+if ! getent ahosts "$DOMAIN" >/dev/null; then
+  die "DNS does not resolve for $DOMAIN. Create an A/AAAA record pointing to this VPS, then rerun Certbot: certbot --nginx -d $DOMAIN -m $LE_EMAIL --agree-tos --redirect"
+fi
 certbot --nginx -d "$DOMAIN" -m "$LE_EMAIL" --agree-tos --non-interactive --redirect
 if ufw status 2>/dev/null | grep -q 'Status: active'; then ufw allow 80/tcp; ufw allow 443/tcp; fi
 
