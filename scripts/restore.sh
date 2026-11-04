@@ -69,9 +69,9 @@ verify_backup_pair() {
 
   [[ "$dump_base" == "$archive_db_name-"*.dump ]] || die "Database dump filename does not match archived DB_NAME ($archive_db_name)."
   [[ "$archive_base" == sherlock-secrets-*.tar.gz ]] || die "Unexpected secrets archive filename."
-  dump_stamp=\${dump_base#"$archive_db_name-"}
-  dump_stamp=\${dump_stamp%.dump}
-  archive_stamp=\${archive_base#sherlock-secrets-}
+  dump_stamp=${dump_base#"$archive_db_name-"}
+  dump_stamp=${dump_stamp%.dump}
+  archive_stamp=${archive_base#sherlock-secrets-}
   archive_stamp=\${archive_stamp%.tar.gz}
 
   [[ "$dump_stamp" =~ ^[0-9]{8}T[0-9]{6}\.[0-9]{9}Z-[0-9]+$ ]] || die "Database dump filename has an invalid backup timestamp."
