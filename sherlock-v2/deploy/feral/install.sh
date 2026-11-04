@@ -235,8 +235,8 @@ if [[ ! -s "$CRED_DIR/production.yml.enc" || ! -s "$CRED_DIR/production.key" ]];
     SECRET_KEY_BASE="$(bundle exec rails secret)" || exit 1
     ENCRYPTION_KEYS="$(bundle exec rails db:encryption:init)" || exit 1
     {
-      printf 'secret_key_base: %s\\n' "$SECRET_KEY_BASE"
-      printf '%s\\n' "$ENCRYPTION_KEYS" | tail -n 4
+      printf 'secret_key_base: %s\n' "$SECRET_KEY_BASE"
+      printf '%s\n' "$ENCRYPTION_KEYS" | tail -n 4
     } > "$CRED_TMP"
     EDITOR="cp $CRED_TMP" bundle exec rails credentials:edit --environment production >/dev/null || exit 1
   ) || { rm -f "$CRED_TMP"; die "Rails production credentials could not be created; inspect the first Rails error above."; }
