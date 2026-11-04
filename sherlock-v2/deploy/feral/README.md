@@ -39,14 +39,23 @@ bash sherlock-v2/deploy/feral/diagnose.sh
 
 It reports Debian/glibc, compiler/build tools, Ruby/OpenSSL, Node, PostgreSQL client tools, storage and limits. It does not read credentials or modify files. Keep the output so the Debian 9 runtime strategy can be checked against the actual shared-hosting environment.
 
-## Install
+## Install from the Feral development branch only
 
-From a checkout of this repository:
+Do not install from `main`. Clone the dedicated development branch directly on the Feral slot:
 
 ```sh
-cd sherlock-v2
-bash ./deploy/feral/install.sh --domain stats.example.com --port 18443
+git clone --branch feature/feral-rootless-edition --single-branch --recurse-submodules https://github.com/race-in/Sherlock.git Sherlock-Feral
+cd Sherlock-Feral/sherlock-v2
+bash ./deploy/feral/diagnose.sh
 ```
+
+Review the diagnostic output first. When the private Ruby/OpenSSL runtime and external PostgreSQL prerequisites are ready, install from this same checkout:
+
+```sh
+bash ./deploy/feral/install.sh --domain stats.example.com --port 18443 --db-host DB_HOST --db-name DB_NAME --db-user DB_USER
+```
+
+The development branch is the deployment source of truth for this Feral test. Update it with `git pull --ff-only origin feature/feral-rootless-edition` before testing a newer commit; do not switch this checkout to `main`.
 
 The installer is intentionally fail-closed. It validates the host/runtime/database
 before replacing an existing application. It requires the database to be provisioned
