@@ -11,7 +11,7 @@ class Connections::ManualSnapshotsController < ApplicationController
       uploads forum_posts torrent_comments created_at note
     ])
 
-    attributes = INTEGER_FIELDS.index_with { |field| parse_integer(input[field], required: %i[uploaded downloaded].include?(field)) }
+    attributes = INTEGER_FIELDS.index_with { |field| parse_integer(input[field], field:, required: %i[uploaded downloaded].include?(field)) }
       .merge(DECIMAL_FIELDS.index_with { |field| parse_decimal(input[field]) })
     observed_at = input[:created_at].present? ? Time.zone.parse(input[:created_at]) : Time.current
     raise ArgumentError, "Observation time is invalid." unless observed_at
@@ -29,7 +29,7 @@ class Connections::ManualSnapshotsController < ApplicationController
   end
 
   private
-    def parse_integer(value, required:)
+    def parse_integer(value, field:, required:)
       return nil if value.blank? && !required
       raise ArgumentError, "Uploaded and downloaded must be whole numbers of bytes." if value.blank?
 
@@ -37,7 +37,7 @@ class Connections::ManualSnapshotsController < ApplicationController
       raise ArgumentError, "Counts and byte values must be non-negative whole numbers." unless raw.match?(/\A\d+\z/)
 
       number = Integer(raw, 10)
-      limit = %i[uploaded downloaded].include?(raw.to_sym) ? MAX_BIGINT : MAX_INTEGER
+      limit = %i[uploaded downloaded].include?(field) ? MAX_BIGINT : MAX_INTEGER
       raise ArgumentError, "A number is too large." if number > limit
       number
     end
