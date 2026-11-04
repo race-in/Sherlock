@@ -82,8 +82,8 @@ curl -fsS http://127.0.0.1:3000/up
 ```
 
 - Dashboard: `https://stats.example.com`
-- Update: `bash scripts/update.sh` (run as root)
-- Backup: `bash scripts/backup.sh` (run as root)
+- Update: `bash scripts/update.sh` (run as root; takes a database/credentials backup first)
+- Backup: `bash scripts/backup.sh` (run as root; creates atomic, mode-0600 backups)
 
 Do not expose port 3000 publicly. Nginx is the public entry point and proxies to localhost.
 
