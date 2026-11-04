@@ -39,7 +39,7 @@ apt-get install --simulate --no-install-recommends \
 
 # Install PostgreSQL 18 in the actual Debian container, start its cluster, and
 # validate the same sherlockdb structure load performed by the native installer.
-apt-get install -y --no-install-recommends postgresql-18 postgresql-client-18 libpq-dev
+apt-get install -y --no-install-recommends git openssl postgresql-18 postgresql-client-18 libpq-dev
 PG_PORT=$(pg_lsclusters --no-header | awk -v v=18 '$1 == v && $2 == "main" {print $3; exit}')
 [[ "$PG_PORT" =~ ^[0-9]+$ ]] || { echo "PostgreSQL 18 main cluster missing." >&2; exit 1; }
 pg_ctlcluster 18 main start
