@@ -63,6 +63,10 @@ fi
 
 [[ ! -e "$APP_DIR" ]] || die "$APP_DIR already exists; refusing to overwrite an existing installation."
 [[ -x "$SCRIPT_DIR/scripts/patch-native-app.sh" ]] || die "Missing deployment patcher: $SCRIPT_DIR/scripts/patch-native-app.sh"
+if [[ "$DEBIAN_MAJOR" == 11 ]]; then
+  [[ -x "$SCRIPT_DIR/scripts/prepare-bullseye-archive.sh" ]] || die "Missing Bullseye archive helper."
+  "$SCRIPT_DIR/scripts/prepare-bullseye-archive.sh"
+fi
 read -r -p "Let's Encrypt email: " LE_EMAIL
 [[ "$LE_EMAIL" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || die 'A valid email address is required.'
 
