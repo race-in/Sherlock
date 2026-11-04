@@ -52,7 +52,7 @@ fi
 "$PREFIX/bin/openssl" version | grep -F 'OpenSSL 3.5.9' >/dev/null || die "OpenSSL verification failed."
 
 step "Build PostgreSQL 16.15 client libraries and tools"
-if [[ ! -x "$PREFIX/bin/pg_config" || ! -x "$PREFIX/bin/pg_isready" ]]; then
+if [[ ! -x "$PREFIX/bin/pg_config" || ! -x "$PREFIX/bin/pg_isready" || ! -x "$PREFIX/bin/psql" ]]; then
  fetch https://ftp.postgresql.org/pub/source/v16.15/postgresql-16.15.tar.bz2 "$WORK/src/postgresql-16.15.tar.bz2" c1575341fa7bd40f5274ea465b34390f4dc64cdd0770af327005caaeb9f6b7ed
  rm -rf "$WORK/build/postgresql-16.15"; mkdir -p "$WORK/build/postgresql-16.15"
  tar -xjf "$WORK/src/postgresql-16.15.tar.bz2" -C "$WORK/build"
