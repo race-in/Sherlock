@@ -625,7 +625,13 @@ BUNDLE_PATH: "vendor/bundle"
 BUNDLE_WITHOUT: "development:test"
 EOF
   chown -R "$APP_USER:$APP_USER" "$INSTALL_DIR"
-  printf 'managed_by=sherlock-deploy/install.sh\\n' > "$INSTALL_DIR/.sherlock-native-install"
+  local source_commit=unversioned
+  if source_commit=$(git -C "$SRC_DIR" rev-parse --verify HEAD 2>/dev/null); then
+    :
+  else
+    source_commit=unversioned
+  fi
+  printf 'managed_by=sherlock-deploy/install.sh\\nsource_commit=%s\\n' "$source_commit" > "$INSTALL_DIR/.sherlock-native-install"
   chown root:"$APP_USER" "$INSTALL_DIR/.sherlock-native-install"
   chmod 0640 "$INSTALL_DIR/.sherlock-native-install"
 }
