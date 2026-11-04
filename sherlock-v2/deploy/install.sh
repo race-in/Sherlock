@@ -271,9 +271,9 @@ resolve_settings() {
       ;;
   esac
 
-  APP_VERSION="$(env_get APP_VERSION)"
+  APP_VERSION="$(git -C "$SRC_DIR" describe --tags --abbrev=0 2>/dev/null || true)"
   if [[ ! "$APP_VERSION" =~ ^v?[0-9]+(\.[0-9]+){1,3}([.-][A-Za-z0-9.-]+)?$ ]]; then
-    APP_VERSION="$(git -C "$SRC_DIR" describe --tags --abbrev=0 2>/dev/null || true)"
+    APP_VERSION="$(env_get APP_VERSION)"
   fi
   [[ "$APP_VERSION" =~ ^v?[0-9]+(\.[0-9]+){1,3}([.-][A-Za-z0-9.-]+)?$ ]] || APP_VERSION=unknown
 
