@@ -18,6 +18,7 @@ DB_PORT=5432
 DB_NAME=""
 DB_USER=""
 DB_PASSWORD="${SHERLOCK_DB_PASSWORD:-}"
+PGSSLMODE="${SHERLOCK_PGSSLMODE:-require}"
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 info() { printf '==> %s\n' "$*"; }
@@ -87,14 +88,26 @@ ruby -ropenssl -e 'v=OpenSSL::OPENSSL_VERSION[/\d+\.\d+\.\d+/].split(".").map(&:
 command -v bundle >/dev/null || die "Bundler is missing for this Ruby."
 command -v pg_config >/dev/null || die "PostgreSQL development/client libraries (pg_config) are required."
 command -v pg_isready >/dev/null || die "pg_isready is required to verify the external database before changing files."
+command -v psql >/dev/null || die "psql is required to authenticate and provision the application schema."
+[[ "$PGSSLMODE" =~ ^(disable|allow|prefer|require|verify-ca|verify-full)$ ]] || die "Invalid SHERLOCK_PGSSLMODE value."
 command -v git >/dev/null || die "git is required."
 command -v curl >/dev/null || die "curl is required."
 command -v sha256sum >/dev/null || die "sha256sum is required."
 command -v npm >/dev/null || die "Private Node.js/npm runtime missing. Re-run bootstrap-runtime.sh."
 
-info "Checking PostgreSQL connectivity"
-PGPASSWORD="$DB_PASSWORD" pg_isready -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" >/dev/null ||
-  die "PostgreSQL is not accepting connections at $DB_HOST:$DB_PORT/$DB_NAME."
+info "Authenticating to PostgreSQL and preparing the Sherlock schema"
+export PGSSLMODE
+export PGPASSWORD="$DB_PASSWORD"
+PGCONNECT_TIMEOUT=10 psql --no-psqlrc --set=ON_ERROR_STOP=1 \
+  --host="$DB_HOST" --port="$DB_PORT" --username="$DB_USER" --dbname="$DB_NAME" \
+  --command='CREATE SCHEMA IF NOT EXISTS sherlockdb AUTHORIZATION CURRENT_USER;' >/dev/null || \
+  die "Could not authenticate or create schema sherlockdb. Check DB credentials, SSL, and schema privileges."
+psql --no-psqlrc --set=ON_ERROR_STOP=1 \
+  --host="$DB_HOST" --port="$DB_PORT" --username="$DB_USER" --dbname="$DB_NAME" \
+  --tuples-only --no-align \
+  --command="SELECT CASE WHEN has_schema_privilege(current_user, 'sherlockdb', 'USAGE') AND has_schema_privilege(current_user, 'sherlockdb', 'CREATE') THEN 'ok' ELSE 'missing' END;" |
+  grep -qx 'ok' || die "Database role $DB_USER lacks USAGE/CREATE on schema sherlockdb. Fix schema ownership/permissions before installing."
+unset PGPASSWORD
 
 info "Checking available disk space and target paths"
 umask 077
@@ -149,6 +162,9 @@ EOF
   chmod 600 "$ENV_FILE"
 else
   chmod 600 "$ENV_FILE"
+  if ! grep -q '^PGSSLMODE=' "$ENV_FILE"; then
+    printf 'PGSSLMODE=%s\\n' "$PGSSLMODE" >> "$ENV_FILE"
+  fi
   echo "Existing environment file preserved: $ENV_FILE"
 fi
 
