@@ -17,7 +17,7 @@ Use Debian 12 or 13 for an internet-facing server. Debian 11 is end-of-life and 
 ```bash
 git clone --recurse-submodules https://github.com/race-in/Sherlock.git
 cd Sherlock/sherlock-v2
-sudo ./deploy/install.sh --domain stats.example.com --letsencrypt you@example.com
+sudo bash ./deploy/install.sh --domain stats.example.com --letsencrypt you@example.com
 ```
 
 Replace the example hostname and email. The installer builds the pinned Ruby runtime, downloads and checksum-verifies the Node.js build runtime, installs PostgreSQL, creates encrypted Rails credentials, configures systemd and Nginx, obtains a Let's Encrypt certificate, and checks the local Rails health endpoint. It keeps the upstream multi-user mode enabled and prints a 64-character first-run setup token when the database has no account; enter that token when creating the initial admin. After setup, invite-based registration and admin user management work as in upstream Sherlock. Existing multi-user databases are supported.
@@ -62,7 +62,7 @@ From the same checkout used for installation:
 cd Sherlock
 git pull --ff-only
 cd sherlock-v2
-sudo ./deploy/install.sh
+sudo bash ./deploy/install.sh
 ```
 
 The installer preserves the existing environment file, database and encrypted credentials. Review the installer output and check `sudo sherlock-ctl status` after an update. For important data, take a PostgreSQL and credentials backup before upgrading; do not rely on an untested backup.
