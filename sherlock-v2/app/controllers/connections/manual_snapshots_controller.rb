@@ -30,7 +30,7 @@ class Connections::ManualSnapshotsController < ApplicationController
       created_at: observed_at, source: :manual, note:, created_by_user: Current.user
     ))
     redirect_to connection_path(@connection), notice: "Manual statistics saved. A new history point was added."
-  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+  rescue ArgumentError, TypeError, ActiveRecord::RecordInvalid => error
     redirect_to connection_path(@connection || Current.user.connections.find(params[:connection_id])),
       alert: error.message
   end
