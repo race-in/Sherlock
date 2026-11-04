@@ -30,10 +30,11 @@ restore_service() {
       echo "Restoring application source commit $PREVIOUS_COMMIT." >&2
       runuser -u "$APP_USER" -- git -C "$APP_DIR" reset --hard "$PREVIOUS_COMMIT" || true
       runuser -u "$APP_USER" -- bash "$PATCHER" "$APP_DIR" || true
+      systemctl start sherlock || true
     else
-      echo "Database migration had started. Do not reset code automatically; inspect logs and restore the backup if needed." >&2
+      echo "Database migration had started. Sherlock is intentionally left stopped to avoid running mismatched code against a partially migrated database." >&2
+      echo "Inspect the migration logs, verify the database, and restore the matching backup before starting the service." >&2
     fi
-    systemctl start sherlock || true
     echo "Backup location: ${BACKUP_PATH:-check /var/backups/sherlock}" >&2
   fi
 }
