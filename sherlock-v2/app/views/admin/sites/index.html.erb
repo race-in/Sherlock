@@ -1,5 +1,9 @@
 <%= render layout: "admin/frame" do %>
-  <p class="hint mb-3">Add a tracker with your own key, then choose whether people you invite can track their stats there too. If they can, follow the tracker's rules: most don't let members give their key to another server.</p>
+  <% if Rails.application.config.x.single_user_mode %>
+    <p class="hint mb-3">Add trackers with your own keys. This Sherlock instance is private and does not support member accounts or shared tracker access.</p>
+  <% else %>
+    <p class="hint mb-3">Add a tracker with your own key, then choose whether people you invite can track their stats there too. If they can, follow the tracker's rules: most don't let members give their key to another server.</p>
+  <% end %>
   <% active, inactive = @sites.partition { !_1.off? } %>
   <div data-controller="filter">
     <input type="search" placeholder="Search trackers" class="input mb-5 max-w-xs" data-filter-target="query" data-action="input->filter#apply" aria-label="Search trackers">
