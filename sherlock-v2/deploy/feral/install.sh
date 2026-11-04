@@ -116,8 +116,14 @@ tar -C "$SRC_DIR" --exclude='./.git' --exclude='./node_modules' --exclude='./tmp
   tar -C "$APP_DIR" -xf -
 touch "$APP_DIR/.sherlock-feral-install"
 mkdir -p "$APP_DIR/tmp/pids" "$APP_DIR/log" "$CRED_DIR"
-rm -rf "$APP_DIR/config/credentials"
-ln -s "$CRED_DIR" "$APP_DIR/config/credentials"
+if [[ -e "$APP_DIR/config/credentials" && ! -L "$APP_DIR/config/credentials" ]]; then
+  [[ -d "$APP_DIR/config/credentials" ]] || die "$APP_DIR/config/credentials is not a directory or managed symlink."
+  if find "$APP_DIR/config/credentials" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+    die "$APP_DIR/config/credentials contains files. Back them up/migrate them to $CRED_DIR before retrying."
+  fi
+  rmdir "$APP_DIR/config/credentials"
+fi
+ln -sfn "$CRED_DIR" "$APP_DIR/config/credentials"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   umask 077
@@ -169,7 +175,7 @@ info "Running database migrations"
   set +a
   cd "$APP_DIR"
   export RAILS_ENV=production
-  bundle exec rails db:prepare
+  bundle exec rails db:prepare db:seed
 )
 
 info "Installation files are ready"
