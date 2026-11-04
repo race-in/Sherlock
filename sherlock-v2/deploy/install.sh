@@ -285,6 +285,15 @@ resolve_settings() {
   PROXY="${OPT_PROXY:-$default_proxy}"
   if [[ "$PROXY" == nginx ]]; then BIND_ADDRESS=127.0.0.1; else BIND_ADDRESS=0.0.0.0; fi
 
+  if [[ "$PROXY" == nginx && "$FORCE_SSL" == true && -z "$OPT_LE_EMAIL" ]]; then
+    if [[ ! -f "/etc/nginx/sites-available/$SERVICE" ]] || ! grep -q "managed by Certbot" "/etc/nginx/sites-available/$SERVICE"; then
+      die "Nginx with FORCE_SSL=true needs --letsencrypt EMAIL on first install. Use --no-ssl only for a private HTTP setup, or --proxy none with your own HTTPS proxy."
+    fi
+  fi
+  if [[ -n "$OPT_LE_EMAIL" ]]; then
+    [[ "$OPT_LE_EMAIL" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || die "Invalid Let's Encrypt email address."
+  fi
+
   if [[ -n "$OPT_DB_HOST" || ( -n "$(env_get DB_HOST)" && "$(env_get DB_HOST)" != 127.0.0.1 ) ]]; then
     EXTERNAL_DB=1
     DB_HOST="$(pick "$OPT_DB_HOST" DB_HOST "")"
