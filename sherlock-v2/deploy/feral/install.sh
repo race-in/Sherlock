@@ -11,6 +11,34 @@ CRED_DIR="$CONF_DIR/credentials"
 RUNTIME_PREFIX="${SHERLOCK_RUNTIME_PREFIX:-$HOME/.local/opt/sherlock-runtime}"
 NODE_BIN="$RUNTIME_PREFIX/node/node-v22.21.1-linux-x64-glibc-217/bin"
 
+# The private OpenSSL build has its own empty CA location. Prefer an explicit
+# existing deployment override, otherwise use the host's public CA bundle.
+if [[ -f "$ENV_FILE" ]]; then
+  EXISTING_SSL_CERT_FILE="$(bash -c 'source "$1"; printf "%s" "${SSL_CERT_FILE:-}"' _ "$ENV_FILE")"
+  EXISTING_SSL_CERT_DIR="$(bash -c 'source "$1"; printf "%s" "${SSL_CERT_DIR:-}"' _ "$ENV_FILE")"
+  [[ -n "$EXISTING_SSL_CERT_FILE" ]] && export SSL_CERT_FILE="$EXISTING_SSL_CERT_FILE"
+  [[ -n "$EXISTING_SSL_CERT_DIR" ]] && export SSL_CERT_DIR="$EXISTING_SSL_CERT_DIR"
+fi
+if [[ -z "${SSL_CERT_FILE:-}" ]]; then
+  for ca_file in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/ca-bundle.pem; do
+    if [[ -r "$ca_file" ]]; then SSL_CERT_FILE="$ca_file"; break; fi
+  done
+fi
+if [[ -n "${SSL_CERT_FILE:-}" ]]; then
+  [[ -r "$SSL_CERT_FILE" ]] || die "SSL_CERT_FILE is not readable: $SSL_CERT_FILE"
+  export SSL_CERT_FILE
+else
+  die "No readable system CA bundle found. Set SSL_CERT_FILE to a trusted PEM bundle."
+fi
+if [[ -z "${SSL_CERT_DIR:-}" ]]; then
+  for ca_dir in /etc/ssl/certs /etc/pki/tls/certs; do
+    if [[ -d "$ca_dir" ]]; then SSL_CERT_DIR="$ca_dir"; break; fi
+  done
+fi
+[[ -z "${SSL_CERT_DIR:-}" || -d "$SSL_CERT_DIR" ]] || die "SSL_CERT_DIR is not a directory: $SSL_CERT_DIR"
+export SSL_CERT_DIR
+
+
 DOMAIN=""
 PORT=18443
 DB_HOST=""
@@ -199,6 +227,7 @@ RAILS_LOG_LEVEL=info
 APP_HOST=$DOMAIN
 PORT=$PORT
 BINDING=127.0.0.1
+APP_HOST_ALIASES=
 FORCE_SSL=true
 PGSSLMODE=$PGSSLMODE
 DB_HOST=$DB_HOST
@@ -217,6 +246,264 @@ else
   fi
   echo "Existing environment file preserved: $ENV_FILE"
 fi
+
+# Persist the same trusted CA paths for Puma, Solid Queue and future restarts.
+if ! grep -Eq '^SSL_CERT_FILE=.+
+info "Validating rendered database configuration"
+(
+  set -Eeuo pipefail
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+  ruby -rjson -rerb -ryaml -e '
+    source = ERB.new(File.read(ARGV.fetch(0))).result
+    # Psych 4+ disables YAML aliases by default; older Psych versions enable
+    # them and do not accept the aliases keyword. Detect support at runtime so
+    # the same installer works with the legacy Ruby 2.3 and private Ruby 4.
+    load_parameters = YAML.method(:load).parameters
+    supports_aliases_option = load_parameters.any? do |kind, name|
+      kind == :keyrest || name == :aliases
+    end
+    config = if supports_aliases_option
+      YAML.load(source, aliases: true)
+    else
+      YAML.load(source)
+    end
+    production = config.fetch("production")
+    abort "production database host mismatch" unless production.fetch("host") == ENV.fetch("DB_HOST")
+    abort "production database name mismatch" unless production.fetch("database") == ENV.fetch("DB_NAME")
+    abort "production database user mismatch" unless production.fetch("username") == ENV.fetch("DB_USER")
+    abort "production database password mismatch" unless production.fetch("password") == ENV.fetch("DB_PASSWORD")
+  ' "$APP_DIR/config/database.yml"
+) || die "Rendered config/database.yml is invalid or does not match the configured database. No Rails task was run."
+
+info "Preparing encrypted Rails production credentials"
+if [[ ! -s "$CRED_DIR/production.yml.enc" || ! -s "$CRED_DIR/production.key" ]]; then
+  [[ ! -s "$CRED_DIR/production.yml.enc" && ! -s "$CRED_DIR/production.key" ]] ||
+    die "Incomplete Rails credentials pair in $CRED_DIR. Restore both files from backup."
+  CRED_TMP="$(mktemp "$CONF_DIR/credentials.XXXXXX")"
+  chmod 600 "$CRED_TMP"
+  (
+    set -Eeuo pipefail
+    cd "$APP_DIR"
+    set -a; . "$ENV_FILE"; set +a
+    export RAILS_ENV=production APP_HOST=setup
+    SECRET_KEY_BASE="$(bundle exec rails secret)" || exit 1
+    ENCRYPTION_KEYS="$(bundle exec rails db:encryption:init)" || exit 1
+    {
+      printf 'secret_key_base: %s\n' "$SECRET_KEY_BASE"
+      printf '%s\n' "$ENCRYPTION_KEYS" | tail -n 4
+    } > "$CRED_TMP"
+    EDITOR="cp $CRED_TMP" bundle exec rails credentials:edit --environment production >/dev/null || exit 1
+  ) || { rm -f "$CRED_TMP"; die "Rails production credentials could not be created; inspect the first Rails error above."; }
+  rm -f "$CRED_TMP"
+  [[ -s "$CRED_DIR/production.yml.enc" && -s "$CRED_DIR/production.key" ]] || die "Rails credentials files were not created."
+  chmod 600 "$CRED_DIR/production.key" "$CRED_DIR/production.yml.enc"
+fi
+
+info "Building frontend assets"
+SOURCE_REV="$(git -C "$SRC_DIR" rev-parse HEAD)"
+ASSETS_BUILT_REV=""
+[[ -s "$STATE_DIR/assets-precompiled.commit" ]] && ASSETS_BUILT_REV="$(cat "$STATE_DIR/assets-precompiled.commit")"
+if [[ "$ASSETS_BUILT_REV" != "$SOURCE_REV" ]]; then
+  (
+    cd "$APP_DIR"
+    npm ci --no-audit --no-fund
+    npm run build
+
+    # RubyGems on the Feral Ruby 4 build reports the legacy x86_64-linux
+    # platform, while tailwindcss-ruby 4.3 ships its Linux executable in the
+    # x86_64-linux-gnu platform gem. Bundler therefore installs the tiny source
+    # wrapper only. Fetch/unpack the matching native gem and use the upstream-
+    # supported TAILWINDCSS_INSTALL_DIR override instead of patching RubyGems.
+    TAILWINDCSS_VERSION="$(bundle exec ruby -e 'puts Gem::Specification.find_by_name("tailwindcss-ruby").version')"
+    TAILWINDCSS_VENDOR_DIR="$RUNTIME_PREFIX/tailwindcss/$TAILWINDCSS_VERSION"
+    TAILWINDCSS_INSTALL_DIR="$TAILWINDCSS_VENDOR_DIR/exe/x86_64-linux-gnu"
+    if [[ ! -x "$TAILWINDCSS_INSTALL_DIR/tailwindcss" ]]; then
+      TAILWINDCSS_TMP="$(mktemp -d "$STATE_DIR/tailwindcss.XXXXXX")"
+      if ! (cd "$TAILWINDCSS_TMP" && gem fetch tailwindcss-ruby --version "$TAILWINDCSS_VERSION" --platform x86_64-linux-gnu); then
+        rm -rf "$TAILWINDCSS_TMP"
+        die "Could not download the x86_64-linux-gnu Tailwind executable gem."
+      fi
+      TAILWINDCSS_GEM="$TAILWINDCSS_TMP/tailwindcss-ruby-$TAILWINDCSS_VERSION-x86_64-linux-gnu.gem"
+      mkdir -p "$TAILWINDCSS_TMP/unpacked"
+      if [[ ! -s "$TAILWINDCSS_GEM" ]] || ! gem unpack "$TAILWINDCSS_GEM" --target "$TAILWINDCSS_TMP/unpacked" >/dev/null; then
+        rm -rf "$TAILWINDCSS_TMP"
+        die "Could not unpack the native Tailwind executable gem."
+      fi
+      TAILWINDCSS_EXTRACTED="$TAILWINDCSS_TMP/unpacked/tailwindcss-ruby-$TAILWINDCSS_VERSION-x86_64-linux-gnu/exe/x86_64-linux-gnu"
+      if [[ ! -x "$TAILWINDCSS_EXTRACTED/tailwindcss" ]]; then
+        rm -rf "$TAILWINDCSS_TMP"
+        die "The native Tailwind gem did not contain its expected Linux executable."
+      fi
+      mkdir -p "$TAILWINDCSS_VENDOR_DIR/exe"
+      cp -a "$TAILWINDCSS_EXTRACTED" "$TAILWINDCSS_VENDOR_DIR/exe/"
+      rm -rf "$TAILWINDCSS_TMP"
+    fi
+    [[ -x "$TAILWINDCSS_INSTALL_DIR/tailwindcss" ]] ||
+      die "The native Tailwind executable is missing or not executable."
+    "$TAILWINDCSS_INSTALL_DIR/tailwindcss" --help >/dev/null 2>&1 ||
+      die "The native Tailwind executable cannot run on this Feral host (check its glibc compatibility)."
+    export TAILWINDCSS_INSTALL_DIR
+
+    set -a; . "$ENV_FILE"; set +a
+    SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid RAILS_ENV=production bundle exec rails assets:precompile
+  )
+  rm -rf "$APP_DIR/node_modules"
+  printf '%s\n' "$SOURCE_REV" > "$STATE_DIR/assets-precompiled.commit"
+fi
+
+info "Running database migrations"
+(
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+  cd "$APP_DIR"
+  export RAILS_ENV=production
+  bundle exec rails db:prepare db:seed
+)
+
+info "Installation files are ready"
+echo "Application: $APP_DIR"
+echo "Environment: $ENV_FILE"
+echo "Controller:  $APP_DIR/deploy/feral/control.sh"
+echo "Rails credentials: $CRED_DIR (keep production.key private and backed up)."
+echo "Configure the Feral subdomain proxy to http://127.0.0.1:$PORT, then start with control.sh."
+ "$ENV_FILE"; then
+  printf 'SSL_CERT_FILE=%s\n' "$SSL_CERT_FILE" >> "$ENV_FILE"
+fi
+if [[ -n "${SSL_CERT_DIR:-}" ]] && ! grep -Eq '^SSL_CERT_DIR=.+
+info "Validating rendered database configuration"
+(
+  set -Eeuo pipefail
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+  ruby -rjson -rerb -ryaml -e '
+    source = ERB.new(File.read(ARGV.fetch(0))).result
+    # Psych 4+ disables YAML aliases by default; older Psych versions enable
+    # them and do not accept the aliases keyword. Detect support at runtime so
+    # the same installer works with the legacy Ruby 2.3 and private Ruby 4.
+    load_parameters = YAML.method(:load).parameters
+    supports_aliases_option = load_parameters.any? do |kind, name|
+      kind == :keyrest || name == :aliases
+    end
+    config = if supports_aliases_option
+      YAML.load(source, aliases: true)
+    else
+      YAML.load(source)
+    end
+    production = config.fetch("production")
+    abort "production database host mismatch" unless production.fetch("host") == ENV.fetch("DB_HOST")
+    abort "production database name mismatch" unless production.fetch("database") == ENV.fetch("DB_NAME")
+    abort "production database user mismatch" unless production.fetch("username") == ENV.fetch("DB_USER")
+    abort "production database password mismatch" unless production.fetch("password") == ENV.fetch("DB_PASSWORD")
+  ' "$APP_DIR/config/database.yml"
+) || die "Rendered config/database.yml is invalid or does not match the configured database. No Rails task was run."
+
+info "Preparing encrypted Rails production credentials"
+if [[ ! -s "$CRED_DIR/production.yml.enc" || ! -s "$CRED_DIR/production.key" ]]; then
+  [[ ! -s "$CRED_DIR/production.yml.enc" && ! -s "$CRED_DIR/production.key" ]] ||
+    die "Incomplete Rails credentials pair in $CRED_DIR. Restore both files from backup."
+  CRED_TMP="$(mktemp "$CONF_DIR/credentials.XXXXXX")"
+  chmod 600 "$CRED_TMP"
+  (
+    set -Eeuo pipefail
+    cd "$APP_DIR"
+    set -a; . "$ENV_FILE"; set +a
+    export RAILS_ENV=production APP_HOST=setup
+    SECRET_KEY_BASE="$(bundle exec rails secret)" || exit 1
+    ENCRYPTION_KEYS="$(bundle exec rails db:encryption:init)" || exit 1
+    {
+      printf 'secret_key_base: %s\n' "$SECRET_KEY_BASE"
+      printf '%s\n' "$ENCRYPTION_KEYS" | tail -n 4
+    } > "$CRED_TMP"
+    EDITOR="cp $CRED_TMP" bundle exec rails credentials:edit --environment production >/dev/null || exit 1
+  ) || { rm -f "$CRED_TMP"; die "Rails production credentials could not be created; inspect the first Rails error above."; }
+  rm -f "$CRED_TMP"
+  [[ -s "$CRED_DIR/production.yml.enc" && -s "$CRED_DIR/production.key" ]] || die "Rails credentials files were not created."
+  chmod 600 "$CRED_DIR/production.key" "$CRED_DIR/production.yml.enc"
+fi
+
+info "Building frontend assets"
+SOURCE_REV="$(git -C "$SRC_DIR" rev-parse HEAD)"
+ASSETS_BUILT_REV=""
+[[ -s "$STATE_DIR/assets-precompiled.commit" ]] && ASSETS_BUILT_REV="$(cat "$STATE_DIR/assets-precompiled.commit")"
+if [[ "$ASSETS_BUILT_REV" != "$SOURCE_REV" ]]; then
+  (
+    cd "$APP_DIR"
+    npm ci --no-audit --no-fund
+    npm run build
+
+    # RubyGems on the Feral Ruby 4 build reports the legacy x86_64-linux
+    # platform, while tailwindcss-ruby 4.3 ships its Linux executable in the
+    # x86_64-linux-gnu platform gem. Bundler therefore installs the tiny source
+    # wrapper only. Fetch/unpack the matching native gem and use the upstream-
+    # supported TAILWINDCSS_INSTALL_DIR override instead of patching RubyGems.
+    TAILWINDCSS_VERSION="$(bundle exec ruby -e 'puts Gem::Specification.find_by_name("tailwindcss-ruby").version')"
+    TAILWINDCSS_VENDOR_DIR="$RUNTIME_PREFIX/tailwindcss/$TAILWINDCSS_VERSION"
+    TAILWINDCSS_INSTALL_DIR="$TAILWINDCSS_VENDOR_DIR/exe/x86_64-linux-gnu"
+    if [[ ! -x "$TAILWINDCSS_INSTALL_DIR/tailwindcss" ]]; then
+      TAILWINDCSS_TMP="$(mktemp -d "$STATE_DIR/tailwindcss.XXXXXX")"
+      if ! (cd "$TAILWINDCSS_TMP" && gem fetch tailwindcss-ruby --version "$TAILWINDCSS_VERSION" --platform x86_64-linux-gnu); then
+        rm -rf "$TAILWINDCSS_TMP"
+        die "Could not download the x86_64-linux-gnu Tailwind executable gem."
+      fi
+      TAILWINDCSS_GEM="$TAILWINDCSS_TMP/tailwindcss-ruby-$TAILWINDCSS_VERSION-x86_64-linux-gnu.gem"
+      mkdir -p "$TAILWINDCSS_TMP/unpacked"
+      if [[ ! -s "$TAILWINDCSS_GEM" ]] || ! gem unpack "$TAILWINDCSS_GEM" --target "$TAILWINDCSS_TMP/unpacked" >/dev/null; then
+        rm -rf "$TAILWINDCSS_TMP"
+        die "Could not unpack the native Tailwind executable gem."
+      fi
+      TAILWINDCSS_EXTRACTED="$TAILWINDCSS_TMP/unpacked/tailwindcss-ruby-$TAILWINDCSS_VERSION-x86_64-linux-gnu/exe/x86_64-linux-gnu"
+      if [[ ! -x "$TAILWINDCSS_EXTRACTED/tailwindcss" ]]; then
+        rm -rf "$TAILWINDCSS_TMP"
+        die "The native Tailwind gem did not contain its expected Linux executable."
+      fi
+      mkdir -p "$TAILWINDCSS_VENDOR_DIR/exe"
+      cp -a "$TAILWINDCSS_EXTRACTED" "$TAILWINDCSS_VENDOR_DIR/exe/"
+      rm -rf "$TAILWINDCSS_TMP"
+    fi
+    [[ -x "$TAILWINDCSS_INSTALL_DIR/tailwindcss" ]] ||
+      die "The native Tailwind executable is missing or not executable."
+    "$TAILWINDCSS_INSTALL_DIR/tailwindcss" --help >/dev/null 2>&1 ||
+      die "The native Tailwind executable cannot run on this Feral host (check its glibc compatibility)."
+    export TAILWINDCSS_INSTALL_DIR
+
+    set -a; . "$ENV_FILE"; set +a
+    SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid RAILS_ENV=production bundle exec rails assets:precompile
+  )
+  rm -rf "$APP_DIR/node_modules"
+  printf '%s\n' "$SOURCE_REV" > "$STATE_DIR/assets-precompiled.commit"
+fi
+
+info "Running database migrations"
+(
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+  cd "$APP_DIR"
+  export RAILS_ENV=production
+  bundle exec rails db:prepare db:seed
+)
+
+info "Installation files are ready"
+echo "Application: $APP_DIR"
+echo "Environment: $ENV_FILE"
+echo "Controller:  $APP_DIR/deploy/feral/control.sh"
+echo "Rails credentials: $CRED_DIR (keep production.key private and backed up)."
+echo "Configure the Feral subdomain proxy to http://127.0.0.1:$PORT, then start with control.sh."
+ "$ENV_FILE"; then
+  printf 'SSL_CERT_DIR=%s\n' "$SSL_CERT_DIR" >> "$ENV_FILE"
+fi
+if ! grep -q '^APP_HOST_ALIASES=' "$ENV_FILE"; then
+  printf 'APP_HOST_ALIASES=\n' >> "$ENV_FILE"
+fi
+chmod 600 "$ENV_FILE"
 
 info "Validating rendered database configuration"
 (
