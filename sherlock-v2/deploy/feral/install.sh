@@ -163,7 +163,7 @@ EOF
 else
   chmod 600 "$ENV_FILE"
   if ! grep -q '^PGSSLMODE=' "$ENV_FILE"; then
-    printf 'PGSSLMODE=%s\\n' "$PGSSLMODE" >> "$ENV_FILE"
+    printf 'PGSSLMODE=%s\n' "$PGSSLMODE" >> "$ENV_FILE"
   fi
   echo "Existing environment file preserved: $ENV_FILE"
 fi
