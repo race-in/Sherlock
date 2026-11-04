@@ -257,10 +257,13 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl enable --now nginx
 
+if ufw status 2>/dev/null | grep -q 'Status: active'; then
+  ufw allow 80/tcp
+  ufw allow 443/tcp
+fi
 if ! getent ahosts "$DOMAIN" >/dev/null; then
   die "DNS does not resolve for $DOMAIN. Create an A/AAAA record pointing to this VPS, then rerun Certbot: certbot --nginx -d $DOMAIN -m $LE_EMAIL --agree-tos --redirect"
 fi
 certbot --nginx -d "$DOMAIN" -m "$LE_EMAIL" --agree-tos --non-interactive --redirect
-if ufw status 2>/dev/null | grep -q 'Status: active'; then ufw allow 80/tcp; ufw allow 443/tcp; fi
 
 log "Installation complete: https://$DOMAIN"
