@@ -24,9 +24,9 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Phase 1 — Single-user mode
 
-- [ ] First-run setup creates the only local account.
-- [ ] Disable public registration and invitations.
-- [ ] Prevent creation of a second account through UI, routes, jobs, and direct model/API paths.
+- [x] Upstream first-run setup creates the initial administrator account.
+- [ ] Make the installation permanently single-user: disable invite joins and every user-creation path after first-run.
+- [ ] Enforce the one-account invariant in both Rails model/controller paths and PostgreSQL, including concurrent requests.
 - [ ] Preserve existing connection ownership and historical data migrations.
 - [ ] Add regression tests proving a second account cannot be created.
 
@@ -51,19 +51,19 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Phase 4 — CSV and JSON import/export
 
-- [ ] CSV template with preview and column mapping.
-- [ ] Strict CSV size, row-count, encoding, and field validation.
-- [ ] Transactional import with duplicate detection and downloadable error report.
-- [ ] Native Sherlock JSON import/export compatibility.
-- [ ] Versioned Custom Edition JSON format with schema validation.
+- [x] Upstream already provides JSON account-data export/import and per-connection CSV history export; preserve and test both.
+- [ ] CSV statistics template with preview and column mapping (distinct from existing history CSV export).
+- [ ] Strict CSV size, row-count, encoding, timestamp, tracker and field validation.
+- [ ] Transactional statistics import with duplicate detection and downloadable error report.
+- [ ] Versioned Custom Edition JSON format for statistics with schema validation, without changing upstream account-backup JSON semantics.
 - [ ] Never export tracker API keys, passkeys, Rails secrets, or database credentials.
 - [ ] Test rollback on partial failures and repeated imports.
 
 ## Phase 5 — Tracker integrations
 
-- [ ] Keep existing verified upstream tracker engines working.
+- [x] Preserve existing upstream tracker engines: Gazelle, HDBits, BTN, GazelleGames, UNIT3D, Anthelion and AnimeBytes.
 - [ ] Add a safe tracker-definition registry for documented/read-only API fields.
-- [ ] Add DesiGaane and SuperBits only after checking their permitted API/authentication methods.
+- [ ] Add DesiGaane and SuperBits only after verifying their live API endpoints, authentication scopes, and tracker rules.
 - [ ] Add UNIT3D/Gazelle/custom adapters with server-side schema validation.
 - [ ] Do not execute arbitrary tracker-provided scripts or scrape where prohibited.
 - [ ] Add per-tracker rate limits, timeouts, pause-on-429 handling, and adapter contract tests.
