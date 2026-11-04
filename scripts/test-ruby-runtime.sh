@@ -123,6 +123,8 @@ SINGLE_USER_TOKEN=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd
 install -d -o sherlock-runtime-test -g sherlock-runtime-test "$APP_DIR/tmp"
 SINGLE_USER_SMOKE="$APP_DIR/tmp/single_user_mode_smoke.rb"
 cat > "$SINGLE_USER_SMOKE" <<'RUBY'
+require "action_dispatch/testing/integration"
+
 names = Rails.application.routes.named_routes.names.map(&:to_s)
 blocked = %w[join new_join join_profile join_check opt_in settings_invites admin_invites admin_users]
 present = names.select { |name| blocked.any? { |prefix| name == prefix || name.start_with?("#{prefix}_") } }
