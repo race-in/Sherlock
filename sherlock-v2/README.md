@@ -198,16 +198,16 @@ repository. Nothing of Debian's own packages is replaced.
 
 ```sh
 # as root, from the unpacked project folder
-./deploy/install.sh --domain sherlock.example.com --letsencrypt you@example.com
+bash ./deploy/install.sh --domain sherlock.example.com --letsencrypt you@example.com
 ```
 
 That installs everything, creates the database, encrypted credentials and a `sherlock` systemd service,
 puts nginx in front of it and obtains a certificate. The first run compiles Ruby, so allow 10 to 20 minutes
 or longer on a small VPS. For plain HTTP on a private network, pass `--no-ssl` (do not omit both SSL options);
 for a different TLS-terminating proxy, use `--proxy none` and configure that proxy yourself.
-`./deploy/install.sh --help` lists all options, including `--db-host` to use an existing PostgreSQL server.
+`bash ./deploy/install.sh --help` lists all options, including `--db-host` to use an existing PostgreSQL server.
 
-- **Update:** unpack the new version and run `./deploy/install.sh` again. It keeps your settings, database and
+- **Update:** unpack the new version and run `bash ./deploy/install.sh` again. It keeps your settings, database and
   credentials, and rebuilds the rest.
 - **Settings:** `/etc/sherlock/sherlock.env` holds the [variables above](#configuration). Restart with
   `systemctl restart sherlock` after editing.
