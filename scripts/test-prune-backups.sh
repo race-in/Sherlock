@@ -13,8 +13,8 @@ make_set() {
   local db_name=${2:-sherlockdb_prod}
   local secrets_name="sherlock-secrets-$stamp.tar.gz"
 
-  printf 'dump\\n' > "$BACKUPS/$db_name-$stamp.dump"
-  printf 'secrets\\n' > "$BACKUPS/$secrets_name"
+  printf 'dump\n' > "$BACKUPS/$db_name-$stamp.dump"
+  printf 'secrets\n' > "$BACKUPS/$secrets_name"
   cat > "$BACKUPS/manifest-$stamp.txt" <<MANIFEST
 created_at_utc=$stamp
 application_commit=0123456789abcdef
@@ -37,9 +37,9 @@ rm "$BACKUPS/sherlock-secrets-$INCOMPLETE.tar.gz"
 sed -i 's/^secrets_archive=.*/secrets_archive=sherlock-secrets-20261001T010204.123456789Z-999.tar.gz/' \
   "$BACKUPS/manifest-$MISMATCH.txt"
 
-printf 'dump\\n' > "$BACKUPS/anotherdb-$BADSTAMP.dump"
-printf 'secrets\\n' > "$BACKUPS/sherlock-secrets-$BADSTAMP.tar.gz"
-printf 'database=sherlockdb_prod\\nsecrets_archive=sherlock-secrets-%s.tar.gz\\ncreated_at_utc=%s\\n' \
+printf 'dump\n' > "$BACKUPS/anotherdb-$BADSTAMP.dump"
+printf 'secrets\n' > "$BACKUPS/sherlock-secrets-$BADSTAMP.tar.gz"
+printf 'database=sherlockdb_prod\nsecrets_archive=sherlock-secrets-%s.tar.gz\ncreated_at_utc=%s\n' \
   "$BADSTAMP" "$BADSTAMP" > "$BACKUPS/manifest-$BADSTAMP.txt"
 
 touch -d '10 days ago' \
