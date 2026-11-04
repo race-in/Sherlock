@@ -1,0 +1,113 @@
+<%= render layout: "settings/frame" do %>
+  <%= link_to settings_connections_path, class: "hint inline-flex items-center gap-1 hover:text-ink" do %><i class="bi bi-arrow-left"></i> Trackers<% end %>
+  <h2 class="heading mt-2 flex items-center gap-3 text-2xl"><%= site_mark @connection.site, size: "size-7" %><%= @connection.site.display_name %></h2>
+
+  <section class="card mt-5 divide-y divide-line">
+    <% if @connection.profile? %>
+      <% site = @connection.site %>
+      <% link = "[url=#{opt_in_url(@connection.profile_code)}]Stats tracked with Sherlock[/url]" %>
+      <div class="p-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="font-medium">How Sherlock reads it</p>
+            <p class="hint">From <%= @connection.external_username %>'s <%= site.name %> profile, with this Sherlock's key. Last update <%= time_ago @connection.polled_at %>.</p>
+          </div>
+          <%= status_tag @connection %>
+        </div>
+        <% if @connection.needs_check? %>
+          <div class="mt-3 rounded-lg border border-warn/30 bg-warn-soft px-4 py-3 text-sm" role="alert">
+            <p class="font-medium text-ink"><%= @connection.error_message %></p>
+            <p class="mt-1 text-ink-soft">Tracking has stopped. Your history is kept. Fix your profile on <%= site.name %>, then check again.</p>
+          </div>
+        <% elsif @connection.error_message %>
+          <p class="mt-1 text-sm text-down"><%= @connection.error_message %></p>
+        <% end %>
+        <p class="label mt-4">Your Sherlock link</p>
+        <div class="mt-1 flex items-start gap-2" data-controller="clipboard" data-clipboard-text-value="<%= link %>">
+          <code class="block flex-1 rounded-lg border border-line bg-sunken px-3 py-2 font-mono text-xs break-all text-ink"><%= link %></code>
+          <button type="button" class="btn-secondary shrink-0" data-action="clipboard#copy"><i class="bi bi-clipboard"></i> Copy</button>
+        </div>
+        <p class="hint mt-1">Keep it on your <%= link_to "#{site.name} profile", URI.join(site.base_url, "/user.php?id=#{@connection.external_user_id}").to_s, class: "link", target: "_blank", rel: "noopener noreferrer" %>. If you remove it, Sherlock stops tracking you.</p>
+        <% if @connection.needs_check? %>
+          <%= form_with url: settings_connection_check_path(@connection), method: :post, class: "mt-3", data: { controller: "submitting", submitting_label_value: "Checking your #{site.name} profile…" } do |form| %>
+            <%= form.button class: "btn-primary", data: { submitting_target: "button" } do %>
+              <i class="bi bi-arrow-repeat inline-block animate-spin" data-submitting-target="spinner" hidden aria-hidden="true"></i>
+              <span data-submitting-target="label">Check again</span>
+            <% end %>
+          <% end %>
+        <% end %>
+        <% if (snapshot = @connection.latest_snapshot) %>
+          <details class="mt-4 text-sm" <%= "open" if @connection.needs_check? %>>
+            <summary class="hint cursor-pointer">What Sherlock can see, as of the last update</summary>
+            <%= render "connections/visibility", site:, stats: snapshot %>
+          </details>
+        <% end %>
+      </div>
+    <% elsif @connection.is_key_owner? %>
+      <div class="flex items-center justify-between gap-4 p-4">
+        <div>
+          <p class="font-medium">How Sherlock reads it</p>
+          <p class="hint">With the key you saved for everyone in Admin → Sites. It's your own <%= @connection.site.name %> key, so no opt-in is needed for you, and Sherlock sees every stat. Last update <%= time_ago @connection.polled_at %>.</p>
+          <% if @connection.error_message %><p class="mt-1 text-sm text-down"><%= @connection.error_message %></p><% end %>
+        </div>
+        <div class="flex items-center gap-2">
+          <%= status_tag @connection %>
+          <% unless @connection.recently_polled? %>
+            <%= button_to "Test now", settings_connection_poll_path(@connection), class: "btn-secondary" %>
+          <% end %>
+        </div>
+      </div>
+    <% else %>
+      <div class="flex items-center justify-between gap-4 p-4">
+        <div>
+          <p class="font-medium">Status</p>
+          <p class="hint">Signed in as <%= @connection.external_username %>. Last update <%= time_ago @connection.polled_at %>.</p>
+          <% if @connection.error_message %><p class="mt-1 text-sm text-down"><%= @connection.error_message %></p><% end %>
+        </div>
+        <div class="flex items-center gap-2">
+          <%= status_tag @connection %>
+          <% unless @connection.recently_polled? %>
+            <%= button_to "Test now", settings_connection_poll_path(@connection), class: "btn-secondary" %>
+          <% end %>
+        </div>
+      </div>
+      <div class="flex items-center justify-between gap-4 p-4">
+        <div><p class="font-medium">API key</p><p class="hint"><%= @connection.credential ? "Saved and encrypted. It's never shown again." : "No key saved." %></p></div>
+        <%= link_to @connection.credential ? "Replace key" : "Add key", edit_settings_connection_key_path(@connection), class: "btn-secondary" %>
+      </div>
+    <% end %>
+    <div class="flex flex-wrap items-center justify-between gap-4 p-4">
+      <div class="min-w-56">
+        <p class="font-medium">Color</p>
+        <p class="hint mt-1">The color the charts draw this tracker with. It starts with one close to its icon.</p>
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-3">
+        <%= form_with model: @connection, url: settings_connection_color_path(@connection), data: { controller: "color-picker" }, class: "flex flex-wrap items-center justify-end gap-3" do |form| %>
+          <%= tag.hex_color_picker nil, color: @connection.display_color, aria: { label: "Pick a color" }, class: "h-24 w-36 shrink-0",
+                data: { color_picker_target: "picker", action: "color-changed->color-picker#pick" } %>
+          <span data-color-picker-target="swatch" class="size-7 shrink-0 rounded-md border border-line" style="background: <%= @connection.display_color %>" aria-hidden="true"></span>
+          <%= form.text_field :color, value: @connection.display_color, autocomplete: "off", class: "input w-28 font-mono",
+                data: { color_picker_target: "field", action: "input->color-picker#type" } %>
+          <%= form.submit "Save", class: "btn-secondary" %>
+        <% end %>
+        <% if @connection.color %>
+          <%= button_to "Reset", settings_connection_color_path(@connection), params: { connection: { color: "" } }, method: :patch, class: "btn-quiet" %>
+        <% end %>
+      </div>
+    </div>
+    <div class="flex items-center justify-between gap-4 p-4">
+      <% if @connection.paused? %>
+        <div><p class="font-medium">Updates are paused</p><p class="hint">Sherlock doesn't contact <%= @connection.site.display_name %> until you resume.</p></div>
+        <%= button_to "Resume", settings_connection_pause_path(@connection), method: :delete, class: "btn-secondary" %>
+      <% else %>
+        <div><p class="font-medium">Hourly updates</p><p class="hint">Pause to stop contacting <%= @connection.site.display_name %>. Your history stays.</p></div>
+        <%= button_to "Pause", settings_connection_pause_path(@connection), class: "btn-secondary" %>
+      <% end %>
+    </div>
+    <div class="flex items-center justify-between gap-4 p-4">
+      <div><p class="font-medium">Remove tracker</p><p class="hint">Deletes <%= @connection.credential ? "the key and " : "" %>all <%= number_with_delimiter @connection.snapshots.count %> saved updates. This can't be undone.</p></div>
+      <%= button_to "Remove", settings_connection_path(@connection), method: :delete, class: "btn-danger",
+            form: { data: { turbo_confirm: "Remove #{@connection.site.display_name} and all its history? This can't be undone." } } %>
+    </div>
+  </section>
+<% end %>

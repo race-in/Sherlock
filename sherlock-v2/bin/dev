@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+if gem list --no-installed --exact --silent foreman; then
+  echo "Installing foreman..."
+  gem install foreman
+fi
+
+# Every checkout (and so every worktree) gets its own stable port, so several can run side by side.
+# A PORT that is already set wins.
+if [ -z "${PORT:-}" ]; then
+  PORT=$(( 3200 + $(printf %s "$PWD" | cksum | cut -d' ' -f1) % 800 ))
+  while lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; do PORT=$((PORT + 1)); done
+fi
+export PORT
+echo "Sherlock: http://localhost:$PORT"
+
+exec foreman start -f Procfile.dev --env /dev/null "$@"

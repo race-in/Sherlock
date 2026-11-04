@@ -1,0 +1,66 @@
+<% content_for :title, "Privacy" %>
+<% source = Rails.configuration.x.source_url %>
+<h1 class="heading text-3xl">Privacy</h1>
+<p class="mt-2 text-ink-soft">The short version: Sherlock keeps your stats and as little else as it can.</p>
+
+<div class="mt-8 space-y-8 text-ink-soft">
+  <section class="space-y-3">
+    <h2 class="heading text-xl">How Sherlock reads your trackers</h2>
+    <%= render "shared/how_sherlock_reads", user: (Current.user if authenticated?) %>
+    <% if Site.instance_key.exists? %>
+      <ul class="list-disc space-y-2 pl-5 marker:text-muted">
+        <li>Where Sherlock reads your profile, it does so once an hour with the admin's own tracker account.</li>
+        <li>Other members of the tracker who open your profile see your Sherlock link, so they can tell you use Sherlock. Remove it and Sherlock stops reading your profile.</li>
+      </ul>
+    <% end %>
+  </section>
+
+  <section>
+    <h2 class="heading text-xl">What Sherlock keeps</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-muted">
+      <li><strong class="font-medium text-ink">Your account.</strong> Username, password hash, preferences, and who invited you.</li>
+      <li><strong class="font-medium text-ink">Your stats.</strong> Your username on each tracker and one row of numbers per update.</li>
+      <li><strong class="font-medium text-ink">Your API keys, encrypted.</strong> One per tracker that allows it, and one per qui you add. None for trackers Sherlock reads from your profile.</li>
+      <li><strong class="font-medium text-ink">Totals from qui, if you add it.</strong> Its address, and per tracker how many torrents seed, how big they are, how much they uploaded and how many are cross-seeded. Never torrent names, files or paths.</li>
+      <li><strong class="font-medium text-ink">Usernames are encrypted too.</strong> Your Sherlock username and your username and user id on each tracker.</li>
+      <li><strong class="font-medium text-ink">Your sign ins.</strong> When each device signed in and was last active. That's all.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="heading text-xl">What it doesn't keep</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-muted">
+      <li><strong class="font-medium text-ink">No IP addresses.</strong> Not saved with your account and not written to Sherlock's logs. Sign in attempts are counted per address for a few minutes to stop password guessing, then forgotten.</li>
+      <li><strong class="font-medium text-ink">No browser details.</strong></li>
+      <li><strong class="font-medium text-ink">No email address, no tracking, no ads.</strong></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="heading text-xl">Who can see it</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-muted">
+      <li><strong class="font-medium text-ink">Other users can't.</strong> Not your stats, not your trackers.</li>
+      <li><strong class="font-medium text-ink">Admins see very little.</strong> In Sherlock: your username, who invited you, and which trackers you added. Not your stats or keys.</li>
+      <li><strong class="font-medium text-ink">The person running Sherlock can read your stats.</strong> Stats aren't encrypted, so anyone with access to the database can see them.</li>
+      <li><strong class="font-medium text-ink">The person running Sherlock could decrypt your keys.</strong> They hold the encryption key, so in theory they could. The code never does, except to send each key to its own tracker or qui. A key is never shown again, logged, or sent anywhere else.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="heading text-xl">You can check</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-muted">
+      <li><strong class="font-medium text-ink">The code is open source.</strong> This site always runs the latest version of
+        <%= link_to source.delete_prefix("https://"), source, class: "link", target: "_blank", rel: "noopener" %>, with nothing added. The commit it runs is linked at the bottom of every page.</li>
+      <li><strong class="font-medium text-ink">You can run it yourself.</strong> Then your keys never leave your own server. It only contacts your trackers and your qui, and Codeberg once a day if you turn on update checks.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="heading text-xl">Leaving</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-muted">
+      <li><strong class="font-medium text-ink">Download everything.</strong> Settings, Data gives you a JSON file, without keys or password.</li>
+      <li><strong class="font-medium text-ink">Take it with you.</strong> Import that file into another Sherlock, hosted or your own.</li>
+      <li><strong class="font-medium text-ink">Deleting is final.</strong> Deleting your account removes it from the database right away. Nothing is kept or hidden for later, and it can't be undone. Database backups are kept for 7 days and then destroyed, so after a week it's gone from those too.</li>
+    </ul>
+  </section>
+</div>

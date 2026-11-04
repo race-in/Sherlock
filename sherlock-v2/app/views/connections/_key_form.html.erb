@@ -1,0 +1,35 @@
+<div class="card p-5">
+  <p class="eyebrow">Where to get the key</p>
+  <p class="mt-2 text-ink-soft"><%= site.key_instructions %></p>
+  <%= link_to site.api_key_url, class: "btn-secondary mt-3", target: "_blank", rel: "noopener noreferrer" do %>
+    Open <%= site.display_name %> settings <i class="bi bi-box-arrow-up-right text-xs"></i>
+  <% end %>
+</div>
+<% if lookup_context.exists?(site.slug, [ "connections/key_notes" ], true) %>
+  <%= render "connections/key_notes/#{site.slug}" %>
+<% end %>
+
+<% if error %>
+  <div class="mt-5 rounded-lg border border-down/30 bg-down-soft px-4 py-3 text-sm text-down" role="alert">
+    <p class="font-medium"><%= error.message %></p>
+    <p class="mt-1 text-ink-soft">Usual causes: the key was copied with a missing character, it was revoked, or <%= site.display_name %> is down. Check the key and try again.</p>
+  </div>
+<% end %>
+
+<%= form_with scope: :connection, url:, method:, class: "mt-5 space-y-4", data: { controller: "submitting" } do |form| %>
+  <% if site.needs_username? %>
+    <div>
+      <%= form.label :username, "#{site.display_name} username", class: "label" %>
+      <%= form.text_field :username, required: true, autofocus: true, autocomplete: "off", spellcheck: false, class: "input mt-1" %>
+    </div>
+  <% end %>
+  <div>
+    <%= form.label :api_key, site.hdbits? ? "Passkey" : "API key", class: "label" %>
+    <%= render "shared/secret_field", form:, class: "mt-1", required: true, autofocus: !site.needs_username? %>
+    <p class="hint mt-1">Your key is encrypted. The person running Sherlock can decrypt it if needed. It's never shown again.</p>
+  </div>
+  <%= form.button class: "btn-primary", data: { submitting_target: "button" } do %>
+    <i class="bi bi-arrow-repeat inline-block animate-spin" data-submitting-target="spinner" hidden aria-hidden="true"></i>
+    <span data-submitting-target="label">Test connection</span>
+  <% end %>
+<% end %>

@@ -1,0 +1,85 @@
+<%= render layout: "admin/frame" do %>
+  <p class="hint mb-3">Add a tracker with your own key, then choose whether people you invite can track their stats there too. If they can, follow the tracker's rules: most don't let members give their key to another server.</p>
+  <% active, inactive = @sites.partition { !_1.off? } %>
+  <div data-controller="filter">
+    <input type="search" placeholder="Search trackers" class="input mb-5 max-w-xs" data-filter-target="query" data-action="input->filter#apply" aria-label="Search trackers">
+
+    <div <%= "data-filter-target=group" if active.any? %>>
+      <h2 class="section-title">Set up</h2>
+      <% if active.any? %>
+        <section class="card mt-3 overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>Site</th><th>Set up for</th><th>Members</th><th></th></tr></thead>
+            <tbody>
+              <% active.sort_by { _1.name.downcase }.each do |site| %>
+                <% members = @connection_counts.fetch(site.id, 0) %>
+                <%# Only statuses that need someone to act, and only when there are any. %>
+                <% issues = { "failing" => "failing", "needs_key" => "need a key", "needs_check" => "need a check" }.filter_map { |status, label| (n = @status_counts.fetch([ site.id, status ], 0)).positive? && "#{n} #{label}" } %>
+                <tr data-filter-target="item" data-name="<%= "#{site.name} #{site.short_name}".downcase %>">
+                  <td>
+                    <span class="flex items-center gap-2"><%= site_mark site, size: "size-5" %><%= link_to site.name, admin_site_path(site), class: "link" %><span class="hint font-mono text-xs"><%= site.short_name %></span><% if site.beta? %><span class="tag-warn">Beta</span><% end %></span>
+                  </td>
+                  <td>
+                    <% if site.paused? %>
+                      <span class="text-down">Paused<%= " until #{clock(site.paused_until)}" if site.paused_until %>: <%= site.pause_message %></span>
+                    <% else %>
+                      <%= Site::AUDIENCES.fetch(site.audience) %>
+                      <% if site.audience == :only_me && (grants = @grant_counts.fetch(site.id, 0)).positive? %><span class="hint"> and <%= pluralize grants, "person" %> you picked</span><% end %>
+                    <% end %>
+                  </td>
+                  <td>
+                    <span class="num"><%= number_with_delimiter members %></span>
+                    <% if issues.any? %><span class="mt-0.5 block text-xs text-warn"><%= issues.to_sentence %></span><% end %>
+                  </td>
+                  <td class="text-right"><%= link_to "Manage", admin_site_path(site), class: "btn-quiet" %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </section>
+        <p class="hint mt-2">If many members on one site fail at once, the tracker probably changed its API.</p>
+      <% else %>
+        <p class="hint mt-2">No tracker is set up yet. Add one below.</p>
+      <% end %>
+    </div>
+
+    <div data-filter-target="group">
+      <h2 class="section-title mt-8">Not set up</h2>
+      <p class="hint mt-1">Sherlock sends these trackers nothing, and nobody can add them.</p>
+      <div class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <% inactive.sort_by { _1.name.downcase }.each do |site| %>
+          <%= link_to new_admin_site_setup_path(site), class: "card flex items-center gap-3 p-3 hover:border-accent",
+                data: { filter_target: "item", name: "#{site.name} #{site.short_name}".downcase } do %>
+            <%= site_mark site %>
+            <span class="flex-1 font-medium"><%= site.name %> <span class="hint font-mono text-xs font-normal"><%= site.short_name %></span></span>
+            <% if site.beta? %><span class="tag-warn">Beta</span><% end %>
+            <span class="text-sm text-accent">Add <i class="bi bi-arrow-right"></i></span>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-title mt-8">Integrations</h2>
+  <p class="hint mb-3 mt-1">Services besides trackers that Sherlock reads. A qui key can do everything its user can do in qui.
+    Only admins can add a qui on a private network.</p>
+  <section class="card overflow-x-auto">
+    <table class="table">
+      <thead><tr><th>Integration</th><th class="text-right">Connected</th><th class="text-right">Granted</th><th class="w-px whitespace-nowrap">Who can use it</th></tr></thead>
+      <tbody>
+        <% @integrations.each do |integration| %>
+          <tr>
+            <td><span class="flex items-center gap-2"><i class="bi bi-arrow-left-right text-muted" aria-hidden="true"></i><%= integration.name %></span></td>
+            <td class="text-right"><%= count @connected_counts.fetch(integration.slug, 0) %></td>
+            <td class="text-right"><%= count @integration_grant_counts.fetch(integration.id, 0) %></td>
+            <td>
+              <%= form_with model: integration, url: admin_integration_path(integration.slug), method: :patch, data: { controller: "autosubmit" } do |form| %>
+                <%= form.select :availability, Admin::SitesController::AVAILABILITY.invert, {}, class: "input w-44 py-1", aria: { label: "Who can use #{integration.name}" }, data: { action: "autosubmit#submit" } %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </section>
+<% end %>

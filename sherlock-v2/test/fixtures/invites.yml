@@ -1,0 +1,15 @@
+alice_unused:
+  code: alice-unused-code-0000000
+  created_by_user: alice
+  expires_at: <%= 10.days.from_now.to_fs(:db) %>
+
+alice_expired:
+  code: alice-expired-code-000000
+  created_by_user: alice
+  expires_at: <%= 1.day.ago.to_fs(:db) %>
+
+admin_used:
+  code: admin-used-code-000000000
+  created_by_user: admin
+  expires_at: <%= 1.month.ago.to_fs(:db) %>
+  uses: 1

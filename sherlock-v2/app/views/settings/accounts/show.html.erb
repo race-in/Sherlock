@@ -1,0 +1,32 @@
+<%= render layout: "settings/frame" do %>
+  <h2 class="section-title mb-3">Account</h2>
+  <section class="card divide-y divide-line">
+    <div class="flex items-center justify-between gap-4 p-4">
+      <div><p class="font-medium"><%= Current.user.username %></p>
+        <p class="hint">Joined <%= l Current.user.created_at.to_date, format: :long %><% if Current.user.invited_by_user %>, invited by <%= Current.user.invited_by_user.username %><% end %>.</p></div>
+      <%= link_to "Change password", edit_password_path, class: "btn-secondary" %>
+    </div>
+  </section>
+
+  <div class="mt-8 mb-3 flex items-center justify-between">
+    <h2 class="section-title">Signed in devices</h2>
+    <% if @sessions.size > 1 %><%= button_to "Sign out all others", settings_other_sessions_path, method: :delete, class: "btn-secondary" %><% end %>
+  </div>
+  <section class="card overflow-x-auto">
+    <table class="table">
+      <thead><tr><th>Signed in</th><th>Last active</th><th></th></tr></thead>
+      <tbody>
+        <% @sessions.each do |session| %>
+          <tr>
+            <td><%= l session.created_at.in_time_zone, format: :long %></td>
+            <td class="text-ink-soft"><%= time_ago session.updated_at %></td>
+            <td class="text-right">
+              <% if session == Current.session %><span class="tag-accent">This device</span>
+              <% else %><%= button_to "Sign out", settings_session_path(session), method: :delete, class: "btn-quiet" %><% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </section>
+<% end %>

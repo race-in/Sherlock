@@ -1,0 +1,22 @@
+<%# locals: (home:, menu: false) %>
+<header class="topbar">
+  <div class="flex h-full items-center gap-2 px-3 sm:gap-4 sm:px-4">
+    <%= link_to home, class: "flex items-center gap-2" do %>
+      <%= sherlock_mark "h-9" %>
+      <span class="hidden text-[19px] font-bold tracking-tight sm:inline">Sherlock</span>
+    <% end %>
+    <% if authenticated? %>
+      <%# With the menu, phones sign out from inside it. %>
+      <div class="ml-auto min-w-0 items-center gap-1 <%= menu ? "hidden md:flex" : "flex" %>">
+        <span class="hidden px-2 text-sm text-white/70 sm:inline"><%= Current.user.username %></span>
+        <%= button_to "Sign out", session_path, method: :delete, class: "topbar-link cursor-pointer whitespace-nowrap" %>
+      </div>
+    <% end %>
+    <% if menu %>
+      <button type="button" class="topbar-link -mr-1 ml-auto cursor-pointer text-xl md:hidden" aria-label="Menu" aria-controls="menu" aria-expanded="false"
+              data-menu-target="button" data-action="menu#toggle">
+        <i class="bi bi-list"></i>
+      </button>
+    <% end %>
+  </div>
+</header>

@@ -1,0 +1,43 @@
+/* The one override file for every chart. Fonts and colors come from the app tokens. */
+.cds--chart-holder {
+  --cds-charts-font-family: "Inter Variable", system-ui, sans-serif;
+  --cds-charts-font-family-condensed: "Inter Variable", system-ui, sans-serif;
+  --cds-background: transparent;
+  --cds-layer-01: var(--surface);
+  --cds-text-primary: var(--ink);
+  --cds-text-secondary: var(--muted);
+  --cds-border-subtle-01: var(--line);
+  --cds-grid-bg: transparent;
+}
+.cds--chart-holder .axis text, .cds--chart-holder .legend-item p { fill: var(--muted); color: var(--muted); }
+.cds--chart-holder .grid line { stroke: var(--line); }
+
+/* Tooltips take the width of their content. Carbon's are absolutely positioned, so near the right
+   edge they shrank to the room left and cut the value off. */
+.cds--chart-holder .cds--cc--tooltip { width: max-content; }
+
+/* Placeholder history before tracking began: a faint word over the placeholder part. */
+.chart-sample-mark {
+  position: absolute; inset-block: 0 3rem; left: 3rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.75rem; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--line-strong); opacity: 0.6; pointer-events: none;
+}
+/* Placeholder series come last; Carbon can't leave a series out of the legend. */
+[data-sample-groups="1"] .legend-item:nth-last-child(-n+1),
+[data-sample-groups="2"] .legend-item:nth-last-child(-n+2) { display: none; }
+
+/* Heatmaps: days without data are a plain cell instead of Carbon's stripes. */
+.cds--chart-holder rect.heat.null-state { fill: var(--sunken) !important; }
+
+/* Axis titles only name the axes in the tooltip; the chart itself doesn't need them. */
+.cds--chart-holder .axis-title { display: none; }
+
+/* While a refresh is polling the trackers, the charts pulse until the new numbers morph in. */
+@keyframes chart-refreshing { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: no-preference) {
+  .is-refreshing [data-chart-target="canvas"] { animation: chart-refreshing 1.6s ease-in-out infinite; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-refreshing [data-chart-target="canvas"] { opacity: 0.6; }
+}

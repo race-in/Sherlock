@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+
+<style type="text/css">
+@media screen {
+  html,
+  body,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  blockquote,
+  ol,
+  ul,
+  li,
+  img {
+    margin: 0;
+    padding: 0;
+    font-size: 100%;
+    vertical-align: baseline;
+  }
+  html * {
+    font-family: monospace;
+    line-height: 19.2px;
+  }
+  body {
+    margin: 40px 70px;
+  }
+  p {
+    font-weight: lighter;
+    margin-bottom: 20px;
+  }
+  strong {
+    font-weight: bold;
+  }
+  ol,
+  ul {
+    margin-left: 2em;
+    margin-bottom: 20px;
+  }
+  ul ul,
+  ol ol,
+  ul ol,
+  ol ul {
+    margin-top: 10px;
+  }
+  li {
+    margin-bottom: 10px;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: lighter;
+    text-transform: capitalize;
+    margin-top: 40px;
+    margin-bottom: 20px;
+  }
+  img {
+    margin-bottom: 20px;
+    width: 700px;
+  }
+  h1 img,
+  h2 img,
+  h3 img,
+  h4 img,
+  h5 img,
+  h6 img,
+  p img {
+    margin-bottom: 0;
+  }
+  pre {
+    margin-bottom: 20px;
+  }
+  pre,
+  code {
+    font-family: monospace;
+  }
+  pre {
+    white-space: pre;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    padding: 15px;
+  }
+  blockquote {
+    border-left: 4px solid;
+    padding: 0 15px;
+  }
+  blockquote> :first-child {
+    margin-top: 0;
+  }
+  blockquote> :last-child {
+    margin-bottom: 15px;
+  }
+  h1 {
+    text-transform: uppercase;
+    font-weight: bold;
+    border-bottom: 1px solid;
+  }
+  h2 {
+    border-bottom: 1px solid;
+  }
+  h3,
+  h4,
+  h5,
+  h6 {
+    border-bottom: none;
+  }
+  html * {
+    color: #657b83;
+  }
+  html body {
+    background-color: #FFFFFF;
+  }
+  html h1,
+  html h2,
+  html h3,
+  html h4,
+  html h5,
+  html h6 {
+    color: #586e75;
+    border-color: #657b83;
+  }
+  html a,
+  html a:active,
+  html a:visited {
+    color: #586e75;
+  }
+  html a:hover {
+    background-color: #eee8d5;
+  }
+  html pre {
+    color: #586e75;
+    background-color: #eee8d5;
+  }
+  html a,
+  html a:active,
+  html a:visited,
+  html code.url {
+    color: #3F3F3F;
+  }
+  html h1 {
+    color: #3F3F3F;
+  }
+  html h2,
+  html h3,
+  html h4,
+  html h5,
+  html h6 {
+    color: #3F3F3F;
+  }
+  html .app-note {
+    font-size: 12px;
+    margin-bottom: 0;
+    padding: 8px 14px;
+    text-align: right;
+    color: #f6ead8;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+    background: #8a5a2b url("<%= asset_path "wood.jpg" %>") center / cover no-repeat;
+    border-radius: 6px;
+  }
+  html .app-note a,
+  html .app-note a:visited {
+    color: #fff;
+    font-weight: bold;
+    text-decoration: none;
+  }
+  html .app-note a:hover {
+    background-color: transparent;
+    text-decoration: underline;
+  }
+  html img.smiley {
+    width: auto;
+    margin: 0;
+    vertical-align: middle;
+  }
+  .footer {
+    margin-top: 40px;
+    text-align: center;
+  }
+}
+</style>
+</head>
+
+<body>
+<div style="width: 700px; margin: auto;">
+	<p class="app-note">Looking for the stats tracker? <%= link_to "Sign in to Sherlock →", new_session_url %></p>
+	<h1>WhatStatus.info</h1>
+	<p>Hey,</p>
+
+<p>if you are looking at this page you are probably lost on some nostalgia trip. This used to be the home of WhatStatus, an unofficial availability checker for Website, Tracker and IRC of What.CD. At least until &quot;What&quot; went offline on 17 November 2016. More background: <a href="https://en.wikipedia.org/wiki/What.CD">en.wikipedia.org/wiki/What.CD</a></p>
+
+<p>While it was working it usually looked like this and provided users with informations about the various site components or past uptime records. There was also a Twitter account <a href="https://twitter.com/whatcdstatus">@whatcdstatus</a> providing support and additional informations to users.</p>
+
+<p>This was all unofficial and not affiliated with What.CD.</p>
+
+<%= image_tag "whatstatus_2016.png", alt: "Screenshot of old landing page from Archive.org" %>
+
+<p>Thanks to the Internet Archive for the snapshot: <a href="https://web.archive.org/web/20120710081048/http://whatstatus.info/">web.archive.org/web/20120710081048/http://whatstatus.info</a></p>
+
+<p>I&#39;m happy to sometimes see forks of the codebase running for other trackers or projects that got inspired by it and build better projects like <a href="https://trackerstatus.info">trackerstatus.info</a>. The code behind this domain is open source and can be found on Codeberg: <%= link_to Rails.configuration.x.source_url.delete_prefix("https://"), Rails.configuration.x.source_url %>.</p>
+<p>Just keeping this domain alive for nostalgia's sake.</p>
+
+<p>~dewey</p>
+	<p class="footer"><%= image_tag "ilu.gif", class: "smiley", alt: "<3 What", width: 42, height: 31 %></p>
+</div>
+</body>
+
+</html>

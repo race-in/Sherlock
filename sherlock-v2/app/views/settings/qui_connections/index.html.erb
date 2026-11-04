@@ -1,0 +1,80 @@
+<%= render layout: "settings/frame" do %>
+  <div class="flex items-center justify-between gap-4">
+    <h2 class="section-title">qui</h2>
+    <% if @quis.any? %><%= button_to "Test now", poll_settings_qui_connections_path, class: "btn-secondary" %><% end %>
+  </div>
+  <p class="hint mt-1 max-w-2xl">If your torrents run in <%= link_to "qui", "https://getqui.com", class: "link", target: "_blank", rel: "noopener" %>,
+    Sherlock reads them once an hour and counts the ones that seed the same files on more than one of your trackers.
+    With more than one qui, a tracker's numbers add up all of them. It only reads. It never changes anything in qui.</p>
+
+  <% if @quis.any? %>
+    <section class="card mt-5 divide-y divide-line">
+      <% @quis.each do |qui| %>
+        <div class="flex items-center justify-between gap-4 p-4">
+          <div class="min-w-0">
+            <p class="truncate font-medium"><%= qui.name %></p>
+            <p class="hint truncate"><% if qui.label %><span class="font-mono text-xs"><%= qui.address %></span> · <% end %>Last update <%= time_ago qui.polled_at %>.</p>
+            <% if qui.seeding %>
+              <p class="mt-1 text-sm"><%= count qui.seeding %> seeding · <%= count qui.cross_seeded %> cross-seeded<% if qui.cross_seeded_paused.positive? %> <span class="hint">(<%= count qui.cross_seeded_paused %> paused)</span><% end %></p>
+            <% end %>
+            <% if qui.error_message %><p class="mt-1 text-sm text-down"><%= qui.error_message %></p><% end %>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <% if qui.is_key_refused %><span class="tag-warn">Needs key</span><% elsif qui.error_message %><span class="tag-down">Failing</span><% else %><span class="tag-up">Connected</span><% end %>
+            <details class="relative" data-controller="popover" data-action="click@document->popover#closeOutside keydown.esc->popover#close">
+              <summary class="btn-quiet cursor-pointer list-none">Rename</summary>
+              <div class="card absolute right-0 top-full z-10 mt-1 w-72 p-3 shadow-lg">
+                <%= form_with model: qui, scope: :qui, url: settings_qui_connection_path(qui), method: :patch, class: "space-y-2" do |form| %>
+                  <%= form.label :label, "Name", class: "label" %>
+                  <%= form.text_field :label, value: qui.label, placeholder: qui.address, maxlength: 60, autocomplete: "off", class: "input" %>
+                  <p class="hint text-xs">Leave it empty to show the address.</p>
+                  <%= form.submit "Save", class: "btn-primary" %>
+                <% end %>
+              </div>
+            </details>
+            <%= button_to "Remove", settings_qui_connection_path(qui), method: :delete, class: "btn-quiet",
+                  form: { data: { turbo_confirm: "Remove #{qui.name}? The cross-seed history on your trackers stays." } } %>
+          </div>
+        </div>
+      <% end %>
+    </section>
+    <% if @quis.any?(&:is_key_refused) %>
+      <p class="hint mt-2">Sherlock stopped contacting a qui that refused its key. Add its address again below with a new key.</p>
+    <% end %>
+    <% if @quis.any?(&:error_message) && @quis.many? %>
+      <p class="hint mt-2">While one qui fails, Sherlock doesn't update cross-seeds, since that qui's torrents would be missing from the counts.</p>
+    <% end %>
+  <% end %>
+
+  <div class="mt-6 max-w-xl">
+    <h3 class="font-medium"><%= @quis.any? ? "Add another qui" : "Connect qui" %></h3>
+    <% if @error %>
+      <div class="mt-3 rounded-lg border border-down/30 bg-down-soft px-4 py-3 text-sm text-down" role="alert">
+        <p class="font-medium"><%= @error %></p>
+        <p class="mt-1 text-ink-soft">Check that Sherlock can reach the address, and that the key is a qui API key, not a client proxy key.</p>
+      </div>
+    <% end %>
+    <%= form_with scope: :qui, url: settings_qui_connections_path, method: :post, class: "mt-3 space-y-4", data: { controller: "submitting" } do |form| %>
+      <div>
+        <%= form.label :label, "Name", class: "label" %>
+        <%= form.text_field :label, value: params.dig(:qui, :label), placeholder: "Seedbox", maxlength: 60, autocomplete: "off", class: "input mt-1" %>
+        <p class="hint mt-1">Optional. Without one, Sherlock shows the address.</p>
+      </div>
+      <div>
+        <%= form.label :url, "Address", class: "label" %>
+        <%= form.url_field :url, value: @url, required: true, placeholder: Current.user.is_admin? ? "http://192.168.1.10:7476" : "https://qui.example.com", autocomplete: "off", spellcheck: false,
+              data: { "1p-ignore": true, lpignore: true, bwignore: true }, class: "input mt-1 font-mono" %>
+        <p class="hint mt-1">Where Sherlock reaches qui, with the base path if qui runs under one. To replace a key, add the same address again.
+          <% unless Current.user.is_admin? %>It must be a public https address. Only admins can add a qui on a private network.<% end %></p>
+      </div>
+      <div>
+        <%= form.label :api_key, "API key", class: "label" %>
+        <%= render "shared/secret_field", form:, class: "mt-1", required: true %>
+        <p class="hint mt-1">Create one in qui under Settings → API Keys. A qui key can do everything you can do in qui, so only add it to a Sherlock whose admin you trust. It's encrypted and never shown again.</p>
+      </div>
+      <%= form.button class: "btn-primary", data: { submitting_target: "button" } do %>
+        <span data-submitting-target="label">Test connection</span>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>
