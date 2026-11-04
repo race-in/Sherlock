@@ -8,7 +8,7 @@ Native (non-Docker) deployment scaffold for Debian 11, 12, and 13. This reposito
 
 | OS | Codename | Runtime | PostgreSQL 18 package source | Notes |
 |---|---|---|---|---|
-| Debian 11 | Bullseye | Ruby 4.0.9 + official Node.js 26.12.0 binary | Frozen PGDG archive | EOL; install requires explicit confirmation |
+| Debian 11 | Bullseye | Ruby 4.0.9 + official Node.js 24.22.2 build runtime | Frozen PGDG archive | EOL; install requires explicit confirmation |
 | Debian 12 | Bookworm | Ruby 4.0.9 + official Node.js 26.12.0 binary | Current PGDG repository | Supported OS |
 | Debian 13 | Trixie | Ruby 4.0.9 + official Node.js 26.12.0 binary | Current PGDG repository | Supported OS |
 
@@ -30,7 +30,7 @@ On Debian 11, after you explicitly accept the EOL warning, the installer backs u
 - Nginx reverse proxy and Let's Encrypt TLS
 - No Docker
 
-Node.js 26's official Linux binaries require glibc 2.28 or newer; the installer checks this before installation and installs `libatomic1`, required by current Node.js Linux binaries. The installer uses the ASCII PostgreSQL signing key directly with APT's `signed-by` support, so it does not install the unnecessary `gnupg` package. This avoids compiling Node.js with a compiler newer than Debian 11/12's stock GCC.
+Official Node.js 25+ Linux x64/arm64 binaries require glibc 2.34 and libstdc++ GLIBCXX_3.4.29. Debian 11 has glibc 2.31, so the installer uses the latest Node.js 24 LTS patch (`24.22.2`) as its build-time runtime on Bullseye; Debian 12/13 use Node.js `26.12.0`. The upstream Sherlock source's `.node-version` remains pinned and checked at `26.12.0`; on Debian 11 only, the compatible Node 24 runtime executes npm/esbuild. The installer checks the applicable glibc floor and installs `libatomic1` for Node 26. The installer uses the ASCII PostgreSQL signing key directly with APT's `signed-by` support, so it does not install the unnecessary `gnupg` package. This avoids compiling Node.js with a compiler newer than Debian 11/12's stock GCC.
 
 Ruby's bundled OpenSSL extension supports OpenSSL 1.1.1 and newer. The installer checks that Ruby can load OpenSSL after compilation.
 
@@ -86,6 +86,7 @@ It refuses to overwrite an existing `/opt/sherlock` directory or an existing dat
 - `scripts/compatibility-check.sh`: reports supported Debian releases, CPU architecture, and glibc compatibility.
 - `scripts/test-native-patches.sh` and `scripts/test-bullseye-archive.sh`: regression tests run in CI, including Ruby/ERB syntax checks for deployment patches.
 - `scripts/test-apt-dependencies.sh`: verifies that the native installer dependency set and PostgreSQL 18 packages resolve from each Debian release's configured APT repositories.
+- `scripts/test-node-runtime.sh`: downloads the selected official Node.js runtime, verifies its published SHA-256 checksum, and runs both Node.js and npm inside each Debian image.
 
 ## Operations
 
@@ -169,7 +170,7 @@ The supplied upstream archive did not contain a standalone LICENSE file. Before 
 
 ## Validation status
 
-- GitHub Actions validates Bash syntax, ShellCheck, workflow YAML, deployment patch tests, Bullseye APT-source migration tests, and simulated native dependency installation against Debian 11/12/13 package repositories.
+- GitHub Actions validates Bash syntax, ShellCheck, workflow YAML, deployment patch tests, Bullseye APT-source migration tests, simulated native dependency installation, and the actual checksum-verified Node.js/npm binaries against Debian 11/12/13 images.
 - The CI matrix checks Debian 11/12/13 release, architecture, and glibc compatibility in containers.
 - The native patcher was smoke-tested against the supplied Sherlock v2 source archive; Puma Ruby syntax and `database.yml` ERB syntax were checked locally.
 - Full package installation, PostgreSQL repository resolution, systemd startup, DNS, and HTTPS still need verification on real Debian 11/12/13 VPS instances.
