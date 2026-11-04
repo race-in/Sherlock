@@ -18,7 +18,7 @@ class FirstRunsController < ApplicationController
     # Two requests at once would otherwise both pass require_no_users and make two admins.
     saved = User.transaction do
       User.connection.execute("LOCK TABLE users IN EXCLUSIVE MODE")
-      User.none? && @user.save
+      !User.exists? && @user.save
     end
     if saved
       start_new_session_for @user
