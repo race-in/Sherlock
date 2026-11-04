@@ -5,6 +5,8 @@ set -Eeuo pipefail
 APP_DIR="${SHERLOCK_HOME:-$HOME/.local/opt/sherlock}"
 STATE_DIR="${SHERLOCK_STATE_DIR:-$HOME/.local/var/sherlock-feral}"
 ENV_FILE="${SHERLOCK_ENV_FILE:-$HOME/.config/sherlock-feral/sherlock.env}"
+RUNTIME_PREFIX="${SHERLOCK_RUNTIME_PREFIX:-$HOME/.local/opt/sherlock-runtime}"
+NODE_BIN="$RUNTIME_PREFIX/node/node-v22.21.1-linux-x64-glibc-217/bin"
 PID_FILE="$STATE_DIR/puma.pid"
 LOG_FILE="$STATE_DIR/puma.log"
 
@@ -18,6 +20,8 @@ mkdir -p "$STATE_DIR"
   die "Environment file must have mode 0600: $ENV_FILE"
 
 load_env() {
+  export PATH="$RUNTIME_PREFIX/bin:$NODE_BIN:$PATH"
+  export LD_LIBRARY_PATH="$RUNTIME_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   export BUNDLE_APP_CONFIG="$HOME/.config/sherlock-feral/bundle"
   set -a
   # shellcheck disable=SC1090
