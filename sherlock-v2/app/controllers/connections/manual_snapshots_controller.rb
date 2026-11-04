@@ -12,7 +12,7 @@ class Connections::ManualSnapshotsController < ApplicationController
     ])
 
     attributes = INTEGER_FIELDS.index_with { |field| parse_integer(input[field], field:, required: %i[uploaded downloaded].include?(field)) }
-      .merge(DECIMAL_FIELDS.index_with { |field| parse_decimal(input[field]) })
+      .merge(DECIMAL_FIELDS.index_with { |field| parse_decimal(input[field], field:) })
     observed_at = input[:created_at].present? ? Time.zone.parse(input[:created_at]) : Time.current
     raise ArgumentError, "Observation time is invalid." unless observed_at
     raise ArgumentError, "Observation time can't be in the future." if observed_at > Time.current
@@ -42,11 +42,17 @@ class Connections::ManualSnapshotsController < ApplicationController
       number
     end
 
-    def parse_decimal(value)
+    def parse_decimal(value, field:)
       return nil if value.blank?
 
-      number = BigDecimal(value.to_s, exception: false)
-      raise ArgumentError, "Ratios and bonus points must be valid non-negative numbers." unless number&.finite? && number >= 0
-      number
+      raw = value.to_s
+      whole, fractional, extra = raw.split(".", 3)
+      max_whole = field == :bonus_points ? 14 : 8
+      max_fraction = field == :bonus_points ? 2 : 4
+      valid = extra.nil? && whole.match?(/\\A\\d+\\z/) && whole.length <= max_whole &&
+        (fractional.nil? || (fractional.match?(/\\A\\d+\\z/) && fractional.length <= max_fraction))
+      raise ArgumentError, "Ratios and bonus points exceed the supported precision." unless valid
+
+      BigDecimal(raw)
     end
 end
