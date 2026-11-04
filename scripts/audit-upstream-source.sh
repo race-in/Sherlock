@@ -85,10 +85,10 @@ done
 echo "--- Exact data columns for accounts, tracker connections and snapshots ---"
 if [[ -f "$APP_DIR/db/structure.sql" ]]; then
   awk '
-    /^CREATE TABLE sherlockdb\\.(users|connections|snapshots) \\(/ { show = 1 }
+    /^CREATE TABLE sherlockdb\.(users|connections|snapshots) \(/ { show = 1 }
     show { print }
-    show && /^\\);$/ { show = 0; print "" }
-    /^CREATE (UNIQUE )?INDEX .*\\b(on users|on connections|on snapshots)/ { print }
+    show && /^\);$/ { show = 0; print "" }
+    /^CREATE (UNIQUE )?INDEX .* (on users|on connections|on snapshots)/ { print }
   ' "$APP_DIR/db/structure.sql"
 fi
 
