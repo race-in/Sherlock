@@ -450,23 +450,29 @@ install_local_postgres() {
   ok "PostgreSQL $PG_MAJOR/$cluster_name is running on port $DB_PORT"
 }
 
+stop_existing_service() {
+  (( EXISTING_INSTALL == 1 )) || return 0
+  if systemctl is-active --quiet "$SERVICE"; then
+    step "Stopping Sherlock before the pre-upgrade backup"
+    systemctl stop "$SERVICE"
+    SERVICE_STOPPED=1
+    ok "Sherlock stopped; no application writes can race with the backup"
+  fi
+}
+
 run_pre_upgrade_backup() {
   (( EXISTING_INSTALL == 1 )) || return 0
   step "Creating a verified pre-upgrade backup"
   local helper="$SRC_DIR/../scripts/backup.sh"
-  [[ -f "$helper" ]] || die "Backup helper missing; refusing to update without a backup."
-  SHERLOCK_INSTALL_DIR="$INSTALL_DIR" SHERLOCK_CONF_DIR="$CONF_DIR" SHERLOCK_APP_USER="$APP_USER" \
-    bash "$helper" "${SHERLOCK_BACKUP_DIR:-/var/backups/sherlock}" \
-    || die "Pre-upgrade backup failed; application files and migrations have not been changed."
-}
-
-stop_existing_service() {
-  (( EXISTING_INSTALL == 1 )) || return 0
-  if systemctl is-active --quiet "$SERVICE"; then
-    step "Stopping Sherlock for a consistent upgrade"
-    systemctl stop "$SERVICE"
-    SERVICE_STOPPED=1
-    ok "Sherlock stopped after the pre-upgrade backup"
+  if [[ ! -f "$helper" ]]; then
+    [[ "$SERVICE_STOPPED" -eq 0 ]] || { systemctl start "$SERVICE"; SERVICE_STOPPED=0; }
+    die "Backup helper missing; refusing to update without a backup."
+  fi
+  if ! SHERLOCK_INSTALL_DIR="$INSTALL_DIR" SHERLOCK_CONF_DIR="$CONF_DIR" SHERLOCK_APP_USER="$APP_USER" \
+    bash "$helper" "${SHERLOCK_BACKUP_DIR:-/var/backups/sherlock}"; then
+    # No app files or migrations have changed yet, so safely restore service availability.
+    if [[ "$SERVICE_STOPPED" -eq 1 ]]; then systemctl start "$SERVICE"; SERVICE_STOPPED=0; fi
+    die "Pre-upgrade backup failed; application files and migrations have not been changed. Sherlock was restarted."
   fi
 }
 
@@ -972,8 +978,8 @@ main() {
   fi
   if (( EXISTING_INSTALL == 1 )); then
     check_db_connection
-    run_pre_upgrade_backup
     stop_existing_service
+    run_pre_upgrade_backup
   fi
   if [[ $EXTERNAL_DB -eq 0 ]]; then
     provision_local_database
