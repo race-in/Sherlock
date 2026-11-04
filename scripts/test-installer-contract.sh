@@ -30,7 +30,7 @@ for label, expected in required_installer.items():
 if 'rm -f /etc/nginx/sites-enabled/default' in installer:
     raise SystemExit("ERROR: installer would remove the server's default Nginx site.")
 
-if 'PATCHER="$SCRIPT_DIR/scripts/patch-native-app.sh"' not in updater:
+if 'PATCHER="$SCRIPT_DIR/patch-native-app.sh"' not in updater:
     raise SystemExit("ERROR: updater does not use the current deployment repository patcher.")
 
 print("PASS: installer and updater contracts are safe")
