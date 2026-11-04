@@ -86,7 +86,7 @@ It refuses to overwrite an existing `/opt/sherlock` directory or an existing dat
 - `scripts/prepare-bullseye-archive.sh`: backs up and adapts official Debian 11 APT source entries after EOL consent.
 - `scripts/compatibility-check.sh`: reports supported Debian releases, CPU architecture, and glibc compatibility.
 - `scripts/test-native-patches.sh`, `scripts/test-bullseye-archive.sh`, `scripts/test-backup-restore.sh`, `scripts/test-nginx-host-conflict.sh`, and `scripts/test-installer-contract.sh`: regression tests run in CI, including Ruby/ERB syntax checks for deployment patches.
-- `scripts/test-apt-dependencies.sh`: verifies that the native installer dependency set and PostgreSQL 18 packages resolve from each Debian release's configured APT repositories.
+- `scripts/test-apt-dependencies.sh`: resolves the native installer dependency set, installs PostgreSQL 18 in each Debian CI image, and loads the upstream `db/structure.sql` using a dedicated application-style database role to verify schema creation and ownership.
 - `scripts/test-node-runtime.sh`: downloads the selected official Node.js runtime, verifies its published SHA-256 checksum, runs Node.js/npm, and runs the upstream Sherlock frontend build on each Debian image. `scripts/test-ruby-runtime.sh` compiles the pinned Ruby 4.0.9 toolchain, installs Bundler 4.0.20, and resolves the upstream Sherlock production gems.
 
 ## Operations
