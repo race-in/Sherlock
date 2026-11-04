@@ -63,4 +63,22 @@ if bash "$RESTORE" --verify "$TMP/incomplete.tar.gz" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "PASS: restore archive validation and unsafe/incomplete archive rejection"
+# Verify a PostgreSQL dump before it is ever allowed to replace a live database.
+mkdir -p "$TMP/fake-pg"
+cat > "$TMP/fake-pg/pg_restore" <<'PG'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+[[ "${1:-}" == --list && $# -eq 2 ]] || exit 2
+grep -Fxq 'VALID-POSTGRES-DUMP' "$2"
+PG
+chmod 0755 "$TMP/fake-pg/pg_restore"
+printf 'VALID-POSTGRES-DUMP\n' > "$TMP/valid.dump"
+PG_BINDIR="$TMP/fake-pg" bash "$RESTORE" --verify-dump "$TMP/valid.dump"
+
+printf 'NOT-A-POSTGRES-DUMP\n' > "$TMP/invalid.dump"
+if PG_BINDIR="$TMP/fake-pg" bash "$RESTORE" --verify-dump "$TMP/invalid.dump" >/dev/null 2>&1; then
+  echo "ERROR: invalid PostgreSQL dump was accepted." >&2
+  exit 1
+fi
+
+echo "PASS: restore archive and PostgreSQL dump preflight validation"
