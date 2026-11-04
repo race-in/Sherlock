@@ -21,6 +21,7 @@ required_installer = {
     "Debian 12/13 Node compatibility pin": "12|13) NODE_BINARY_VERSION=26.12.0; NODE_MIN_GLIBC=2.34; NODE_MIN_KERNEL=5.14 ;;",
     "Safe branch name validation": '[[ "$BRANCH" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ && "$BRANCH" != *..* ]]',
     "Existing Ruby runtime version validation": 'ACTUAL_RUBY_VERSION=$("$RUBY_PREFIX/bin/ruby" -e \'print RUBY_VERSION\')',
+    "Bundler installed into selected Ruby runtime": '$RUBY_PREFIX/bin/gem install bundler -v 4.0.20 --no-document',
 }
 for label, expected in required_installer.items():
     if expected not in installer:
