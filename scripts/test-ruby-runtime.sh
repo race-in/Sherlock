@@ -51,6 +51,7 @@ git clone --depth 1 --no-tags "$APP_SOURCE_URL" "$APP_DIR"
 # Exercise the exact local deployment patcher against the live upstream source,
 # not only the synthetic fixtures in test-native-patches.sh.
 bash "$SCRIPT_DIR/patch-native-app.sh" "$APP_DIR"
+bash "$SCRIPT_DIR/audit-upstream-app.sh" "$APP_DIR"
 chown -R sherlock-runtime-test:sherlock-runtime-test "$APP_DIR"
 
 APP_RUBY_VERSION=$(tr -d '\r\n' < "$APP_DIR/.ruby-version")

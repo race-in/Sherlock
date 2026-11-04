@@ -3,49 +3,35 @@ set -Eeuo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 INSTALLER="$ROOT/install.sh"
+UPDATER="$ROOT/scripts/update.sh"
 
-grep -Fq 'psql -p "$PG_PORT" -tAc "SELECT 1 FROM pg_roles' "$INSTALLER" || {
-  echo "ERROR: PostgreSQL role pre-check does not target the detected cluster port." >&2
-  exit 1
-}
-grep -Fq 'psql -p "$PG_PORT" -tAc "SELECT 1 FROM pg_database' "$INSTALLER" || {
-  echo "ERROR: PostgreSQL database pre-check does not target the detected cluster port." >&2
-  exit 1
-}
-grep -Fq 'psql -p "$PG_PORT" -v ON_ERROR_STOP=1' "$INSTALLER" || {
-  echo "ERROR: PostgreSQL role/database creation does not target the detected cluster port." >&2
-  exit 1
-}
-grep -Fq 'check-nginx-host-conflict.sh' "$INSTALLER" || {
-  echo "ERROR: installer does not check for an existing Nginx virtual host." >&2
-  exit 1
-}
-grep -Fq '11) NODE_BINARY_VERSION=24.22.2; NODE_MIN_GLIBC=2.28; NODE_MIN_KERNEL=4.18 ;;' "$INSTALLER" || {
-  echo "ERROR: Debian 11 Node 24 compatibility pin is missing." >&2
-  exit 1
-}
+python3 - "$INSTALLER" "$UPDATER" <<'PY'
+from pathlib import Path
+import sys
 
+installer = Path(sys.argv[1]).read_text(encoding="utf-8")
+updater = Path(sys.argv[2]).read_text(encoding="utf-8")
 
-grep -Fq '[[ "$BRANCH" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ && "$BRANCH" != *..* ]]' "$INSTALLER" || {
-  echo "ERROR: installer does not validate branch names before writing the environment file." >&2
-  exit 1
+required_installer = {
+    "PostgreSQL role pre-check uses detected cluster port": 'psql -p "$PG_PORT" -tAc "SELECT 1 FROM pg_roles',
+    "PostgreSQL database pre-check uses detected cluster port": 'psql -p "$PG_PORT" -tAc "SELECT 1 FROM pg_database',
+    "PostgreSQL creation uses detected cluster port": 'psql -p "$PG_PORT" -v ON_ERROR_STOP=1',
+    "Nginx host conflict preflight": "check-nginx-host-conflict.sh",
+    "Debian 11 Node compatibility pin": "11) NODE_BINARY_VERSION=24.22.2; NODE_MIN_GLIBC=2.28; NODE_MIN_KERNEL=4.18 ;;",
+    "Debian 12/13 Node compatibility pin": "12|13) NODE_BINARY_VERSION=26.12.0; NODE_MIN_GLIBC=2.34; NODE_MIN_KERNEL=5.14 ;;",
+    "Safe branch name validation": '[[ "$BRANCH" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ && "$BRANCH" != *..* ]]',
+    "Existing Ruby runtime version validation": 'ACTUAL_RUBY_VERSION=$("$RUBY_PREFIX/bin/ruby" -e \'print RUBY_VERSION\')',
+    "Bundler installed into selected Ruby runtime": '$RUBY_PREFIX/bin/gem install bundler -v 4.0.20 --no-document',
 }
-grep -Fq 'ACTUAL_RUBY_VERSION=$("$RUBY_PREFIX/bin/ruby" -e '\''print RUBY_VERSION'\'')' "$INSTALLER" || {
-  echo "ERROR: installer does not verify the existing Ruby runtime version." >&2
-  exit 1
-}
-grep -Fq '12|13) NODE_BINARY_VERSION=26.12.0; NODE_MIN_GLIBC=2.34; NODE_MIN_KERNEL=5.14 ;;' "$INSTALLER" || {
-  echo "ERROR: Debian 12/13 Node 26 compatibility pin is missing." >&2
-  exit 1
-}
-if grep -Fq 'rm -f /etc/nginx/sites-enabled/default' "$INSTALLER"; then
-  echo "ERROR: installer would remove the server's default Nginx site." >&2
-  exit 1
-fi
+for label, expected in required_installer.items():
+    if expected not in installer:
+        raise SystemExit(f"ERROR: installer missing contract: {label}")
 
-grep -Fq 'PATCHER="$SCRIPT_DIR/scripts/patch-native-app.sh"' "$ROOT/scripts/update.sh" || {
-  echo "ERROR: updater does not use the current deployment repository patcher." >&2
-  exit 1
-}
+if 'rm -f /etc/nginx/sites-enabled/default' in installer:
+    raise SystemExit("ERROR: installer would remove the server's default Nginx site.")
 
-echo "PASS: installer and updater contracts are safe"
+if 'PATCHER="$SCRIPT_DIR/patch-native-app.sh"' not in updater:
+    raise SystemExit("ERROR: updater does not use the current deployment repository patcher.")
+
+print("PASS: installer and updater contracts are safe")
+PY
