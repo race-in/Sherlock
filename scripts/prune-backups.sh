@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-DEST="$1"
-RETENTION_DAYS="$2"
+usage() {
+  echo "Usage: $0 <backup-directory> <retention-days>" >&2
+}
+
+[[ $# -eq 2 ]] || { usage; exit 2; }
+DEST=$1
+RETENTION_DAYS=$2
 
 [[ -n "$DEST" && -n "$RETENTION_DAYS" ]] || {
-  echo "Usage: $0 <backup-directory> <retention-days>" >&2
+  usage
   exit 2
 }
 [[ "$RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]] || {
