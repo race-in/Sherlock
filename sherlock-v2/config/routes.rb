@@ -41,6 +41,7 @@ Rails.application.routes.draw do
   resources :dismissals, only: :create
   resources :connections, only: :show, path: "trackers" do
     resource :history, only: :show, module: :connections
+    resource :manual_snapshot, only: :create, module: :connections
   end
   resource :comparison, only: :show, path: "compare" do
     resources :pins, only: %i[create destroy], module: :comparisons
