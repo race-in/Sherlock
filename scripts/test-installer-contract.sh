@@ -20,12 +20,12 @@ grep -Fq 'check-nginx-host-conflict.sh' "$INSTALLER" || {
   echo "ERROR: installer does not check for an existing Nginx virtual host." >&2
   exit 1
 }
-grep -Fq 'NODE_MIN_KERNEL=4.18' "$INSTALLER" || {
-  echo "ERROR: Debian 11 Node runtime kernel floor is missing." >&2
+grep -Fq '11) NODE_BINARY_VERSION=24.22.2; NODE_MIN_GLIBC=2.28; NODE_MIN_KERNEL=4.18 ;;' "$INSTALLER" || {
+  echo "ERROR: Debian 11 Node 24 compatibility pin is missing." >&2
   exit 1
 }
-grep -Fq 'NODE_MIN_KERNEL=4.18' "$INSTALLER" || {
-  echo "ERROR: Debian 12/13 Node runtime kernel floor is missing." >&2
+grep -Fq '12|13) NODE_BINARY_VERSION=26.12.0; NODE_MIN_GLIBC=2.28; NODE_MIN_KERNEL=4.18 ;;' "$INSTALLER" || {
+  echo "ERROR: Debian 12/13 Node 26 compatibility pin is missing." >&2
   exit 1
 }
 if grep -Fq 'rm -f /etc/nginx/sites-enabled/default' "$INSTALLER"; then
