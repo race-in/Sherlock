@@ -799,7 +799,7 @@ EOF
     step "Getting an HTTPS certificate"
     apt_install certbot python3-certbot-nginx
     certbot --nginx -d "${APP_HOST%%:*}" -m "$OPT_LE_EMAIL" --agree-tos --no-eff-email --redirect -n \
-      || warn "Certbot failed. Is ${APP_HOST%%:*} pointing at this server, and is port 80 open? Try again later with: sudo certbot --nginx -d ${APP_HOST%%:*}"
+      || die "Let's Encrypt certificate issuance failed. Check DNS and inbound TCP 80/443, then rerun the installer or issue the certificate manually."
   elif [[ "$FORCE_SSL" == true ]]; then
     warn "FORCE_SSL is on but no certificate was set up: browsers won't keep the login over plain HTTP."
     warn "Re-run with --letsencrypt you@example.com, add TLS yourself, or use --no-ssl on a private network."
