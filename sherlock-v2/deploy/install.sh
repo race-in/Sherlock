@@ -308,24 +308,10 @@ resolve_settings() {
 # Debian 11 reached its end of life: its repositories move to archive.debian.org.
 fix_bullseye_apt() {
   [[ "$CODENAME" == bullseye && "${ID:-}" == debian ]] || return 0
-  if curl -fsI -m 20 "http://deb.debian.org/debian/dists/bullseye/Release" >/dev/null 2>&1; then
-    return 0
-  fi
-  warn "Debian 11 is no longer on deb.debian.org. Pointing apt at archive.debian.org (backup: *.sherlock-bak)."
-  local f
-  for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
-    [[ -f "$f" ]] || continue
-    grep -qE '(deb|ftp[a-z.]*|security)\.debian\.org' "$f" || continue
-    cp -n "$f" "$f.sherlock-bak"
-    sed -i -E \
-      -e 's#https?://(deb|ftp[a-z.]*)\.debian\.org/debian-security#http://archive.debian.org/debian-security#g' \
-      -e 's#https?://security\.debian\.org(/debian-security)?#http://archive.debian.org/debian-security#g' \
-      -e 's#https?://(deb|ftp[a-z.]*)\.debian\.org/debian#http://archive.debian.org/debian#g' \
-      -e '/bullseye-updates/d' \
-      -e '/bullseye-backports/d' \
-      "$f"
-  done
-  echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99sherlock-archive
+  local helper="$SRC_DIR/../scripts/prepare-bullseye-archive.sh"
+  [[ -f "$helper" ]] || die "Missing tested Bullseye archive helper: $helper"
+  bash "$helper"
+
 }
 
 install_base_packages() {
