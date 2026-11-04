@@ -53,8 +53,12 @@ ACTUAL_NODE=$(node --version)
 node -e 'const v = process.versions; if (!v.v8 || !v.modules) process.exit(1); console.log("Node runtime OK:", process.version, "V8", v.v8)'
 npm --version
 
-APP_SOURCE_URL=${APP_SOURCE_URL:-https://codeberg.org/whatstatus/sherlock-v2.git}
-git clone --depth 1 --no-tags "$APP_SOURCE_URL" "$TMP_DIR/sherlock"
+APP_SOURCE_DIR=${APP_SOURCE_DIR:-"$SCRIPT_DIR/../sherlock-v2"}
+[[ -f "$APP_SOURCE_DIR/package.json" && -f "$APP_SOURCE_DIR/package-lock.json" ]] || {
+  echo "Bundled Sherlock source is missing package.json or package-lock.json: $APP_SOURCE_DIR" >&2
+  exit 1
+}
+cp -a "$APP_SOURCE_DIR" "$TMP_DIR/sherlock"
 APP_NODE_PIN=$(tr -d '\r\n' < "$TMP_DIR/sherlock/.node-version")
 [[ "$APP_NODE_PIN" == 26.12.0 ]] || {
   echo "Unexpected upstream .node-version: $APP_NODE_PIN (expected 26.12.0)." >&2
