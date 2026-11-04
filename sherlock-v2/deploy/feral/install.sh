@@ -49,6 +49,9 @@ done
 [[ -n "$DB_HOST" && -n "$DB_NAME" && -n "$DB_USER" ]] || die "--db-host, --db-name and --db-user are required."
 [[ "$DB_PORT" =~ ^[0-9]+$ ]] && ((DB_PORT > 0 && DB_PORT < 65536)) || die "Invalid database port."
 [[ "$DB_PASSWORD" ]] || { read -r -s -p "External PostgreSQL password: " DB_PASSWORD; printf '\n'; }
+[[ "$DB_HOST" =~ ^[A-Za-z0-9._:-]+$ ]] || die "Invalid database hostname."
+[[ "$DB_NAME" =~ ^[A-Za-z0-9_]+$ ]] || die "Database name may contain only letters, digits and underscores."
+[[ "$DB_USER" =~ ^[A-Za-z0-9_.-]+$ ]] || die "Invalid database username."
 [[ -n "$DB_PASSWORD" ]] || die "Database password cannot be empty."
 
 [[ $EUID -ne 0 ]] || die "Do not run this installer as root or with sudo."
@@ -62,24 +65,20 @@ done
 
 info "Checking rootless runtime prerequisites"
 command -v ruby >/dev/null || die "Ruby >= 3.2 is required. Debian 9 system Ruby is too old; install a private runtime first."
-ruby -e 'abort "Ruby >= 3.2 required" if RUBY_VERSION.split(".").map(&:to_i) < [3,2]' ||
+ruby -e 'require "rubygems"; abort "Ruby >= 3.2 required" if Gem::Version.new(RUBY_VERSION) < Gem::Version.new("3.2.0")' ||
   die "Ruby >= 3.2 is required."
 ruby -ropenssl -e 'v=OpenSSL::OPENSSL_VERSION[/\d+\.\d+\.\d+/].split(".").map(&:to_i); abort "OpenSSL >= 1.1.1 required" if v < [1,1,1]' ||
   die "Ruby must be linked against OpenSSL >= 1.1.1 (not Debian 9 system OpenSSL 1.0.2)."
 command -v bundle >/dev/null || die "Bundler is missing for this Ruby."
 command -v pg_config >/dev/null || die "PostgreSQL development/client libraries (pg_config) are required."
+command -v pg_isready >/dev/null || die "pg_isready is required to verify the external database before changing files."
 command -v git >/dev/null || die "git is required."
 command -v curl >/dev/null || die "curl is required."
 command -v sha256sum >/dev/null || die "sha256sum is required."
 
 info "Checking PostgreSQL connectivity"
-if command -v pg_isready >/dev/null 2>&1; then
-  PGPASSWORD="$DB_PASSWORD" pg_isready -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" >/dev/null ||
-    die "PostgreSQL is not accepting connections at $DB_HOST:$DB_PORT/$DB_NAME."
-else
-  ruby -rpg -e 'c=PG.connect(host:ARGV[0],port:ARGV[1],dbname:ARGV[2],user:ARGV[3],password:ARGV[4],connect_timeout:8); c.exec("SELECT 1"); c.close' "$DB_HOST" "$DB_PORT" "$DB_NAME" "$DB_USER" "$DB_PASSWORD" ||
-    die "Cannot connect to external PostgreSQL."
-fi
+PGPASSWORD="$DB_PASSWORD" pg_isready -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" >/dev/null ||
+  die "PostgreSQL is not accepting connections at $DB_HOST:$DB_PORT/$DB_NAME."
 
 info "Checking available disk space and target paths"
 mkdir -p "$(dirname "$APP_DIR")" "$CONF_DIR" "$STATE_DIR"
@@ -126,7 +125,8 @@ DB_PORT=$DB_PORT
 DB_NAME=$DB_NAME
 DB_USER=$DB_USER
 DB_PASSWORD=$(printf '%q' "$DB_PASSWORD")
-RAILS_MASTER_KEY=
+RAILS_MASTER_KEY=$(openssl rand -hex 16)
+SECRET_KEY_BASE=$(openssl rand -hex 64)
 EOF
   chmod 600 "$ENV_FILE"
 else
