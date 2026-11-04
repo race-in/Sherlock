@@ -61,6 +61,8 @@ rewrite_deb822_file() {
       gsub(/http:\/\/ftp\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
       gsub(/https:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
       gsub(/http:\/\/httpredir\.debian\.org\/debian/, "http://archive.debian.org/debian", value)
+      gsub(/https:\/\/security\.debian\.org\/debian-security/, "http://archive.debian.org/debian-security", value)
+      gsub(/http:\/\/security\.debian\.org\/debian-security/, "http://archive.debian.org/debian-security", value)
       return value
     }
     {
@@ -136,5 +138,5 @@ if [[ ! -f "$APT_CONF" ]] || ! grep -Fxq 'Acquire::Check-Valid-Until "false";' "
 fi
 
 echo "Bullseye APT sources now use archive.debian.org."
-echo "Expired Bullseye security/backports suites are disabled; no further Debian LTS security updates exist."
+echo "Bullseye security packages are retained only from the frozen archive to keep dependencies consistent; no further Debian LTS security updates exist. Expired backports suites are disabled."
 echo "Original source backups: $BACKUP_DIR"
