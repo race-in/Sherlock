@@ -59,6 +59,27 @@ class StatisticsCsvImporterTest < ActiveSupport::TestCase
     end
   end
 
+  test "rejects missing timestamps, malformed row widths, oversized content and cross-account calls" do
+    connection = connections(:alice_redacted)
+    user = users(:alice)
+    missing_time = CSV.generate { |writer| writer << %w[time uploaded downloaded]; writer << [ nil, "1", "1" ] }
+    malformed_width = "time,uploaded,downloaded\\n#{2.days.ago.iso8601},1,1,extra\\n"
+
+    [ missing_time, malformed_width ].each do |csv|
+      assert_no_difference -> { connection.snapshots.count } do
+        assert_raises(ArgumentError) { StatisticsCsvImporter.import!(connection:, user:, csv_text: csv) }
+      end
+    end
+
+    assert_raises(ArgumentError) do
+      StatisticsCsvImporter.import!(connection:, user:, csv_text: "x" * (StatisticsCsvImporter::MAX_BYTES + 1))
+    end
+
+    assert_raises(ArgumentError) do
+      StatisticsCsvImporter.import!(connection:, user: users(:bob), csv_text: "time,uploaded,downloaded\\n")
+    end
+  end
+
   test "does not accept malformed UTF-8 or out-of-range decimal values" do
     connection = connections(:alice_redacted)
     user = users(:alice)
