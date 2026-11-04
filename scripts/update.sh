@@ -46,7 +46,7 @@ printf '%s\n' "$BACKUP_OUTPUT"
 BACKUP_PATH=$(printf '%s\n' "$BACKUP_OUTPUT" | sed -n 's/^Database backup: //p' | tail -n 1)
 
 runuser -u "$APP_USER" -- env \
-  PATH="$RUBY_BIN:$NODE_BIN:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin" \
+  PATH="$RUBY_BIN:$NODE_BIN:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
   RAILS_ENV=production APP_HOST="$APP_HOST" RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
   DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" \
   RAILS_MAX_THREADS="${RAILS_MAX_THREADS:-3}" DB_POOL="${DB_POOL:-10}" \
