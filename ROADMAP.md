@@ -28,7 +28,7 @@ This roadmap records the agreed target configuration. Items below are planned un
 - [x] Upstream first-run setup creates the initial administrator account.
 - [x] Make the native installation single-user: require the private first-run token and disable invite joins, invite management, user management and all second-account creation paths.
 - [x] Enforce the one-account invariant in the Rails model/controller path and a PostgreSQL constant-expression unique index, including concurrent requests.
-- [x] Preserve existing connection ownership and historical snapshots; the new migration only adds a trigger and does not rewrite historical data.
+- [x] Preserve existing connection ownership and historical snapshots; the new migration only adds a unique index and does not rewrite historical data.
 - [ ] Pass CI regression tests proving a second account cannot be created through HTTP, Rails model saves or direct SQL.
 
 ## Phase 2 — Unified statistics model
