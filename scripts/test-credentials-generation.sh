@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+ROOT=$PWD
 INSTALLER="$ROOT/install.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-grep -Fq 'sed -n "/^active_record_encryption:/,\\$p"' "$INSTALLER"
+grep -Fq 'sed -n "/^active_record_encryption:/,\$p"' "$INSTALLER"
 if grep -Fq 'db:encryption:init | tail -n 4' "$INSTALLER"; then
   echo "ERROR: installer still copies the Rails instruction line into credentials." >&2
   exit 1
@@ -28,8 +28,9 @@ for required_key in primary_key deterministic_key key_derivation_salt; do
   grep -Eq "^[[:space:]]+$required_key:" <<< "$ENCRYPTION_YAML"
 done
 
+SECRET_KEY_BASE=$(printf '%064d' 0)
 {
-  printf 'secret_key_base: %s\n' 'a'.repeat(64)
+  printf 'secret_key_base: %s\n' "$SECRET_KEY_BASE"
   printf '%s\n' "$ENCRYPTION_YAML"
 } > "$TMP/credentials.yml"
 
