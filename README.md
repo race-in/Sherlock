@@ -63,7 +63,7 @@ The app source is cloned into `/opt/sherlock` on the VPS and receives three depl
 On Debian 11, accept the EOL warning by typing `YES`, or use:
 
 ```bash
-ALLOW_EOL_DEBIAN11=1 ./install.sh stats.example.com https://github.com/OWNER/APP-SOURCE.git main
+sudo env ALLOW_EOL_DEBIAN11=1 ./install.sh stats.example.com https://codeberg.org/whatstatus/sherlock-v2.git main
 ```
 
 The installer:
@@ -71,11 +71,11 @@ The installer:
 1. Detects Debian release and CPU architecture.
 2. Installs build dependencies, Nginx, Certbot, and PostgreSQL prerequisites.
 3. Configures PGDG for Debian 12/13, or the frozen `apt-archive.postgresql.org` Bullseye repository for Debian 11.
-4. Installs PostgreSQL 18 and creates the database and role. Rails loads `db/structure.sql`, which creates the `sherlockdb` schema.
-5. Clones the authorized app source to `/opt/sherlock` and applies two small, idempotent deployment-only patches: bind Puma to loopback and use a separate database pool setting.
-6. Builds Ruby 4.0.9, installs the checksum-verified Node.js 26.12.0 binary, then installs Bundler/gems/npm dependencies.
+4. Installs PostgreSQL 18 and creates a dedicated database role. The database is created after credentials are ready; Rails loads `db/structure.sql`, which creates the `sherlockdb` schema.
+5. Clones the authorized app source to `/opt/sherlock` and applies three small, idempotent deployment-only patches: bind Puma and worker metrics to loopback, and separate the database connection pool setting.
+6. Builds Ruby 4.0.9, installs the checksum-verified Node.js 26.12.0 binary, then installs Bundler gems into the service-owned `/var/lib/sherlock/bundle` path and builds JavaScript assets.
 7. Creates encrypted Rails production credentials and a root-managed environment file.
-8. Creates the PostgreSQL database (the app's own `structure.sql` creates its schema), prepares the database, compiles assets, configures systemd and Nginx, and requests a Let's Encrypt certificate.
+8. Creates/prepares the PostgreSQL database, compiles production assets, configures systemd and Nginx, and requests a Let's Encrypt certificate.
 
 It refuses to overwrite an existing `/opt/sherlock` directory or an existing database role.
 
@@ -97,8 +97,15 @@ curl -fsS http://127.0.0.1:3000/up
 ```
 
 - Dashboard: `https://stats.example.com`
-- Update: `bash scripts/update.sh` (run as root; takes a database/credentials backup first)
-- Backup: `bash scripts/backup.sh` (run as root; creates atomic, mode-0600 backups)
+- Update: pull the latest deployment scripts first, then run the updater as root; it takes a database/credentials backup before changing the app:
+
+  ```bash
+  cd sherlock-deploy
+  git pull --ff-only
+  sudo bash scripts/update.sh
+  ```
+
+- Backup: `sudo bash scripts/backup.sh` (writes mode-0600 files into a mode-0700, root-owned directory; each file is finalized by an atomic rename)
 
 Do not expose port 3000 publicly. Nginx is the public entry point and proxies to localhost.
 
