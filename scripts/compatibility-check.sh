@@ -14,7 +14,7 @@ ARCH=$(dpkg --print-architecture)
 case "$ARCH" in amd64|arm64) ;; *) echo "Unsupported architecture: $ARCH; amd64/arm64 required." >&2; exit 1 ;; esac
 case "$MAJOR" in
   11) NODE_VERSION=24.22.2; MIN_GLIBC=2.28; MIN_KERNEL=4.18 ;;
-  12|13) NODE_VERSION=26.12.0; MIN_GLIBC=2.34; MIN_KERNEL=5.14 ;;
+  12|13) NODE_VERSION=26.12.0; MIN_GLIBC=2.28; MIN_KERNEL=4.18 ;;
 esac
 GLIBC=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
 KERNEL=$(uname -r | cut -d- -f1)
