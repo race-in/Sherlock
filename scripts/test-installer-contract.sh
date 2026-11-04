@@ -25,7 +25,12 @@ grep -Fq '11) NODE_BINARY_VERSION=24.22.2; NODE_MIN_GLIBC=2.28; NODE_MIN_KERNEL=
   exit 1
 }
 
-grep -Fq 'ACTUAL_RUBY_VERSION=$("$RUBY_PREFIX/bin/ruby" -e '\''print RUBY_VERSION'\'')' "$INSTALLER" || {
+
+grep -Fq '[[ "$BRANCH" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ && "$BRANCH" != *..* ]]' "$INSTALLER" || {
+  echo "ERROR: installer does not validate branch names before writing the environment file." >&2
+  exit 1
+}
+\ngrep -Fq 'ACTUAL_RUBY_VERSION=$("$RUBY_PREFIX/bin/ruby" -e '\''print RUBY_VERSION'\'')' "$INSTALLER" || {
   echo "ERROR: installer does not verify the existing Ruby runtime version." >&2
   exit 1
 }
