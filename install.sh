@@ -95,7 +95,7 @@ PG_PORT=$(pg_lsclusters --no-header | awk -v v="$PG_VERSION" '$1 == v && $2 == "
 
 log 'Preparing dedicated application account and directories'
 getent group "$APP_GROUP" >/dev/null || groupadd --system "$APP_GROUP"
-id "$APP_USER" >/dev/null 2>&1 || useradd --system --gid "$APP_GROUP" --home-dir "$APP_DIR" --create-home --shell /usr/sbin/nologin "$APP_USER"
+id "$APP_USER" >/dev/null 2>&1 || useradd --system --gid "$APP_GROUP" --home-dir /var/lib/sherlock --create-home --shell /usr/sbin/nologin "$APP_USER"
 install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$APP_DIR"
 install -d -o root -g "$APP_GROUP" -m 0750 "$ETC_DIR"
 
@@ -151,8 +151,18 @@ runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production BUNDLE_DEPLOYMEN
 log 'Creating encrypted production credentials'
 install -d -o "$APP_USER" -g "$APP_GROUP" -m 0700 "$APP_DIR/config/credentials"
 if [[ ! -f "$APP_DIR/config/credentials/production.yml.enc" ]]; then
-  runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production APP_HOST="$DOMAIN" bash -c \
-    "cd '$APP_DIR' && { echo \"secret_key_base: \$(bin/rails secret)\"; bin/rails db:encryption:init | tail -n 4; } > /tmp/sherlock-credentials.yml && EDITOR='cp /tmp/sherlock-credentials.yml' bin/rails credentials:edit --environment production && rm -f /tmp/sherlock-credentials.yml"
+  runuser -u "$APP_USER" -- env PATH="$PATH" RAILS_ENV=production APP_HOST="$DOMAIN" bash -c '
+    set -Eeuo pipefail
+    umask 077
+    cd /opt/sherlock
+    CREDENTIALS_TMP=$(mktemp /tmp/sherlock-credentials.XXXXXX)
+    trap '\''rm -f "$CREDENTIALS_TMP"'\'' EXIT
+    {
+      printf "secret_key_base: %s\\n" "$(bin/rails secret)"
+      bin/rails db:encryption:init | tail -n 4
+    } > "$CREDENTIALS_TMP"
+    EDITOR="cp $CREDENTIALS_TMP" bin/rails credentials:edit --environment production
+  '
 fi
 [[ -s "$APP_DIR/config/credentials/production.key" ]] || die 'Rails production credentials key missing.'
 chown "$APP_USER:$APP_GROUP" "$APP_DIR/config/credentials/production.key" "$APP_DIR/config/credentials/production.yml.enc"
