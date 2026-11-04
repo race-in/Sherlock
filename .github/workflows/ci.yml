@@ -68,6 +68,7 @@ jobs:
           bash scripts/test-nginx-host-conflict.sh
           bash scripts/test-installer-contract.sh
           bash scripts/test-credentials-generation.sh
+          bash scripts/test-prune-backups.sh
 
       - name: Validate workflow YAML
         run: yamllint --strict -d relaxed .github/workflows/ci.yml
