@@ -29,8 +29,7 @@ class AdminSetup
         Step.new(:first_tracker, "Set up your first tracker",
           single_user ? "Choose a tracker you're a member of and add your API key. Sherlock checks it right away." : "Choose a tracker you're a member of and add your API key. Sherlock checks it right away. Then decide whether people you invite can track their stats there too.",
           @admin.connections.exists? || Site.where.not(availability: :off).exists?, false, false),
-        Step.new(:invites, single_user ? "Private single-user access" : "Invite people",
-          single_user ? "Public registration, invite links and additional accounts are disabled on this instance." : "One invite per person, or one for many that you post in a tracker's forum.",
+        Step.new(:invites, "Invite people", "One invite per person, or one for many that you post in a tracker's forum.",
           single_user || @admin.created_invites.exists?, true, single_user || skipped.include?("invites")),
         Step.new(:updates, "Check for updates", "Once a day, Sherlock asks Codeberg for the latest version.",
           setting.is_update_check_enabled?, true, skipped.include?("updates"))
