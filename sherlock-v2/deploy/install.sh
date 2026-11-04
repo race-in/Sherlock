@@ -266,9 +266,12 @@ resolve_settings() {
     fi
     [[ -n "$APP_HOST" ]] || die "Give the domain with --domain sherlock.example.com"
   fi
-  [[ "$APP_HOST" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?$ ]] || die "That doesn't look like a host name: $APP_HOST"
+  APP_HOST="${APP_HOST,,}"
+  [[ "$APP_HOST" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(:[0-9]+)?$ ]] \
+    || die "Give a fully qualified domain name, for example sherlock.example.com (got: $APP_HOST)."
 
   FORCE_SSL="$(pick "$OPT_FORCE_SSL" FORCE_SSL true)"
+  [[ "$FORCE_SSL" == true || "$FORCE_SSL" == false ]] || die "FORCE_SSL must be true or false."
   PORT="$(pick "$OPT_PORT" PORT 3000)"
   [[ "$PORT" =~ ^[0-9]+$ ]] && (( PORT >= 1 && PORT <= 65535 )) || die "PORT must be between 1 and 65535."
 
