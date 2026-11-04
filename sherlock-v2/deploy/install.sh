@@ -242,6 +242,8 @@ resolve_settings() {
   node_default="$(tr -d '[:space:]' < "$SRC_DIR/.node-version")"
   RUBY_VERSION="${OPT_RUBY_VERSION:-$ruby_default}"
   NODE_VERSION="${OPT_NODE_VERSION:-$node_default}"
+  [[ "$RUBY_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Invalid Ruby version: $RUBY_VERSION"
+  [[ "$NODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Invalid Node.js version: $NODE_VERSION"
 
   # Debian 11's kernel/glibc are too old for the pinned Node 26 binary.
   # Node 24 is sufficient for the frontend toolchain (esbuild requires Node >= 18).
@@ -268,6 +270,7 @@ resolve_settings() {
 
   FORCE_SSL="$(pick "$OPT_FORCE_SSL" FORCE_SSL true)"
   PORT="$(pick "$OPT_PORT" PORT 3000)"
+  [[ "$PORT" =~ ^[0-9]+$ ]] && (( PORT >= 1 && PORT <= 65535 )) || die "PORT must be between 1 and 65535."
 
   # The proxy choice is remembered through BIND_ADDRESS: 127.0.0.1 means "behind nginx".
   local default_proxy=nginx
@@ -284,6 +287,8 @@ resolve_settings() {
   DB_NAME="$(pick "$OPT_DB_NAME" DB_NAME sherlockdb_prod)"
   DB_USER="$(pick "$OPT_DB_USER" DB_USER sherlockdb_prod_write)"
   DB_PORT="$(pick "$OPT_DB_PORT" DB_PORT 5432)"
+  [[ "$DB_PORT" =~ ^[0-9]+$ ]] && (( DB_PORT >= 1 && DB_PORT <= 65535 )) || die "DB_PORT must be between 1 and 65535."
+  [[ "$DB_HOST" =~ ^[A-Za-z0-9._:%-]+$ ]] || die "DB_HOST contains unsupported characters."
   DB_PASSWORD="$(pick "$OPT_DB_PASSWORD" DB_PASSWORD "")"
   if [[ $EXTERNAL_DB -eq 1 && -z "$DB_PASSWORD" ]]; then
     [[ -t 0 && $ASSUME_YES -eq 0 ]] || die "Give the database password with --db-password."
