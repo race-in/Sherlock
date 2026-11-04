@@ -2,10 +2,10 @@
 set -Eeuo pipefail
 umask 077
 
-APP_DIR=/opt/sherlock
-ETC_DIR=/etc/sherlock
-APP_USER=sherlock
-APP_GROUP=sherlock
+APP_DIR=${SHERLOCK_INSTALL_DIR:-/opt/sherlock}
+ETC_DIR=${SHERLOCK_CONF_DIR:-/etc/sherlock}
+APP_USER=${SHERLOCK_APP_USER:-sherlock}
+APP_GROUP=${SHERLOCK_APP_GROUP:-$APP_USER}
 PG_BINDIR=${PG_BINDIR:-}
 if [[ -z "$PG_BINDIR" ]]; then
   PG_BINDIR=$(pg_config --bindir 2>/dev/null || true)

@@ -54,6 +54,8 @@ MULTIARCH=""
 PG_MAJOR=""
 EXTERNAL_DB=0
 EXISTING_INSTALL=0
+SERVICE_STOPPED=0
+APP_VERSION=unknown
 
 # ---------------------------------------------------------------------------------------------
 # Output helpers
@@ -269,6 +271,12 @@ resolve_settings() {
       ;;
   esac
 
+  APP_VERSION="$(git -C "$SRC_DIR" describe --tags --abbrev=0 2>/dev/null || true)"
+  if [[ ! "$APP_VERSION" =~ ^v?[0-9]+(\.[0-9]+){1,3}([.-][A-Za-z0-9.-]+)?$ ]]; then
+    APP_VERSION="$(env_get APP_VERSION)"
+  fi
+  [[ "$APP_VERSION" =~ ^v?[0-9]+(\.[0-9]+){1,3}([.-][A-Za-z0-9.-]+)?$ ]] || APP_VERSION=unknown
+
   APP_HOST="$(pick "$OPT_DOMAIN" APP_HOST "")"
   if [[ -z "$APP_HOST" ]]; then
     if [[ -t 0 && $ASSUME_YES -eq 0 ]]; then
@@ -401,29 +409,71 @@ choose_pg_version() {
 }
 
 install_local_postgres() {
-  step "Installing PostgreSQL"
-  # Reuse a server that is already running for the chosen version; otherwise install one.
-  choose_pg_version
-  if [[ -n "$PG_MAJOR" ]]; then
-    apt_install "postgresql-$PG_MAJOR" libpq-dev
+  step "Selecting the local PostgreSQL cluster"
+  local line matches cluster_name cluster_status
+  if (( EXISTING_INSTALL == 1 )); then
+    line="$(pg_lsclusters -h | awk -v p="$DB_PORT" '$3 == p {print}')"
+    matches="$(printf '%s\n' "$line" | sed '/^$/d' | wc -l)"
+    [[ "$matches" == 1 ]] || die "Existing install uses local PostgreSQL port $DB_PORT, but exactly one matching cluster was not found. Inspect pg_lsclusters; refusing to switch to another cluster."
+    PG_MAJOR="$(awk '{print $1}' <<<"$line")"
+    cluster_name="$(awk '{print $2}' <<<"$line")"
+    cluster_status="$(awk '{print $4}' <<<"$line")"
+    if [[ -n "$OPT_PG_VERSION" && "$OPT_PG_VERSION" != "$PG_MAJOR" ]]; then
+      die "Existing install uses PostgreSQL $PG_MAJOR. Refusing --pg-version $OPT_PG_VERSION without an explicit database migration."
+    fi
   else
-    apt_install postgresql libpq-dev
-    PG_MAJOR="$(find /usr/lib/postgresql -mindepth 1 -maxdepth 1 -printf '%f\n' | sort -n | tail -n 1)"
+    choose_pg_version
+    if [[ -n "$PG_MAJOR" ]]; then
+      apt_install "postgresql-$PG_MAJOR" libpq-dev
+    else
+      apt_install postgresql libpq-dev
+      PG_MAJOR="$(find /usr/lib/postgresql -mindepth 1 -maxdepth 1 -printf '%f\n' | sort -n | tail -n 1)"
+    fi
+    systemctl enable --now postgresql >/dev/null 2>&1 || true
+    line="$(pg_lsclusters -h | awk -v v="$PG_MAJOR" -v p="$DB_PORT" '$1 == v && $3 == p {print}')"
+    matches="$(printf '%s\n' "$line" | sed '/^$/d' | wc -l)"
+    if [[ "$matches" == 0 ]]; then
+      line="$(pg_lsclusters -h | awk -v v="$PG_MAJOR" '$1 == v {print}')"
+      matches="$(printf '%s\n' "$line" | sed '/^$/d' | wc -l)"
+    fi
+    [[ "$matches" == 1 ]] || die "PostgreSQL $PG_MAJOR has no unambiguous cluster. Inspect pg_lsclusters; refusing to guess."
+    PG_MAJOR="$(awk '{print $1}' <<<"$line")"
+    cluster_name="$(awk '{print $2}' <<<"$line")"
+    DB_PORT="$(awk '{print $3}' <<<"$line")"
+    cluster_status="$(awk '{print $4}' <<<"$line")"
   fi
-  systemctl enable --now postgresql >/dev/null 2>&1 || true
-
-  # The cluster port is not always 5432 (another cluster may have been there first).
-  local line
-  line="$(pg_lsclusters -h | awk -v v="$PG_MAJOR" '$1==v {print; exit}')"
-  [[ -n "$line" ]] || die "PostgreSQL $PG_MAJOR was installed but has no cluster. Check: pg_lsclusters"
-  DB_PORT="$(awk '{print $3}' <<<"$line")"
-  if [[ "$(awk '{print $4}' <<<"$line")" != online ]]; then
-    pg_ctlcluster "$PG_MAJOR" "$(awk '{print $2}' <<<"$line")" start || true
+  if [[ "$cluster_status" != online ]]; then
+    pg_ctlcluster "$PG_MAJOR" "$cluster_name" start || die "Could not start PostgreSQL $PG_MAJOR/$cluster_name; refusing to select another cluster."
   fi
-
   for _ in $(seq 1 30); do pg_isready -q -h /var/run/postgresql -p "$DB_PORT" && break; sleep 1; done
-  pg_isready -q -h /var/run/postgresql -p "$DB_PORT" || die "PostgreSQL doesn't answer on port $DB_PORT."
-  ok "PostgreSQL $PG_MAJOR is running on port $DB_PORT"
+  pg_isready -q -h /var/run/postgresql -p "$DB_PORT" || die "PostgreSQL $PG_MAJOR/$cluster_name doesn't answer on port $DB_PORT."
+  ok "PostgreSQL $PG_MAJOR/$cluster_name is running on port $DB_PORT"
+}
+
+stop_existing_service() {
+  (( EXISTING_INSTALL == 1 )) || return 0
+  if systemctl is-active --quiet "$SERVICE"; then
+    step "Stopping Sherlock before the pre-upgrade backup"
+    systemctl stop "$SERVICE"
+    SERVICE_STOPPED=1
+    ok "Sherlock stopped; no application writes can race with the backup"
+  fi
+}
+
+run_pre_upgrade_backup() {
+  (( EXISTING_INSTALL == 1 )) || return 0
+  step "Creating a verified pre-upgrade backup"
+  local helper="$SRC_DIR/../scripts/backup.sh"
+  if [[ ! -f "$helper" ]]; then
+    [[ "$SERVICE_STOPPED" -eq 0 ]] || { systemctl start "$SERVICE"; SERVICE_STOPPED=0; }
+    die "Backup helper missing; refusing to update without a backup."
+  fi
+  if ! SHERLOCK_INSTALL_DIR="$INSTALL_DIR" SHERLOCK_CONF_DIR="$CONF_DIR" SHERLOCK_APP_USER="$APP_USER" \
+    bash "$helper" "${SHERLOCK_BACKUP_DIR:-/var/backups/sherlock}"; then
+    # No app files or migrations have changed yet, so safely restore service availability.
+    if [[ "$SERVICE_STOPPED" -eq 1 ]]; then systemctl start "$SERVICE"; SERVICE_STOPPED=0; fi
+    die "Pre-upgrade backup failed; application files and migrations have not been changed. Sherlock was restarted."
+  fi
 }
 
 # Run psql as the postgres superuser on the local cluster (peer authentication over the socket).
@@ -537,13 +587,14 @@ write_env_file() {
     echo "DB_NAME=$DB_NAME"
     echo "DB_USER=$DB_USER"
     echo "DB_PASSWORD=$DB_PASSWORD"
+    echo "APP_VERSION=$APP_VERSION"
     echo "SINGLE_USER_MODE=false"
     echo "FIRST_RUN_TOKEN=$FIRST_RUN_TOKEN"
     echo "SOLID_QUEUE_IN_PUMA=true"
     echo "METRICS_BIND=$metrics_bind"
     echo "# --- your own settings (RAILS_LOG_LEVEL, JOB_CONCURRENCY, METRICS_PORT, ...) ---"
     if [[ -f "$ENV_FILE" ]]; then
-      grep -vE '^(# Managed by deploy|# After editing|# --- your own|$|(RAILS_ENV|APP_HOST|FORCE_SSL|PORT|BIND_ADDRESS|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|SINGLE_USER_MODE|FIRST_RUN_TOKEN|SOLID_QUEUE_IN_PUMA|METRICS_BIND)=)' "$ENV_FILE" || true
+      grep -vE '^(# Managed by deploy|# After editing|# --- your own|$|(RAILS_ENV|APP_HOST|FORCE_SSL|PORT|BIND_ADDRESS|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|APP_VERSION|SINGLE_USER_MODE|FIRST_RUN_TOKEN|SOLID_QUEUE_IN_PUMA|METRICS_BIND)=)' "$ENV_FILE" || true
     fi
   } > "$tmp"
   install -o root -g "$APP_USER" -m 0640 "$tmp" "$ENV_FILE"
@@ -924,6 +975,13 @@ main() {
     apt_install postgresql-client libpq-dev
   else
     install_local_postgres
+  fi
+  if (( EXISTING_INSTALL == 1 )); then
+    check_db_connection
+    stop_existing_service
+    run_pre_upgrade_backup
+  fi
+  if [[ $EXTERNAL_DB -eq 0 ]]; then
     provision_local_database
   fi
   prepare_first_run_token
@@ -937,6 +995,7 @@ main() {
   install_service
   setup_nginx
   start_service
+  SERVICE_STOPPED=0
   summary
 }
 
