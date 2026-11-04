@@ -636,6 +636,10 @@ sync_source() {
       --exclude '/public/assets' --exclude '/app/assets/builds' \
       "$SRC_DIR/" "$INSTALL_DIR/"
   fi
+  [[ -d "$INSTALL_DIR/bin" ]] || die "Application bin directory is missing: $INSTALL_DIR/bin"
+  # The imported upstream source may have Rails binstubs stored without executable mode.
+  # Restore it before assets:precompile, credentials, migrations and systemd invoke bin/rails.
+  find "$INSTALL_DIR/bin" -maxdepth 1 -type f -exec chmod 0755 {} +
   install -d "$INSTALL_DIR/tmp/pids" "$INSTALL_DIR/tmp/cache" "$INSTALL_DIR/log" "$INSTALL_DIR/app/assets/builds"
   # Production credentials live outside the application tree.
   ln -sfn "$CRED_DIR" "$INSTALL_DIR/config/credentials"
