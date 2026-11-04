@@ -59,6 +59,7 @@ class UserTest < ActiveSupport::TestCase
 
     imported = bob.connections.sole.snapshots.chronological.last(2)
     assert_equal [ 10737418240, 16106127360 ], imported.map(&:uploaded)
+    assert_equal %w[json_import json_import], imported.map(&:source)
     assert_equal [ nil, 12 ], imported.map(&:seeding), "not reported stays nil"
     assert_equal bob_before + 2, bob.connections.sole.snapshots.count
     cross_seed = bob.connections.sole.cross_seed_snapshots.sole
