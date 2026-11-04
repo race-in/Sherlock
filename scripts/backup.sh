@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 [[ $EUID -eq 0 ]] || { echo 'Run as root.' >&2; exit 1; }
-STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+STAMP="$(date -u +%Y%m%dT%H%M%S.%NZ)-$"
 DEST=${1:-/var/backups/sherlock}
 install -d -m 0700 "$DEST"
 TMP_DIR=$(mktemp -d "$DEST/.sherlock-backup.XXXXXX")
