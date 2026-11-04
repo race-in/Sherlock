@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/race-in/Sherlock/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/race-in/Sherlock/actions/workflows/ci.yml)
 
-Native (non-Docker) deployment scaffold for Debian 11, 12, and 13. This repository currently contains deployment tooling only; it does **not** contain the planned Sherlock Custom Edition features.
+Native (non-Docker) Sherlock deployment repository for Debian 11, 12, and 13. The Rails application source snapshot is bundled in `sherlock-v2/`; its canonical installer is `sherlock-v2/deploy/install.sh`. The Custom Edition roadmap is still in progress: the bundled upstream app retains its existing multi-user/invite behavior, and manual statistics entry and CSV import are not implemented yet.
 
 ## Supported platform matrix
 
@@ -41,32 +41,23 @@ Ruby's bundled OpenSSL extension supports OpenSSL 1.1.1 and newer. The installer
 - At least 4 GB RAM and 30 GB free disk recommended; Ruby and native gems are compiled locally
 - DNS A/AAAA record such as `stats.example.com` pointing to the VPS
 - TCP ports 80 and 443 reachable from the Internet
-- A Git repository containing the Sherlock application source and these exact version files:
-  - `.ruby-version`: `4.0.9`
-  - `.node-version`: `26.12.0`
-  - `Gemfile.lock`, `package-lock.json`, and Rails application files
+- The bundled Rails source in `sherlock-v2/`, including `Gemfile.lock`, `package-lock.json`, and the pinned Ruby/Node version files.
 
 ## Install
 
-Clone this deployment repository on the VPS. The GitHub repository contains the native installer; the Rails application source remains upstream on Codeberg:
+Use the installer that lives beside the bundled Rails application. Do **not** use the legacy root-level `install.sh` for this bundled-source deployment; that older scaffold expects a separate application Git repository.
 
 ```bash
-git clone https://github.com/race-in/Sherlock.git sherlock-deploy
-cd sherlock-deploy
-sudo ./install.sh stats.example.com https://codeberg.org/whatstatus/sherlock-v2.git main
+git clone --branch sherlock-v2-native-integration https://github.com/race-in/Sherlock.git
+cd Sherlock/sherlock-v2
+sudo ./deploy/install.sh --domain stats.example.com --letsencrypt you@example.com
 ```
 
-Replace `stats.example.com` with your real subdomain. Before running the installer, point its DNS A/AAAA record to the VPS and allow inbound TCP 80/443. The installer prompts for the Let's Encrypt email address.
+Replace the example subdomain and email with your own. Point its DNS A/AAAA record to the VPS and allow inbound TCP 80/443 before starting. The installer builds Ruby, downloads a checksum-verified Node.js build runtime, installs PostgreSQL, creates encrypted Rails credentials, configures systemd and Nginx, and requests the HTTPS certificate.
 
-The app source is cloned into `/opt/sherlock` on the VPS and receives three deployment-only patches there: Puma loopback binding, a separate database pool setting, and worker metrics loopback binding. Those patches are local to the VPS; they do not change the upstream Codeberg repository. Do not publish or redistribute patched upstream application source until its licence or maintainer permission has been confirmed.
+The application is installed at `/opt/sherlock`; configuration and encrypted credentials live under `/etc/sherlock`. The worker metrics listener is restricted to loopback. On Debian 11, the installer uses Node.js 24.22.2 because the Debian 11 kernel/glibc baseline is too old for Node.js 26; Debian 12/13 use Node.js 26.12.0. Debian 11 is EOL and requires explicit confirmation.
 
-On Debian 11, accept the EOL warning by typing `YES`, or use:
-
-```bash
-sudo env ALLOW_EOL_DEBIAN11=1 ./install.sh stats.example.com https://codeberg.org/whatstatus/sherlock-v2.git main
-```
-
-The installer:
+The canonical installer:
 
 1. Detects Debian release and CPU architecture.
 2. Installs build dependencies, Nginx, Certbot, and PostgreSQL prerequisites.
@@ -81,7 +72,7 @@ It refuses to overwrite an existing `/opt/sherlock` directory or an existing dat
 
 ## Deployment helper scripts
 
-- `scripts/patch-native-app.sh`: applies the local-only Puma loopback bind and database-pool patches; fails closed if the expected upstream source lines change.
+- `scripts/patch-native-app.sh`: legacy root-scaffold patch helper. The canonical bundled-source installer configures its own Puma and metrics bind settings through its environment file.
 - `scripts/check-nginx-host-conflict.sh`: refuses an existing exact `server_name` collision before adding the Sherlock virtual host; existing/default Nginx sites are left intact.
 - `scripts/prepare-bullseye-archive.sh`: backs up and adapts official Debian 11 APT source entries after EOL consent.
 - `scripts/compatibility-check.sh`: reports supported Debian releases, CPU architecture, and glibc compatibility.
@@ -160,7 +151,7 @@ See [ROADMAP.md](ROADMAP.md) for the agreed Custom Edition implementation plan a
 This repository is a **native deployment scaffold**, not yet the complete Sherlock Custom Edition. It does not implement single-user-only enforcement, manual statistics entry, CSV/JSON import/export workflows, or additional tracker adapters. The upstream app may still retain its existing multi-user/invite behavior.
 
 The supplied upstream archive did not contain a standalone LICENSE file. Before redistributing or publishing modified upstream source, obtain and verify the maintainer's permission/license. This repository therefore keeps deployment tooling separate from upstream application source.
-- This GitHub repository contains deployment tooling only, not the Rails application source. Do not pass `https://github.com/race-in/Sherlock.git` as the application-source URL to `install.sh`; provide a separate authorized repository containing the complete Rails source tree.
+- The Rails source snapshot is included under `sherlock-v2/`. The root-level `install.sh` is retained for the older separate-source workflow and is not the canonical installer for this bundled application.
 
 ## Validation status
 
