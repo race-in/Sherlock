@@ -79,7 +79,23 @@ if [[ ! -x "$PREFIX/bin/ruby" ]] || [[ "$("$PREFIX/bin/ruby" -e 'print RUBY_VERS
  rm -rf "$WORK/build/ruby-4.0.9"; tar -xf "$WORK/src/ruby-4.0.9.tar.xz" -C "$WORK/build"
  (cd "$WORK/build/ruby-4.0.9" && PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig" CPPFLAGS="-I$PREFIX/include" LDFLAGS="-L$PREFIX/lib -Wl,-rpath,$PREFIX/lib" ./configure --prefix="$PREFIX" --disable-install-doc --with-openssl-dir="$PREFIX" --with-zlib-dir="$PREFIX" --with-libyaml-dir="$PREFIX" --disable-yjit && make -j"$JOBS" && make install) >"$LOG_DIR/ruby-build.log" 2>&1 || { tail -n 80 "$LOG_DIR/ruby-build.log" >&2; die "Ruby build failed; see $LOG_DIR/ruby-build.log"; }
 fi
-export PATH="$PREFIX/bin:$PATH" LD_LIBRARY_PATH="$PREFIX/lib"
+step "Install temporary Node.js 22 build runtime for glibc 2.17+"
+NODE_VERSION=22.21.1
+NODE_ARCHIVE="node-v$NODE_VERSION-linux-x64-glibc-217.tar.xz"
+NODE_URL="https://unofficial-builds.nodejs.org/download/release/v$NODE_VERSION"
+mkdir -p "$PREFIX/node"
+if [[ ! -x "$PREFIX/node/node-v$NODE_VERSION-linux-x64-glibc-217/bin/node" ]]; then
+ curl --fail --location --retry 3 "$NODE_URL/SHASUMS256.txt" -o "$WORK/src/node-SHASUMS256.txt"
+ grep " $NODE_ARCHIVE$" "$WORK/src/node-SHASUMS256.txt" >/dev/null || die "Node.js archive is not listed in its checksum manifest."
+ curl --fail --location --retry 3 "$NODE_URL/$NODE_ARCHIVE" -o "$WORK/src/$NODE_ARCHIVE"
+ (cd "$WORK/src" && grep " $NODE_ARCHIVE$" node-SHASUMS256.txt | sha256sum -c -)
+ rm -rf "$PREFIX/node/node-v$NODE_VERSION-linux-x64-glibc-217"
+ tar -xJf "$WORK/src/$NODE_ARCHIVE" -C "$PREFIX/node"
+fi
+NODE_BIN="$PREFIX/node/node-v$NODE_VERSION-linux-x64-glibc-217/bin"
+"$NODE_BIN/node" --version | grep -Fx "v$NODE_VERSION" >/dev/null || die "Node.js version check failed."
+
+export PATH="$PREFIX/bin:$NODE_BIN:$PATH" LD_LIBRARY_PATH="$PREFIX/lib"
 ruby -ropenssl -rzlib -ryaml -e 'abort "wrong Ruby" unless RUBY_VERSION=="4.0.9"; abort "wrong OpenSSL" unless OpenSSL::OPENSSL_VERSION.include?("3.5.9"); puts "Ruby #{RUBY_VERSION} / #{OpenSSL::OPENSSL_VERSION} / zlib #{Zlib::ZLIB_VERSION} / Psych #{Psych::VERSION}"'
 gem install bundler -v 4.0.20 --no-document
 bundle _4.0.20_ --version
