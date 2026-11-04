@@ -46,6 +46,7 @@ class UserTest < ActiveSupport::TestCase
     assert_not_includes json, "alice-secret-key"
     assert_not_includes json, users(:alice).password_digest
     assert_not_includes json, "created_by_user_id"
+    assert_not_includes json, "import_batch_id"
   end
 
   test "import adds history from an export to trackers already added, once" do
