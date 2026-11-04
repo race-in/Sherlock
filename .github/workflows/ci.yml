@@ -59,6 +59,11 @@ jobs:
           )
           shellcheck --shell=bash --severity=error "${shell_files[@]}"
 
+      - name: Run deployment regression tests
+        run: |
+          bash scripts/test-native-patches.sh
+          bash scripts/test-bullseye-archive.sh
+
       - name: Validate workflow YAML
         run: yamllint --strict -d relaxed .github/workflows/ci.yml
 
