@@ -6,8 +6,8 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 - Deployment: native Rails + PostgreSQL + Nginx + systemd; no Docker requirement.
 - Supported host targets: Debian 11/12/13 (Debian 12/13 recommended; Debian 11 is EOL compatibility only).
-- Access: one private instance at a user-owned HTTPS subdomain.
-- User model: single-user only; no public registration or invite flow.
+- Access: one self-hosted instance at a user-owned HTTPS subdomain, supporting multiple invited users.
+- User model: preserve upstream multi-user invite flow and administrator user management.
 - Statistics sources: automatic tracker API, manual entry, CSV import, and JSON import.
 - History: immutable, timestamped snapshots; corrections create new records rather than overwriting history.
 - UI: preserve the upstream Sherlock visual design and navigation where possible.
@@ -23,13 +23,12 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 **Gate:** retain evidence of the maintainer permission already obtained for this project and preserve all upstream attribution. The audited upstream tree has no standalone LICENSE file; do not imply an OSI/open-source licence that is not present.
 
-## Phase 1 — Single-user mode
+## Phase 1 — Multi-user account compatibility
 
 - [x] Upstream first-run setup creates the initial administrator account.
-- [ ] Make the installation permanently single-user: disable invite joins and every user-creation path after first-run.
-- [ ] Enforce the one-account invariant in both Rails model/controller paths and PostgreSQL, including concurrent requests.
-- [ ] Preserve existing connection ownership and historical data migrations.
-- [ ] Add regression tests proving a second account cannot be created.
+- [x] Preserve upstream invite-based registration and administrator user management in the native installation.
+- [x] Keep first-run setup protected by a private token without disabling subsequent user registration.
+- [ ] Add regression tests for invitation creation, joining, permissions, and multi-user tracker isolation.
 
 ## Phase 2 — Unified statistics model
 
@@ -88,7 +87,7 @@ This roadmap records the agreed target configuration. Items below are planned un
 ## Current status
 
 - [x] Native deployment scaffold, shell regression tests, source audit, and Debian release compatibility jobs.
-- [x] Single-user + hybrid manual/automatic + CSV/JSON target architecture documented.
+- [x] Multi-user + hybrid manual/automatic + CSV/JSON target architecture documented.
 - [ ] Full Sherlock Custom Edition application features.
 - [ ] Full fresh-install verification on real Debian VPS hosts.
 
