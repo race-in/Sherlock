@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    name: Debian installer checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax and ShellCheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
+          bash -n deploy/install-debian.sh
+          shellcheck --shell=bash --severity=warning deploy/install-debian.sh
+      - name: --help works
+        run: bash deploy/install-debian.sh --help
+
+  debian-packages:
+    name: Debian ${{ matrix.version }} packages and PostgreSQL schema
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["12", "13"]
+    container: debian:${{ matrix.version }}
+    steps:
+      - name: Install git and checkout tools
+        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates git
+      - uses: actions/checkout@v4
+      - name: The installer's apt packages exist on this release
+        run: |
+          apt-get install --simulate --no-install-recommends \
+            ca-certificates curl gnupg git openssl rsync xz-utils tar patch file sudo tzdata \
+            build-essential autoconf bison pkg-config \
+            libssl-dev zlib1g-dev libyaml-dev libffi-dev libreadline-dev libncurses-dev libgmp-dev libgdbm-dev libdb-dev uuid-dev \
+            libpq-dev libjemalloc2 libatomic1 postgresql-common nginx certbot python3-certbot-nginx
+      - name: db/structure.sql loads on Debian's own PostgreSQL (without the PostgreSQL 17+ line on old servers)
+        run: |
+          apt-get install -y --no-install-recommends postgresql postgresql-client sudo
+          pg_ctlcluster "$(pg_lsclusters -h | awk '{print $1; exit}')" main start || true
+          sleep 3
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE s LOGIN PASSWORD 'x'" -c "CREATE DATABASE s OWNER s"
+          major="$(pg_lsclusters -h | awk '{print $1; exit}')"
+          if [ "$major" -lt 17 ]; then sed '/^SET transaction_timeout = 0;$/d' db/structure.sql > /tmp/structure.sql; else cp db/structure.sql /tmp/structure.sql; fi
+          PGPASSWORD=x psql -h 127.0.0.1 -U s -d s -v ON_ERROR_STOP=1 -q -f /tmp/structure.sql
+          PGPASSWORD=x psql -h 127.0.0.1 -U s -d s -Atc "SELECT count(*) FROM sherlockdb.schema_migrations"
+
+  rails:
+    name: Rails tests
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: sherlockdb_develop_write
+          POSTGRES_PASSWORD: sherlockdb_develop_write
+          POSTGRES_DB: sherlockdb_develop
+        ports: ["5448:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sherlockdb_develop_write"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      RAILS_ENV: test
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: bin/rails tailwindcss:build
+      - run: bin/rails db:test:prepare
+      - run: bin/rails test
