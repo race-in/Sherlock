@@ -129,10 +129,11 @@ Do not expose port 3000 publicly. Nginx is the public entry point and proxies to
 
 **Warning:** restoring replaces the current database. Use a verified database dump and its matching secrets archive from the same backup timestamp. The secrets archive contains the Rails master key, encrypted Rails credentials, and database password; store it as a highly sensitive file.
 
-First verify the archive contents, then restore as root:
+First verify the secrets archive and PostgreSQL dump, then restore as root:
 
 ```bash
 sudo bash scripts/restore.sh --verify /var/backups/sherlock/sherlock-secrets-TIMESTAMP.tar.gz
+sudo bash scripts/restore.sh --verify-dump /var/backups/sherlock/sherlockdb_prod-TIMESTAMP.dump
 sudo bash scripts/restore.sh \
   /var/backups/sherlock/sherlockdb_prod-TIMESTAMP.dump \
   /var/backups/sherlock/sherlock-secrets-TIMESTAMP.tar.gz
