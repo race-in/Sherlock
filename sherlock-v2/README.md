@@ -1,13 +1,5 @@
 # Sherlock
 
-> **Sherlock Custom Edition — native deployment note:** the supported Custom Edition install path is
-> `sherlock-v2/deploy/install.sh` from the repository root (or `deploy/install.sh` from this folder).
-> That native installer enables private single-user mode, requires the installer-generated first-run
-> token, disables invite/join/user-management routes, and enforces one account in both Rails and
-> PostgreSQL. The upstream Docker instructions below describe upstream multi-user behavior; they do
-> **not** enable the Custom Edition single-user protections and are not the supported Custom Edition
-> deployment path.
-
 Sherlock tracks your stats on private trackers over time: upload, download, ratio, bonus points and
 more. Every hour it asks each tracker's API for your stats and draws the history. It uses your own API
 key where the tracker allows that. Where it doesn't, the admin's key reads your profile on the tracker
