@@ -36,7 +36,15 @@ rewrite_list_file() {
         print "# Disabled after Debian 11 LTS EOL: " $0
         next
       }
-      print rewrite_uri($0)
+      line = rewrite_uri($0)
+      if (line ~ /archive\.debian\.org/ && line !~ /check-valid-until=/) {
+        if (line ~ /^deb(-src)?[[:space:]]+\[[^]]*\]/) {
+          sub(/\]/, " check-valid-until=no]", line)
+        } else {
+          sub(/^(deb-src|deb)[[:space:]]+/, "&[check-valid-until=no] ", line)
+        }
+      }
+      print line
     }
   ' "$source_file" > "$temp_file"
 
@@ -67,14 +75,9 @@ rewrite_deb822_file() {
     }
     {
       count = split($0, lines, "\n")
-      uris = ""
-      for (i = 1; i <= count; i++) {
-        if (lines[i] ~ /^URIs:[[:space:]]*/) {
-          uris = lines[i]
-          sub(/^URIs:[[:space:]]*/, "", uris)
-        }
-      }
       drop_stanza = 0
+      has_archive = 0
+      has_validity_option = 0
       for (i = 1; i <= count; i++) {
         if (lines[i] ~ /^Suites:[[:space:]]*/) {
           value = lines[i]
@@ -82,8 +85,7 @@ rewrite_deb822_file() {
           suite_count = split(value, suites, /[[:space:]]+/)
           kept = ""
           for (j = 1; j <= suite_count; j++) {
-            if (suites[j] == "" ||
-                suites[j] == "bullseye-backports" || suites[j] == "bullseye-backports-sloppy") {
+            if (suites[j] == "" || suites[j] == "bullseye-backports" || suites[j] == "bullseye-backports-sloppy") {
               continue
             }
             kept = kept (kept == "" ? "" : " ") suites[j]
@@ -98,9 +100,14 @@ rewrite_deb822_file() {
       if (drop_stanza) next
       output = ""
       for (i = 1; i <= count; i++) {
-        if (lines[i] ~ /^URIs:[[:space:]]*/) lines[i] = rewrite_uri(lines[i])
+        if (lines[i] ~ /^URIs:[[:space:]]*/) {
+          lines[i] = rewrite_uri(lines[i])
+          if (lines[i] ~ /archive\.debian\.org/) has_archive = 1
+        }
+        if (lines[i] ~ /^Check-Valid-Until:[[:space:]]*/) has_validity_option = 1
         output = output (i == 1 ? "" : "\n") lines[i]
       }
+      if (has_archive && !has_validity_option) output = output "\nCheck-Valid-Until: no"
       printf "%s\n\n", output
     }
   ' "$source_file" > "$temp_file"
@@ -126,17 +133,27 @@ if [[ -d "$APT_DIR/sources.list.d" ]]; then
   done < <(find "$APT_DIR/sources.list.d" -maxdepth 1 -type f -name '*.sources' -print0 | sort -z)
 fi
 
+# Older kit versions wrote a global validity override. Remove only our one-line setting
+# and preserve any other administrator-supplied APT options in that file.
 APT_CONF="$APT_DIR/apt.conf.d/99sherlock-bullseye-archive"
-install -d -m 0755 "$(dirname "$APT_CONF")"
-if [[ ! -f "$APT_CONF" ]] || ! grep -Fxq 'Acquire::Check-Valid-Until "false";' "$APT_CONF"; then
-  if [[ -f "$APT_CONF" ]]; then
+if [[ -f "$APT_CONF" ]]; then
+  TEMP_CONF=$(mktemp)
+  awk '$0 != "Acquire::Check-Valid-Until \"false\";" { print }' "$APT_CONF" > "$TEMP_CONF"
+  if cmp -s "$APT_CONF" "$TEMP_CONF"; then
+    rm -f "$TEMP_CONF"
+  else
     cp -a "$APT_CONF" "$BACKUP_DIR/$(basename "$APT_CONF").bak"
+    if [[ -s "$TEMP_CONF" ]]; then
+      cat "$TEMP_CONF" > "$APT_CONF"
+    else
+      rm -f "$APT_CONF"
+    fi
+    rm -f "$TEMP_CONF"
+    echo "Removed the legacy global APT validity override."
   fi
-  printf '%s\n' 'Acquire::Check-Valid-Until "false";' > "$APT_CONF"
-  chmod 0644 "$APT_CONF"
-  echo "Updated: $APT_CONF"
 fi
 
 echo "Bullseye APT sources now use archive.debian.org."
-echo "Bullseye security packages are retained only from the frozen archive to keep dependencies consistent; no further Debian LTS security updates exist. Expired backports suites are disabled."
+echo "Check-Valid-Until is disabled only on archived Debian source entries; third-party repositories keep normal Release-date validation."
+echo "Bullseye security packages are retained only from the frozen archive; no further Debian LTS security updates exist. Expired backports suites are disabled."
 echo "Original source backups: $BACKUP_DIR"
