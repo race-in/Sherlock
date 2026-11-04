@@ -214,7 +214,7 @@ class User < ApplicationRecord
     end.flatten.join("\n") + "\n"
   end
 
-  IMPORT_COLUMNS = Snapshot.column_names - %w[id connection_id updated_at created_by_user_id]
+  IMPORT_COLUMNS = Snapshot.column_names - %w[id connection_id updated_at created_by_user_id import_batch_id]
   CROSS_SEED_IMPORT_COLUMNS = CrossSeedSnapshot.column_names - %w[id connection_id updated_at]
 
   # Adds the history from an #export file, from this Sherlock or a self-hosted one, to the trackers
@@ -227,12 +227,13 @@ class User < ApplicationRecord
     added = 0
     missing = []
 
+    import_batch_id = SecureRandom.uuid
     transaction do
       JSON.parse(json).fetch("trackers").each do |tracker|
         connection = by_site[tracker.fetch("site")]
         next missing << tracker.fetch("site") unless connection
 
-        added += import_rows(connection.snapshots, tracker.fetch("snapshots"), IMPORT_COLUMNS)
+        added += import_rows(connection.snapshots, tracker.fetch("snapshots"), IMPORT_COLUMNS, provenance: true, import_batch_id:)
         import_rows(connection.cross_seed_snapshots, tracker.fetch("cross_seeds", []), CROSS_SEED_IMPORT_COLUMNS)
       end
     end
@@ -242,15 +243,18 @@ class User < ApplicationRecord
   end
 
   private
-    def import_rows(relation, snapshots, columns)
+    def import_rows(relation, snapshots, columns, provenance: false, import_batch_id: nil)
       known = relation.pluck(:created_at).to_set(&:to_i)
       rows = snapshots.filter_map do |snapshot|
         row = snapshot.slice(*columns)
         row["created_at"] = Time.iso8601(row.fetch("created_at")).change(usec: 0)
         raise ArgumentError if row["created_at"].future?
         # Numbers only. A plain cast would turn junk into 0, and 0 isn't the same as not reported.
-        row["source"] = "json_import"
-        row.except("created_at", "user_class", "source", "note").each_value { Float(_1) unless _1.nil? }
+        if provenance
+          row["source"] = "json_import"
+          row["import_batch_id"] = import_batch_id
+        end
+        row.except("created_at", "user_class", "source", "note", "import_batch_id").each_value { Float(_1) unless _1.nil? }
         row.merge("updated_at" => row["created_at"]) if known.add?(row["created_at"].to_i)
       end
       relation.insert_all!(rows) if rows.any?
