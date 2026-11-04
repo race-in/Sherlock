@@ -140,6 +140,7 @@ jobs:
         working-directory: sherlock-v2
         env:
           CI: "true"
+          APP_VERSION: v0.0.0-ci
           TEST_DB_HOST: 127.0.0.1
           TEST_DB_PORT: "5448"
           TEST_DB_USER: sherlockdb_develop_write
