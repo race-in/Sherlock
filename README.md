@@ -4,7 +4,7 @@
 
 A native, self-hosted Sherlock deployment for Debian 11, 12 and 13. The Rails application source is bundled in [`sherlock-v2/`](sherlock-v2/), with its own native installer. Docker is not required.
 
-> **Project status:** this repository bundles the Sherlock v2 application baseline and the upstream multi-user account model in a native deployment. The native installer keeps invite-based registration and account management enabled, and protects initial admin setup with a random first-run token. Manual statistics entry and strict CSV statistics import have now been added on the integration branch; the new application tests and production upgrade path still need CI and VPS verification. A versioned custom JSON statistics format and additional tracker adapters remain roadmap work.
+> **Project status:** this repository bundles the Sherlock v2 application baseline and the upstream multi-user account model in a native deployment. The native installer keeps invite-based registration and account management enabled, and protects initial admin setup with a random first-run token. Manual statistics entry and strict CSV statistics import are implemented and covered by the Rails CI suite. Native updates preserve the configured PostgreSQL cluster, create a protected pre-upgrade database/credentials backup, and stop the service before replacing files or running migrations. A real Debian VPS install/upgrade/restore test remains a separate release gate. A versioned custom JSON statistics format and additional tracker adapters remain roadmap work.
 
 ## Install on a VPS
 
@@ -65,7 +65,7 @@ cd sherlock-v2
 sudo bash ./deploy/install.sh
 ```
 
-The installer preserves the existing environment file, database and encrypted credentials. Review the installer output and check `sudo sherlock-ctl status` after an update. For important data, take a PostgreSQL and credentials backup before upgrading; do not rely on an untested backup.
+For an existing install, the installer first verifies database connectivity and creates a timestamped PostgreSQL custom-format dump plus a matching archive of the environment and encrypted Rails credentials under `/var/backups/sherlock`. The dump is checked with `pg_restore --list`. It then stops the running service before replacing files and preparing migrations. If backup creation fails, the update aborts before application files are changed. If a later upgrade step fails, the service is deliberately left stopped; inspect the error and backup before retrying. Check `sudo sherlock-ctl status` and the local `/up` health endpoint after success. Keep backup files private.
 
 ## Application features
 
@@ -73,7 +73,7 @@ The bundled application provides tracker dashboards and history, tracker API con
 
 ## Custom Edition roadmap
 
-The target is a self-hosted multi-user instance with automatic and manual statistics, timestamped history, CSV/JSON import/export, and additional permitted tracker integrations. Manual statistics entry and CSV statistics import are implemented on the integration branch but remain subject to the new CI suite and a real VPS upgrade test. A separate versioned JSON statistics interchange format and additional tracker adapters remain planned.
+The target is a self-hosted multi-user instance with automatic and manual statistics, timestamped history, CSV/JSON import/export, and additional permitted tracker integrations. Manual statistics entry and CSV statistics import are implemented on main and pass the application CI suite. Native install/upgrade and restore still require controlled real-VPS validation before production release. A separate versioned JSON statistics interchange format and additional tracker adapters remain planned.
 
 See [ROADMAP.md](ROADMAP.md) for phases, acceptance criteria and release gates. The root legacy installer is a separate deployment scaffold; use only `sherlock-v2/deploy/install.sh` for the bundled native app.
 
