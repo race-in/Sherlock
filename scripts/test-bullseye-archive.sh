@@ -53,6 +53,11 @@ grep -Fq 'check-valid-until=no' "$TMP/etc/apt/sources.list"
 grep -Fq 'Check-Valid-Until: no' "$TMP/etc/apt/sources.list.d/debian.sources"
 grep -Fq 'URIs: http://archive.debian.org/debian-security' "$TMP/etc/apt/sources.list.d/debian.sources"
 grep -Fq 'Suites: bullseye-security' "$TMP/etc/apt/sources.list.d/debian.sources"
+# A single deb822 stanza containing base, updates, and security suites must
+# be split and routed through each suite's correct archive URI.
+grep -A1 -F 'URIs: http://archive.debian.org/debian' "$TMP/etc/apt/sources.list.d/debian.sources" | grep -Fxq 'Suites: bullseye'
+grep -A1 -F 'URIs: http://archive.debian.org/debian' "$TMP/etc/apt/sources.list.d/debian.sources" | grep -Fxq 'Suites: bullseye-updates'
+grep -A1 -F 'URIs: http://archive.debian.org/debian-security' "$TMP/etc/apt/sources.list.d/debian.sources" | grep -Fxq 'Suites: bullseye-security'
 ! grep -q 'bullseye-backports' "$TMP/etc/apt/sources.list.d/debian.sources"
 grep -Fq 'URIs: https://download.docker.com/linux/debian' "$TMP/etc/apt/sources.list.d/debian.sources"
 ! grep -A1 'URIs: https://download.docker.com/linux/debian' "$TMP/etc/apt/sources.list.d/debian.sources" | grep -q 'Check-Valid-Until'
