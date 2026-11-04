@@ -154,13 +154,18 @@ read -r -p "This replaces database $DB_NAME. Type RESTORE to continue: " CONFIRM
 [[ "$CONFIRM" == RESTORE ]] || die "Restore cancelled."
 
 systemctl stop sherlock
-install -d -o "$APP_USER" -g "$APP_GROUP" -m 0700 "$APP_DIR/config/credentials"
+CREDENTIALS_DIR="$APP_DIR/config/credentials"
+if [[ -L "$CREDENTIALS_DIR" ]]; then
+  CREDENTIALS_DIR=$(readlink -f -- "$CREDENTIALS_DIR") || die "Cannot resolve the application's credentials symlink."
+  [[ "$CREDENTIALS_DIR" == "$ETC_DIR/credentials" ]] || die "Unexpected credentials symlink target: $CREDENTIALS_DIR"
+fi
+install -d -o "$APP_USER" -g "$APP_GROUP" -m 0700 "$CREDENTIALS_DIR"
 install -o "$APP_USER" -g "$APP_GROUP" -m 0600 \
   "$RESTORE_TMP/config/credentials/production.key" \
-  "$ETC_DIR/credentials/production.key"
+  "$CREDENTIALS_DIR/production.key"
 install -o "$APP_USER" -g "$APP_GROUP" -m 0600 \
   "$RESTORE_TMP/config/credentials/production.yml.enc" \
-  "$ETC_DIR/credentials/production.yml.enc"
+  "$CREDENTIALS_DIR/production.yml.enc"
 install -o root -g "$APP_GROUP" -m 0640 \
   "$RESTORE_TMP/sherlock.env" "$ETC_DIR/sherlock.env"
 
