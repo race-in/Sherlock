@@ -32,13 +32,15 @@
                 opt_in: "Most trackers don't let members give their key to someone else's server, so your key reads their #{@site.name} profile instead, as other members see it. It only does so once they put their Sherlock link on the profile: that's their opt-in, and removing it stops the tracking. You need no link, since your key reads your own account." }.fetch(@site.audience) %>
           <% unless @site.off? %><%= pluralize @member_count, "other member" %> on <%= @site.name %>.<% end %>
         </p>
-        <% if @site.audience == :only_me %>
+        <% if @site.audience == :only_me && !Rails.application.config.x.single_user_mode %>
           <p class="label mt-4">People you picked</p>
           <% if @granted_users.any? %>
             <p class="mt-1 text-sm"><%= safe_join(@granted_users.map { link_to _1.username, admin_user_path(_1), class: "link" }, ", ") %></p>
           <% else %>
             <p class="hint mt-1">Nobody yet. Pick people on their page in the <%= link_to "Invite tree", admin_users_path, class: "link" %>.</p>
           <% end %>
+        <% elsif @site.audience == :only_me %>
+          <p class="hint mt-4">This tracker is available only to your account on this single-user Sherlock.</p>
         <% end %>
       </div>
       <%= link_to new_admin_site_setup_path(@site), class: @site.off? ? "btn-primary" : "btn-secondary" do %><%= @site.off? ? "Add" : "Change" %> <i class="bi bi-arrow-right"></i><% end %>
