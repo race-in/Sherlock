@@ -81,9 +81,9 @@ LIBCLANG_PATH="$(ruby -rlibclang -e 'puts File.dirname(Libclang.path)' 2>/dev/nu
 export LIBCLANG_PATH
 
 # Debian 9's GCC internal headers are outside Clang's default search path.
-# rb-sys 0.9.x builds Ruby bindings with an explicit Builder::clang_args list;
-# inject the GCC include path through rb-sys' RBCONFIG_CPPFLAGS override so it
-# is part of that list (rather than relying on Cargo's target-specific env).
+# rb-sys supplies Ruby's CPPFLAGS explicitly, but bindgen's documented
+# BINDGEN_EXTRA_CLANG_ARGS environment variable is the supported way to add
+# end-user Clang include paths to that explicit argument list.
 GCC_INCLUDE="$(gcc -print-file-name=include 2>/dev/null || true)"
 GCC_FIXED_INCLUDE="$(gcc -print-file-name=include-fixed 2>/dev/null || true)"
 [[ -n "$GCC_INCLUDE" && -r "$GCC_INCLUDE/stdarg.h" ]] ||
@@ -95,6 +95,8 @@ RUBY_DEFAULT_CPPFLAGS="$(ruby -rrbconfig -e 'print RbConfig::CONFIG.fetch("CPPFL
 RBCONFIG_CPPFLAGS="${RBCONFIG_CPPFLAGS:-$RUBY_DEFAULT_CPPFLAGS}"
 RBCONFIG_CPPFLAGS="$RBCONFIG_CPPFLAGS -isystem $GCC_INCLUDE -isystem $GCC_FIXED_INCLUDE -I$RUNTIME_PREFIX/include"
 export RBCONFIG_CPPFLAGS
+BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS:+$BINDGEN_EXTRA_CLANG_ARGS }-isystem $GCC_INCLUDE -isystem $GCC_FIXED_INCLUDE"
+export BINDGEN_EXTRA_CLANG_ARGS
 
 # Pass libpq paths explicitly to the pg gem instead of relying on pg_config's
 # autodetection (which can fail on non-standard, rootless prefixes).
@@ -155,7 +157,7 @@ export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 mkdir -p "$BUNDLE_APP_CONFIG"
 bundle config set --local path "$HOME/.local/share/sherlock-feral/bundle"
 bundle config set --local build.pg "--with-pg-config=$PG_CONFIG --with-pg-include=$PG_INCLUDE --with-pg-lib=$PG_LIB"
-# rb-sys reads RBCONFIG_CPPFLAGS above when constructing bindgen arguments.
+# bindgen reads BINDGEN_EXTRA_CLANG_ARGS to add GCC's internal headers.
 bundle install
 
 info "Preparing application directory"
