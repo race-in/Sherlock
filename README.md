@@ -126,32 +126,20 @@ Do not expose port 3000 publicly. Nginx is the public entry point and proxies to
 
 ### Restore a backup
 
-**Warning:** restoring replaces the current database. Verify both backup files and keep a copy of `/etc/sherlock/sherlock.env` before proceeding.
+**Warning:** restoring replaces the current database. Use a verified database dump and its matching secrets archive from the same backup timestamp. The secrets archive contains the Rails master key, encrypted Rails credentials, and database password; store it as a highly sensitive file.
 
-Run as root on the same installation and replace the example timestamp (including nanoseconds and PID) with the files you want to restore:
+First verify the archive contents, then restore as root:
 
 ```bash
-systemctl stop sherlock
-set -a
-. /etc/sherlock/sherlock.env
-set +a
-
-DB_DUMP=/var/backups/sherlock/sherlockdb_prod-YYYYMMDDTHHMMSS.NNNNNNNNNZ-PID.dump
-CREDENTIALS_ARCHIVE=/var/backups/sherlock/sherlock-credentials-YYYYMMDDTHHMMSS.NNNNNNNNNZ-PID.tar.gz
-
-runuser -u postgres -- dropdb --if-exists --force "$DB_NAME"
-runuser -u postgres -- createdb --owner "$DB_USER" --encoding UTF8 "$DB_NAME"
-PGPASSWORD="$DB_PASSWORD" /usr/lib/postgresql/18/bin/pg_restore \
-  --no-owner --no-acl --exit-on-error \
-  -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$DB_DUMP"
-
-tar -xzf "$CREDENTIALS_ARCHIVE" -C /opt/sherlock
-chown sherlock:sherlock /opt/sherlock/config/credentials/production.key /opt/sherlock/config/credentials/production.yml.enc
-chmod 0600 /opt/sherlock/config/credentials/production.key /opt/sherlock/config/credentials/production.yml.enc
-systemctl start sherlock
+sudo bash scripts/restore.sh --verify /var/backups/sherlock/sherlock-secrets-TIMESTAMP.tar.gz
+sudo bash scripts/restore.sh \
+  /var/backups/sherlock/sherlockdb_prod-TIMESTAMP.dump \
+  /var/backups/sherlock/sherlock-secrets-TIMESTAMP.tar.gz
 ```
 
-This assumes the PostgreSQL role, database environment file, and service account still exist, and that you are restoring a backup made by this same installation. The credentials archive contains sensitive decryption material; store it securely. For cross-host recovery, reconcile `/etc/sherlock/sherlock.env` with the restored Rails master key before starting the service.
+The restore script validates the archive member list, file types, and environment values before extraction; checks that the Rails master key matches the encrypted credentials; asks for an explicit `RESTORE` confirmation; restores `/etc/sherlock/sherlock.env` and the Rails credentials with restrictive permissions; reconciles the PostgreSQL role password; replaces the database; and waits for the Rails health endpoint. Use matching files from the same backup run.
+
+This is designed for a Sherlock installation already provisioned on the target VPS with PostgreSQL 18, the service account, and the application directory. For a new host, run the native installer first, then restore. Confirm the application version is compatible with the database dump before restoring.
 
 ## Security
 
