@@ -30,7 +30,7 @@ On Debian 11, after you explicitly accept the EOL warning, the installer backs u
 - Nginx reverse proxy and Let's Encrypt TLS
 - No Docker
 
-Node.js 26's official Linux binaries require glibc 2.28 or newer; the installer checks this before installation and installs `libatomic1`, required by current Node.js Linux binaries. This avoids compiling Node.js with a compiler newer than Debian 11/12's stock GCC.
+Node.js 26's official Linux binaries require glibc 2.28 or newer; the installer checks this before installation and installs `libatomic1`, required by current Node.js Linux binaries. The installer uses the ASCII PostgreSQL signing key directly with APT's `signed-by` support, so it does not install the unnecessary `gnupg` package. This avoids compiling Node.js with a compiler newer than Debian 11/12's stock GCC.
 
 Ruby's bundled OpenSSL extension supports OpenSSL 1.1.1 and newer. The installer checks that Ruby can load OpenSSL after compilation.
 
