@@ -62,9 +62,9 @@ WARNING
 fi
 
 [[ ! -e "$APP_DIR" ]] || die "$APP_DIR already exists; refusing to overwrite an existing installation."
-[[ -x "$SCRIPT_DIR/scripts/patch-native-app.sh" ]] || die "Missing deployment patcher: $SCRIPT_DIR/scripts/patch-native-app.sh"
+[[ -f "$SCRIPT_DIR/scripts/patch-native-app.sh" ]] || die "Missing deployment patcher: $SCRIPT_DIR/scripts/patch-native-app.sh"
 if [[ "$DEBIAN_MAJOR" == 11 ]]; then
-  [[ -x "$SCRIPT_DIR/scripts/prepare-bullseye-archive.sh" ]] || die "Missing Bullseye archive helper."
+  [[ -f bash "$SCRIPT_DIR/scripts/prepare-bullseye-archive.sh" ]] || die "Missing Bullseye archive helper."
   "$SCRIPT_DIR/scripts/prepare-bullseye-archive.sh"
 fi
 read -r -p "Let's Encrypt email: " LE_EMAIL
@@ -118,7 +118,7 @@ NODE_VERSION=$(tr -d '\r\n' < "$APP_DIR/.node-version")
 RUBY_PREFIX="$RUBY_PREFIX_BASE/$RUBY_VERSION"
 install -d -m 0755 /usr/local/libexec/sherlock
 install -o root -g root -m 0755 "$SCRIPT_DIR/scripts/patch-native-app.sh" /usr/local/libexec/sherlock/patch-native-app.sh
-runuser -u "$APP_USER" -- /usr/local/libexec/sherlock/patch-native-app.sh "$APP_DIR"
+runuser -u "$APP_USER" -- bash /usr/local/libexec/sherlock/patch-native-app.sh "$APP_DIR"
 
 log "Building Ruby ${RUBY_VERSION} against the host OpenSSL (>= 1.1.1)"
 if [[ ! -x /usr/local/bin/ruby-build ]]; then
