@@ -18,6 +18,7 @@ mkdir -p "$STATE_DIR"
   die "Environment file must have mode 0600: $ENV_FILE"
 
 load_env() {
+  export BUNDLE_APP_CONFIG="$HOME/.config/sherlock-feral/bundle"
   set -a
   # shellcheck disable=SC1090
   . "$ENV_FILE"
