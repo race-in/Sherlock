@@ -50,7 +50,7 @@ for path in list_files:
         if not stripped or stripped.startswith("#"):
             lines.append(line)
             continue
-        if "security.debian.org" in stripped or re.search(r"\bbullseye-security\b", stripped):
+        if "security.debian.org" in stripped or re.search(r"\bbullseye-(security|backports(?:-sloppy)?)\b", stripped):
             lines.append("# Disabled after Debian 11 LTS EOL: " + line)
             modified = True
             continue
