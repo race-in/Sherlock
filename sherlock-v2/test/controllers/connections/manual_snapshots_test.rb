@@ -48,7 +48,9 @@ class Connections::ManualSnapshotsControllerTest < ActionDispatch::IntegrationTe
       { uploaded: "-1", downloaded: "1" },
       { uploaded: "1", downloaded: "1", seeding: "1.5" },
       { uploaded: "1", downloaded: "1", created_at: 1.hour.from_now.strftime("%Y-%m-%dT%H:%M") },
-      { uploaded: "1", downloaded: "1", note: "x" * 501 }
+      { uploaded: "1", downloaded: "1", note: "x" * 501 },
+      { uploaded: "1", downloaded: "1", ratio: "1.12345" },
+      { uploaded: "1", downloaded: "1", bonus_points: "123456789012345" }
     ].each do |attributes|
       assert_no_difference -> { connection.snapshots.count } do
         post connection_manual_snapshot_path(connection), params: { snapshot: attributes }
