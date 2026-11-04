@@ -1,6 +1,39 @@
 <% content_for :title, @connection.site.display_name %>
 <%= render "connections/header", connection: @connection, history: @history %>
 <%= render "connections/problems", connections: [ @connection ] %>
+
+<details class="card mt-4 p-4">
+  <summary class="cursor-pointer font-medium">Add manual statistics</summary>
+  <p class="hint mt-2">Record a point in time when the tracker API isn't available. Values are stored as a new, immutable history point; uploaded and downloaded are required bytes.</p>
+  <%= form_with scope: :snapshot, url: connection_manual_snapshot_path(@connection), class: "mt-4 space-y-4" do |form| %>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div>
+        <%= form.label :uploaded, "Uploaded (bytes)", class: "label" %>
+        <%= form.number_field :uploaded, min: 0, step: 1, required: true, class: "input mt-1 w-full", placeholder: "e.g. 1073741824" %>
+      </div>
+      <div>
+        <%= form.label :downloaded, "Downloaded (bytes)", class: "label" %>
+        <%= form.number_field :downloaded, min: 0, step: 1, required: true, class: "input mt-1 w-full", placeholder: "e.g. 536870912" %>
+      </div>
+      <% { ratio: "Ratio", required_ratio: "Required ratio", bonus_points: "Bonus points", seeding: "Seeding", leeching: "Leeching", snatched: "Snatched", hit_and_runs: "Hit and runs", uploads: "Torrents uploaded", forum_posts: "Forum posts", torrent_comments: "Torrent comments" }.each do |field, label| %>
+        <div>
+          <%= form.label field, label, class: "label" %>
+          <%= form.number_field field, min: 0, step: %i[ratio required_ratio bonus_points].include?(field) ? "any" : 1, class: "input mt-1 w-full" %>
+        </div>
+      <% end %>
+      <div>
+        <%= form.label :created_at, "Observation time", class: "label" %>
+        <%= form.datetime_local_field :created_at, value: Time.current.strftime("%Y-%m-%dT%H:%M"), max: Time.current.strftime("%Y-%m-%dT%H:%M"), class: "input mt-1 w-full" %>
+      </div>
+    </div>
+    <div>
+      <%= form.label :note, "Note (optional)", class: "label" %>
+      <%= form.text_area :note, rows: 2, maxlength: 500, class: "input mt-1 w-full", placeholder: "Where this figure came from, or why it was entered" %>
+    </div>
+    <%= form.submit "Save statistics", class: "btn-primary" %>
+  <% end %>
+</details>
+
 <% snapshot = @connection.latest_snapshot %>
 <% name = @connection.site.display_name %>
 
