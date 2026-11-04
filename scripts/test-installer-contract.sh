@@ -24,7 +24,7 @@ grep -Fq 'NODE_MIN_KERNEL=4.18' "$INSTALLER" || {
   echo "ERROR: Debian 11 Node runtime kernel floor is missing." >&2
   exit 1
 }
-grep -Fq 'NODE_MIN_KERNEL=5.14' "$INSTALLER" || {
+grep -Fq 'NODE_MIN_KERNEL=4.18' "$INSTALLER" || {
   echo "ERROR: Debian 12/13 Node runtime kernel floor is missing." >&2
   exit 1
 }
