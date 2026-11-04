@@ -57,7 +57,7 @@ done
 [[ "$DB_USER" =~ ^[A-Za-z0-9_.-]+$ ]] || die "Invalid database username."
 [[ -n "$DB_PASSWORD" ]] || die "Database password cannot be empty."
 
-[[ $EUID -ne 0 ]] || die "Do not run this installer as root or with sudo."
+[[ $EUID -ne 0 ]] || die "Do not execute this installer as the superuser."
 [[ -f "$SRC_DIR/Gemfile" && -f "$SRC_DIR/config/application.rb" ]] || die "Run from a Sherlock source checkout."
 CURRENT_BRANCH="$(git -C "$SRC_DIR" branch --show-current 2>/dev/null || true)"
 [[ "$CURRENT_BRANCH" == "feature/feral-rootless-edition" ]] ||
