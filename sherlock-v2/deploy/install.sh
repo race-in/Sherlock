@@ -52,6 +52,7 @@ ARCH=""
 MULTIARCH=""
 PG_MAJOR=""
 EXTERNAL_DB=0
+EXISTING_INSTALL=0
 
 # ---------------------------------------------------------------------------------------------
 # Output helpers
@@ -198,8 +199,11 @@ preflight() {
   [[ $EUID -eq 0 ]] || die "Run this as root: sudo $0 ..."
   [[ -f "$SRC_DIR/config/application.rb" && -f "$SRC_DIR/Gemfile" ]] \
     || die "Can't find the Sherlock source next to this script ($SRC_DIR). Run it from the project folder."
-  [[ ! -e "$INSTALL_DIR" || -f "$INSTALL_DIR/.sherlock-native-install" ]] \
-    || die "$INSTALL_DIR already exists and is not marked as a Sherlock native installation; refusing to overwrite it."
+  if [[ -e "$INSTALL_DIR" ]]; then
+    [[ -f "$INSTALL_DIR/.sherlock-native-install" ]] \
+      || die "$INSTALL_DIR already exists and is not marked as a Sherlock native installation; refusing to overwrite it."
+    EXISTING_INSTALL=1
+  fi
   command -v apt-get >/dev/null || die "This installer needs apt (Debian or a Debian-based system)."
   command -v systemctl >/dev/null && [[ -d /run/systemd/system ]] \
     || die "systemd isn't running here (a container without systemd?). Use the Docker setup in the README instead."
@@ -418,6 +422,15 @@ provision_local_database() {
   if [[ "$enc" != UTF8 ]]; then
     dbopts="TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C.UTF-8' LC_CTYPE 'C.UTF-8'"
   fi
+  # On a first install, never adopt an unrelated database or alter an existing role.
+  if (( EXISTING_INSTALL == 0 )); then
+    if pg_super -d postgres -Atc "SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER'" | grep -q 1; then
+      die "Database role $DB_USER already exists; refusing to alter an unrelated role."
+    fi
+    if pg_super -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
+      die "Database $DB_NAME already exists; refusing to modify an unrelated database."
+    fi
+  fi
   # The password goes in through stdin (\set), not the command line, so `ps` never shows it.
   pg_super -d postgres -v dbopts="$dbopts" <<SQL
 \set u '$DB_USER'
@@ -464,8 +477,11 @@ load_schema_for_old_postgres() {
 # ---------------------------------------------------------------------------------------------
 create_user_and_dirs() {
   step "Creating the $APP_USER user and folders"
+  getent group "$APP_USER" >/dev/null 2>&1 || groupadd --system "$APP_USER"
   if ! id -u "$APP_USER" >/dev/null 2>&1; then
-    useradd --system --user-group --home-dir "$APP_HOME" --create-home --shell /usr/sbin/nologin "$APP_USER"
+    useradd --system --gid "$APP_USER" --home-dir "$APP_HOME" --create-home --shell /usr/sbin/nologin "$APP_USER"
+  else
+    usermod --append --groups "$APP_USER" "$APP_USER"
   fi
   install -d -o "$APP_USER" -g "$APP_USER" -m 0750 "$APP_HOME"
   install -d -m 0755 "$CONF_DIR"
