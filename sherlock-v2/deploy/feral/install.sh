@@ -273,6 +273,41 @@ if [[ ! -d "$APP_DIR/public/assets" || -z "$(find "$APP_DIR/public/assets" -type
     cd "$APP_DIR"
     npm ci --no-audit --no-fund
     npm run build
+
+    # RubyGems on the Feral Ruby 4 build reports the legacy x86_64-linux
+    # platform, while tailwindcss-ruby 4.3 ships its Linux executable in the
+    # x86_64-linux-gnu platform gem. Bundler therefore installs the tiny source
+    # wrapper only. Fetch/unpack the matching native gem and use the upstream-
+    # supported TAILWINDCSS_INSTALL_DIR override instead of patching RubyGems.
+    TAILWINDCSS_VERSION="$(bundle exec ruby -e 'puts Gem::Specification.find_by_name("tailwindcss-ruby").version')"
+    TAILWINDCSS_VENDOR_DIR="$RUNTIME_PREFIX/tailwindcss/$TAILWINDCSS_VERSION"
+    TAILWINDCSS_INSTALL_DIR="$TAILWINDCSS_VENDOR_DIR/exe/x86_64-linux-gnu"
+    if [[ ! -x "$TAILWINDCSS_INSTALL_DIR/tailwindcss" ]]; then
+      TAILWINDCSS_TMP="$(mktemp -d "$STATE_DIR/tailwindcss.XXXXXX")"
+      if ! (cd "$TAILWINDCSS_TMP" && gem fetch tailwindcss-ruby --version "$TAILWINDCSS_VERSION" --platform x86_64-linux-gnu); then
+        rm -rf "$TAILWINDCSS_TMP"
+        die "Could not download the x86_64-linux-gnu Tailwind executable gem."
+      fi
+      TAILWINDCSS_GEM="$TAILWINDCSS_TMP/tailwindcss-ruby-$TAILWINDCSS_VERSION-x86_64-linux-gnu.gem"
+      if [[ ! -s "$TAILWINDCSS_GEM" ]] || ! gem unpack "$TAILWINDCSS_GEM" --target "$TAILWINDCSS_TMP/unpacked" >/dev/null; then
+        rm -rf "$TAILWINDCSS_TMP"
+        die "Could not unpack the native Tailwind executable gem."
+      fi
+      TAILWINDCSS_EXTRACTED="$TAILWINDCSS_TMP/unpacked/tailwindcss-ruby-$TAILWINDCSS_VERSION-x86_64-linux-gnu/exe/x86_64-linux-gnu"
+      if [[ ! -x "$TAILWINDCSS_EXTRACTED/tailwindcss" ]]; then
+        rm -rf "$TAILWINDCSS_TMP"
+        die "The native Tailwind gem did not contain its expected Linux executable."
+      fi
+      mkdir -p "$TAILWINDCSS_VENDOR_DIR/exe"
+      cp -a "$TAILWINDCSS_EXTRACTED" "$TAILWINDCSS_VENDOR_DIR/exe/"
+      rm -rf "$TAILWINDCSS_TMP"
+    fi
+    [[ -x "$TAILWINDCSS_INSTALL_DIR/tailwindcss" ]] ||
+      die "The native Tailwind executable is missing or not executable."
+    "$TAILWINDCSS_INSTALL_DIR/tailwindcss" --help >/dev/null 2>&1 ||
+      die "The native Tailwind executable cannot run on this Feral host (check its glibc compatibility)."
+    export TAILWINDCSS_INSTALL_DIR
+
     set -a; . "$ENV_FILE"; set +a
     SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid RAILS_ENV=production bundle exec rails assets:precompile
   )
