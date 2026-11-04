@@ -1,9 +1,10 @@
 name: CI
 
 on:
+  # Feature branches are validated by pull_request; avoid duplicate push runs.
   push:
     branches:
-      - "**"
+      - main
   pull_request:
     branches:
       - main
