@@ -83,10 +83,10 @@ fi
 [[ ! -e /etc/systemd/system/sherlock.service ]] || die "sherlock.service already exists; inspect the existing service before installing."
 [[ ! -e /etc/nginx/sites-available/sherlock && ! -L /etc/nginx/sites-enabled/sherlock ]] ||
   die "An Nginx site named sherlock already exists; inspect it before installing."
-if [[ -d /etc/nginx/sites-enabled ]]; then
-  if grep -R -E "^[[:space:]]*server_name[[:space:]].*([[:space:]]|^)\${DOMAIN//./\\.}([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null; then
-    die "An existing Nginx site already declares $DOMAIN; refusing to create a duplicate virtual host."
-  fi
+[[ -f "$SCRIPT_DIR/scripts/check-nginx-host-conflict.sh" ]] ||
+  die "Missing Nginx hostname conflict checker."
+if bash "$SCRIPT_DIR/scripts/check-nginx-host-conflict.sh" "$DOMAIN" /etc/nginx/sites-enabled /etc/nginx/conf.d; then
+  die "An existing Nginx site already declares $DOMAIN; refusing to create a duplicate virtual host."
 fi
 [[ -f "$SCRIPT_DIR/scripts/patch-native-app.sh" ]] || die "Missing deployment patcher: $SCRIPT_DIR/scripts/patch-native-app.sh"
 if [[ "$DEBIAN_MAJOR" == 11 ]]; then
