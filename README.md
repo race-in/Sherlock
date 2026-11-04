@@ -1,51 +1,18 @@
-# Sherlock v2 — Native Debian Deployment Kit
+# Sherlock Custom Edition
 
-[![CI](https://github.com/race-in/Sherlock/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/race-in/Sherlock/actions/workflows/ci.yml)
+[![CI](https://github.com/race-in/Sherlock/actions/workflows/ci.yml/badge.svg?branch=sherlock-v2-native-integration)](https://github.com/race-in/Sherlock/actions/workflows/ci.yml?query=branch%3Asherlock-v2-native-integration)
 
-Native (non-Docker) Sherlock deployment repository for Debian 11, 12, and 13. The Rails application source snapshot is bundled in `sherlock-v2/`; its canonical installer is `sherlock-v2/deploy/install.sh`. The Custom Edition roadmap is still in progress: the bundled upstream app retains its existing multi-user/invite behavior, and manual statistics entry and CSV import are not implemented yet.
+A native, self-hosted Sherlock deployment for Debian 11, 12 and 13. The Rails application source is bundled in [`sherlock-v2/`](sherlock-v2/), with its own native installer. Docker is not required.
 
-## Supported platform matrix
+> **Project status:** this is the imported Sherlock v2 application baseline plus native deployment work. The full Custom Edition is not finished yet. The current application still has its upstream multi-user and invite behavior; single-user enforcement, manual statistics entry, CSV import and the additional tracker adapters remain roadmap work.
 
-| OS | Codename | Runtime | PostgreSQL 18 package source | Notes |
-|---|---|---|---|---|
-| Debian 11 | Bullseye | Ruby 4.0.9 + official Node.js 24.22.2 build runtime | Frozen PGDG archive | EOL; install requires explicit confirmation |
-| Debian 12 | Bookworm | Ruby 4.0.9 + official Node.js 26.12.0 binary | Current PGDG repository | Supported OS |
-| Debian 13 | Trixie | Ruby 4.0.9 + official Node.js 26.12.0 binary | Current PGDG repository | Supported OS |
+## Install on a VPS
 
-Supported CPU architectures: `amd64` and `arm64`.
+Use Debian 12 or 13 for an internet-facing server. Debian 11 is end-of-life and is supported only as a compatibility path.
 
-### Debian 11 warning
-
-Debian 11 Bullseye reached Debian LTS end-of-life on **31 August 2026**. It no longer receives free security updates from Debian LTS. The PostgreSQL project has also moved the Bullseye PGDG repository to its frozen archive; packages there receive no further PGDG updates. For an internet-facing production server, use Debian 12 or 13. The installer requires confirmation on Debian 11 (`Type YES`) or `ALLOW_EOL_DEBIAN11=1`.
-
-On Debian 11, after you explicitly accept the EOL warning, the installer backs up and rewrites official Bullseye APT source entries to `http://archive.debian.org` so a minimal host can bootstrap before installing CA certificates. APT still verifies signed repository metadata. It keeps the frozen security archive for matching dependency versions and disables expired backports suites and turns off the stale Release-file date check for the archive. Third-party repositories are left unchanged. These archive packages are frozen; no Debian LTS security updates are available.
-
-## Stack
-
-- Ruby 4.0.9, compiled locally by pinned `ruby-build v20261023` (commit SHA verified by the installer)
-- Bundler 4.0.20; application gems install under `/var/lib/sherlock/bundle`, owned by the dedicated service user (not the root-owned Ruby installation).
-- Official Node.js Linux binary with SHA-256 verification against Node.js `SHASUMS256.txt` (24.22.2 on Debian 11; 26.12.0 on Debian 12/13)
-- PostgreSQL 18
-- Puma managed by systemd; Solid Queue runs inside Puma for the single-server setup
-- Nginx reverse proxy and Let's Encrypt TLS
-- No Docker
-
-Node.js 26's official Linux x64/arm64 platform requirements are kernel >= 5.14, glibc >= 2.34, and libstdc++ GLIBCXX_3.4.29; these are available on Debian 12/13. Debian 11 has an older kernel/glibc/libstdc++ baseline, so the installer uses Node.js 24.22.2 there (kernel >= 4.18 and glibc >= 2.28). The upstream Sherlock source's `.node-version` remains pinned and checked at `26.12.0`; on Debian 11 only, the compatible Node 24 runtime executes npm/esbuild because the project dependencies require Node >= 18. The actual versioned binary is checksum-verified and executed by both the installer and Debian CI runtime tests, which catches missing C++ runtime symbols as well as version mismatches. The installer installs `libatomic1` for Node 26. It uses the ASCII PostgreSQL signing key directly with APT's `signed-by` support, so it does not install the unnecessary `gnupg` package.
-
-Ruby's bundled OpenSSL extension supports OpenSSL 1.1.1 and newer. The installer checks that Ruby can load OpenSSL after compilation.
-
-## Requirements
-
-- Fresh Debian 11, 12, or 13 install (Debian 12/13 strongly recommended)
-- `amd64` or `arm64`
-- At least 4 GB RAM and 30 GB free disk recommended; Ruby and native gems are compiled locally
-- DNS A/AAAA record such as `stats.example.com` pointing to the VPS
-- TCP ports 80 and 443 reachable from the Internet
-- The bundled Rails source in `sherlock-v2/`, including `Gemfile.lock`, `package-lock.json`, and the pinned Ruby/Node version files.
-
-## Install
-
-Use the installer that lives beside the bundled Rails application. Do **not** use the legacy root-level `install.sh` for this bundled-source deployment; that older scaffold expects a separate application Git repository.
+1. Create a DNS A/AAAA record for a subdomain such as `stats.example.com`, pointing to your VPS.
+2. Allow inbound TCP ports 80 and 443.
+3. Run:
 
 ```bash
 git clone --branch sherlock-v2-native-integration https://github.com/race-in/Sherlock.git
@@ -53,121 +20,72 @@ cd Sherlock/sherlock-v2
 sudo ./deploy/install.sh --domain stats.example.com --letsencrypt you@example.com
 ```
 
-Replace the example subdomain and email with your own. Point its DNS A/AAAA record to the VPS and allow inbound TCP 80/443 before starting. The installer builds Ruby, downloads a checksum-verified Node.js build runtime, installs PostgreSQL, creates encrypted Rails credentials, configures systemd and Nginx, and requests the HTTPS certificate.
+Replace the example hostname and email. The installer builds the pinned Ruby runtime, downloads and checksum-verifies the Node.js build runtime, installs PostgreSQL, creates encrypted Rails credentials, configures systemd and Nginx, obtains a Let's Encrypt certificate, and checks the local Rails health endpoint.
 
-The application is installed at `/opt/sherlock`; configuration and encrypted credentials live under `/etc/sherlock`. The worker metrics listener is restricted to loopback. On Debian 11, the installer uses Node.js 24.22.2 because the Debian 11 kernel/glibc baseline is too old for Node.js 26; Debian 12/13 use Node.js 26.12.0. Debian 11 is EOL and requires explicit confirmation.
+The canonical application installer is **[`sherlock-v2/deploy/install.sh`](sherlock-v2/deploy/install.sh)**. The root-level `install.sh` and the root `scripts/` directory are retained for the older separate-source deployment scaffold; do not use that legacy entry point for the bundled application.
 
-The canonical installer:
+## Platform support
 
-1. Detects Debian release and CPU architecture.
-2. Installs build dependencies, Nginx, Certbot, and PostgreSQL prerequisites.
-3. Configures PGDG for Debian 12/13, or the frozen `apt-archive.postgresql.org` Bullseye repository for Debian 11.
-4. Installs PostgreSQL 18 and creates a dedicated database role. The database is created after credentials are ready; Rails loads `db/structure.sql`, which creates the `sherlockdb` schema.
-5. Clones the authorized app source to `/opt/sherlock` and applies three small, idempotent deployment-only patches: bind Puma and worker metrics to loopback, and separate the database connection pool setting.
-6. Builds Ruby 4.0.9, installs a checksum-verified Node.js runtime compatible with the host Debian release (Node 24.22.2 on Debian 11; Node 26.12.0 on Debian 12/13), then installs Bundler gems into the service-owned `/var/lib/sherlock/bundle` path and builds JavaScript assets.
-7. Creates encrypted Rails production credentials and a root-managed environment file.
-8. Creates/prepares the PostgreSQL database, compiles production assets, configures systemd and Nginx, and requests a Let's Encrypt certificate.
+| Debian | Codename | Ruby | Node.js build runtime | PostgreSQL |
+|---|---|---:|---:|---|
+| 11 | Bullseye (EOL) | 4.0.9 | 24.22.2 | PGDG frozen archive; fallback documented in installer |
+| 12 | Bookworm | 4.0.9 | 26.12.0 | PGDG |
+| 13 | Trixie | 4.0.9 | 26.12.0 | PGDG |
 
-It refuses to overwrite an existing `/opt/sherlock` directory or an existing database role.
+Supported architectures: `amd64` and `arm64`. Ruby is compiled locally with a pinned `ruby-build` revision. Node.js is used for asset compilation only and is removed from the temporary build directory afterwards.
 
-## Deployment helper scripts
-
-- `scripts/patch-native-app.sh`: legacy root-scaffold patch helper. The canonical bundled-source installer configures its own Puma and metrics bind settings through its environment file.
-- `scripts/check-nginx-host-conflict.sh`: refuses an existing exact `server_name` collision before adding the Sherlock virtual host; existing/default Nginx sites are left intact.
-- `scripts/prepare-bullseye-archive.sh`: backs up and adapts official Debian 11 APT source entries after EOL consent.
-- `scripts/compatibility-check.sh`: reports supported Debian releases, CPU architecture, and glibc compatibility.
-- `scripts/test-native-patches.sh`, `scripts/test-bullseye-archive.sh`, `scripts/test-backup-restore.sh`, `scripts/test-nginx-host-conflict.sh`, and `scripts/test-installer-contract.sh` and `scripts/test-credentials-generation.sh`: regression tests run in CI, including Ruby/ERB syntax checks and valid Rails encryption credentials YAML generation.
-- `scripts/test-apt-dependencies.sh`: resolves the native installer dependency set, installs PostgreSQL 18 in each Debian CI image, and loads the upstream `db/structure.sql` using a dedicated application-style database role to verify schema creation and ownership.
-- `scripts/test-node-runtime.sh`: downloads the selected official Node.js runtime, verifies its published SHA-256 checksum, runs Node.js/npm, and runs the upstream Sherlock frontend build on each Debian image. `scripts/test-ruby-runtime.sh` compiles the pinned Ruby 4.0.9 toolchain, installs Bundler 4.0.20, and resolves the upstream Sherlock production gems.
-- `scripts/test-credentials-generation.sh`: verifies Rails encryption output is reduced to valid production credentials YAML without copying instructional text or expanding the `sed` end-of-file marker in the nested setup shell.
+Debian 11 requires explicit EOL acceptance. Its frozen package sources do not receive normal Debian LTS or PGDG security updates. Use Debian 12/13 whenever possible.
 
 ## Operations
 
 ```bash
-systemctl status sherlock
-journalctl -u sherlock -f
-systemctl restart sherlock
+sudo sherlock-ctl status
+sudo sherlock-ctl restart
+sudo sherlock-ctl logs
+sudo sherlock-ctl rails 'users:reset_password[username]'
 curl -fsS http://127.0.0.1:3000/up
 ```
 
-- Dashboard: `https://stats.example.com`
-- Update: pull the latest deployment scripts first, then run the updater as root; it takes a database/credentials backup before changing the app:
+- Application files: `/opt/sherlock`
+- Environment configuration: `/etc/sherlock/sherlock.env`
+- Encrypted credentials and master key: `/etc/sherlock/credentials/`
+- systemd unit: `sherlock.service`
+- Nginx site: `/etc/nginx/sites-available/sherlock`
 
-  ```bash
-  cd sherlock-deploy
-  git pull --ff-only
-  sudo bash scripts/update.sh
-  ```
+Keep port 3000 private behind Nginx. The worker metrics listener defaults to loopback even when Sherlock is configured to use an external reverse proxy. Back up `/etc/sherlock/credentials/production.key` securely; without it, saved tracker API keys cannot be decrypted.
 
-- Backup: `sudo bash scripts/backup.sh` (writes mode-0600 files into a mode-0700, root-owned directory; each file is finalized by an atomic rename)
+### Updating
 
-- Optional retention cleanup: `sudo bash scripts/prune-backups.sh /var/backups/sherlock 30` removes only backup sets whose manifest, non-empty database dump, and non-empty matching secrets archive are all present and whose manifest is older than the selected retention period. It keeps incomplete, malformed, mismatched, and recent sets. This is a manual, destructive operation; review the target directory and verify at least one known-good restore before running it. No automatic cleanup is enabled by the installer.
-
-Do not expose port 3000 publicly. Nginx is the public entry point and proxies to localhost.
-
-## Security and backups
-
-- Rails binds behind Nginx; port 3000 must remain private.
-- `/etc/sherlock/sherlock.env` is root-owned and readable only by the application group.
-- Ruby itself is root-owned under `/opt/rubies`; application gems are isolated in the service-user-owned `/var/lib/sherlock/bundle` and the same `BUNDLE_PATH` is used by systemd and updates.
-- Back up `config/credentials/production.key` securely; without it, encrypted credentials and saved API keys cannot be decrypted.
-- Puma is patched to listen only on `127.0.0.1:3000`; Nginx is the only public web entry point.
-- The Solid Queue worker's Prometheus exporter is patched to listen only on `127.0.0.1:9394` by default, preventing tracker/poll metrics from being exposed on every network interface.
-- The database connection pool uses `DB_POOL=10` independently from Puma's `RAILS_MAX_THREADS=3`, leaving room for Solid Queue jobs.
-- Never commit production keys, API keys, database passwords, or `sherlock.env`.
-- Store the database dump and credential archive separately and securely.
-- Verify restore procedures before relying on backups.
-
-
-### Restore a backup
-
-**Warning:** restoring replaces the current database. Use a verified database dump and its matching secrets archive from the same backup timestamp. The secrets archive contains the Rails master key, encrypted Rails credentials, and database password; store it as a highly sensitive file.
-
-First verify the secrets archive and PostgreSQL dump, then restore as root:
+From the same checkout used for installation:
 
 ```bash
-sudo bash scripts/restore.sh --verify-pair \
-  /var/backups/sherlock/sherlockdb_prod-TIMESTAMP.dump \
-  /var/backups/sherlock/sherlock-secrets-TIMESTAMP.tar.gz
-sudo bash scripts/restore.sh \
-  /var/backups/sherlock/sherlockdb_prod-TIMESTAMP.dump \
-  /var/backups/sherlock/sherlock-secrets-TIMESTAMP.tar.gz
+cd Sherlock
+git pull --ff-only
+cd sherlock-v2
+sudo ./deploy/install.sh
 ```
 
-The restore script validates the archive member list, file types, and environment values; verifies the dump and secrets archive have the same generated backup timestamp and database name; checks that the Rails master key matches the encrypted credentials; asks for an explicit `RESTORE` confirmation; restores `/etc/sherlock/sherlock.env` and the Rails credentials with restrictive permissions; reconciles the PostgreSQL role password; replaces the database; and waits for the Rails health endpoint. A mismatched or partial pair is rejected before the live database is changed.
+The installer preserves the existing environment file, database and encrypted credentials. Review the installer output and check `sudo sherlock-ctl status` after an update. For important data, take a PostgreSQL and credentials backup before upgrading; do not rely on an untested backup.
 
-This is designed for a Sherlock installation already provisioned on the target VPS with PostgreSQL 18, the service account, and the application directory. For a new host, run the native installer first, then restore. Confirm the application version is compatible with the database dump before restoring.
+## Application features
 
-## Security
+The bundled application currently provides tracker dashboards and history, tracker API connections, snapshot charts, comparison views, Prometheus metrics, qui integration, and its existing user/invite model. See [the bundled application README](sherlock-v2/README.md) for upstream behavior and configuration details.
 
-See [SECURITY.md](SECURITY.md) for private vulnerability reporting and deployment safety guidance.
+## Custom Edition roadmap
 
-## Roadmap
+The planned target is a private single-user instance with automatic and manual statistics, timestamped history, CSV/JSON import/export, and additional permitted tracker integrations. These are tracked as planned work, not completed features.
 
-See [ROADMAP.md](ROADMAP.md) for the agreed Custom Edition implementation plan and release gates.
+See [ROADMAP.md](ROADMAP.md) for phases, acceptance criteria and release gates. In particular, do not treat the current upstream invite flow as single-user mode.
 
-## Current scope
+## Security and source
 
-This repository is a **native deployment scaffold**, not yet the complete Sherlock Custom Edition. It does not implement single-user-only enforcement, manual statistics entry, CSV/JSON import/export workflows, or additional tracker adapters. The upstream app may still retain its existing multi-user/invite behavior.
+- Never commit production credentials, Rails master keys, tracker API keys, database passwords or backup archives.
+- Keep Nginx as the public entry point; do not expose Puma or the worker metrics port.
+- Treat database dumps and credential archives as sensitive.
+- Report deployment vulnerabilities privately using the repository's Security tab; see [SECURITY.md](SECURITY.md).
+- The bundled application originated from [whatstatus/sherlock-v2 on Codeberg](https://codeberg.org/whatstatus/sherlock-v2). Preserve upstream attribution and notices.
 
-The supplied upstream archive did not contain a standalone LICENSE file. Before redistributing or publishing modified upstream source, obtain and verify the maintainer's permission/license. This repository therefore keeps deployment tooling separate from upstream application source.
-- The Rails source snapshot is included under `sherlock-v2/`. The root-level `install.sh` is retained for the older separate-source workflow and is not the canonical installer for this bundled application.
+## Validation
 
-## Validation status
+GitHub Actions runs shell syntax checks, ShellCheck, deployment regression tests, source inventory checks, and Debian 11/12/13 compatibility jobs. CI container results do not replace a fresh-install test on real VPS hosts. DNS, certificate issuance, systemd startup, upgrade behavior and restore procedures must be verified in a controlled deployment before production use.
 
-- GitHub Actions validates Bash syntax, ShellCheck, workflow YAML, deployment patch tests, Bullseye APT-source migration tests, simulated native dependency installation, the actual checksum-verified Node.js/npm binaries, the upstream frontend build, and the pinned Ruby/Bundler/gem installation against Debian 11/12/13 images.
-- The CI matrix checks Debian 11/12/13 release and x86_64/glibc compatibility in containers. The installer and runtime scripts also support ARM64, but ARM64 has not yet been exercised by this CI matrix.
-- The native patcher was smoke-tested against the supplied Sherlock v2 source archive; Puma Ruby syntax and `database.yml` ERB syntax were checked locally.
-- Full package installation, PostgreSQL repository resolution, systemd startup, DNS, and HTTPS still need verification on real Debian 11/12/13 VPS instances.
-- Debian 11 uses an archived PostgreSQL repository and an end-of-life operating system; it is a compatibility path, not the recommended production target.
-
-## References
-
-- [Debian 11 LTS end-of-life announcement](https://www.debian.org/News/2026/20260831)
-- [PostgreSQL Debian installation instructions](https://www.postgresql.org/download/linux/debian/)
-- [PostgreSQL PGDG archive](https://apt-archive.postgresql.org/)
-- [Node.js build/platform requirements](https://github.com/nodejs/node/blob/main/BUILDING.md)
-- [Node.js 26.12.0 release downloads](https://nodejs.org/en/download/archive/v26.12.0)
-- [Node.js 24.22.2 release downloads](https://nodejs.org/en/download/archive/v24.22.2)
-- [ruby-build v20261023 release](https://github.com/rbenv/ruby-build/releases/tag/v20261023)
-- [Ruby/OpenSSL compatibility](https://ruby.github.io/openssl/)
