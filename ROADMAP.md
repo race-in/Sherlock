@@ -32,32 +32,33 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Phase 2 — Unified statistics model
 
-- [ ] Preserve existing tracker snapshots and chart compatibility.
-- [ ] Add a validated source/provenance field: API, manual, CSV, or JSON.
-- [ ] Store observation time, import batch reference, and optional notes.
-- [ ] Use bytes as canonical storage units; keep units explicit at input boundaries.
-- [ ] Keep unavailable values distinct from zero.
-- [ ] Validate ratio and tracker-reported fields without silently replacing source values.
+- [x] Preserve existing tracker snapshots and chart compatibility.
+- [x] Add a validated source/provenance field: API, manual, CSV, or JSON.
+- [x] Store observation time, import batch reference, creator attribution, and optional notes.
+- [x] Use bytes as canonical storage units; keep units explicit at input boundaries.
+- [x] Keep unavailable values distinct from zero.
+- [x] Validate manual/import values and preserve API-reported fields without silently replacing source values.
 - [ ] Enforce duplicate protection without overwriting historical observations.
 
 ## Phase 3 — Manual statistics entry
 
-- [ ] Add tracker-specific Add/Edit Statistics workflow matching the existing UI.
-- [ ] Allow optional fields because trackers expose different metrics.
-- [ ] Validate timestamps, numbers, units, and tracker identity on the server.
-- [ ] Record every manual correction in an audit trail.
-- [ ] Display manual/API/import source badges and observation times.
-- [ ] Add tests for zero, null, large byte values, timezone handling, and invalid input.
+- [x] Add tracker-specific append-only Add Statistics workflow matching the existing UI; corrections create new observations.
+- [x] Allow optional fields because trackers expose different metrics.
+- [x] Validate timestamps, numbers, byte units, and tracker ownership on the server.
+- [x] Record the creator and timestamp for each manual observation; retain prior observations.
+- [x] Display manual/API/import source labels and observation times in recent history.
+- [x] Add tests for zero, null, large byte values, timezone handling, and invalid input.
 
 ## Phase 4 — CSV and JSON import/export
 
 - [x] Upstream already provides JSON account-data export/import and per-connection CSV history export; preserve and test both.
 - [ ] CSV statistics template with preview and column mapping (distinct from existing history CSV export).
-- [ ] Strict CSV size, row-count, encoding, timestamp, tracker and field validation.
-- [ ] Transactional statistics import with duplicate detection and downloadable error report.
+- [x] Strict CSV size, row-count, encoding, timestamp, tracker ownership and field validation.
+- [x] Validate the complete CSV before a single atomic insert; skip duplicates and repeated imports.
+- [ ] Add a downloadable row-error report for rejected CSV files.
 - [ ] Versioned Custom Edition JSON format for statistics with schema validation, without changing upstream account-backup JSON semantics.
-- [ ] Never export tracker API keys, passkeys, Rails secrets, or database credentials.
-- [ ] Test rollback on partial failures and repeated imports.
+- [x] Never export tracker API keys, passkeys, Rails secrets, database credentials, or local creator/batch IDs.
+- [x] Test that invalid later CSV rows insert nothing and repeated CSV/JSON imports skip existing timestamps.
 
 ## Phase 5 — Tracker integrations
 
@@ -88,6 +89,7 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 - [x] Native deployment scaffold, shell regression tests, source audit, and Debian release compatibility jobs.
 - [x] Multi-user + hybrid manual/automatic + CSV/JSON target architecture documented.
-- [ ] Full Sherlock Custom Edition application features.
+- [ ] Versioned Custom Edition JSON statistics interchange, CSV preview/mapping/error report, and additional tracker integrations.
+- [ ] New manual-statistics and CSV-import CI suite must pass before the feature is marked release-ready.
 - [ ] Full fresh-install verification on real Debian VPS hosts.
 
