@@ -198,6 +198,8 @@ preflight() {
   [[ $EUID -eq 0 ]] || die "Run this as root: sudo $0 ..."
   [[ -f "$SRC_DIR/config/application.rb" && -f "$SRC_DIR/Gemfile" ]] \
     || die "Can't find the Sherlock source next to this script ($SRC_DIR). Run it from the project folder."
+  [[ ! -e "$INSTALL_DIR" || -f "$INSTALL_DIR/.sherlock-native-install" ]] \
+    || die "$INSTALL_DIR already exists and is not marked as a Sherlock native installation; refusing to overwrite it."
   command -v apt-get >/dev/null || die "This installer needs apt (Debian or a Debian-based system)."
   command -v systemctl >/dev/null && [[ -d /run/systemd/system ]] \
     || die "systemd isn't running here (a container without systemd?). Use the Docker setup in the README instead."
@@ -570,11 +572,6 @@ trap cleanup_node EXIT
 # ---------------------------------------------------------------------------------------------
 sync_source() {
   step "Copying the app to $INSTALL_DIR"
-  # Never let rsync --delete turn an unrelated /opt/sherlock directory into a data-loss event.
-  if [[ -e "$INSTALL_DIR" && ! -f "$INSTALL_DIR/.sherlock-native-install" ]]; then
-    die "$INSTALL_DIR exists but is not marked as a Sherlock native installation; refusing to sync over it."
-  fi
-
   # A real credentials directory may contain keys from a manual/older install.
   # Never recursively delete it; require the operator to migrate or back it up.
   if [[ -d "$INSTALL_DIR/config/credentials" && ! -L "$INSTALL_DIR/config/credentials" ]]; then
