@@ -26,11 +26,19 @@
         <p class="eyebrow">Set up for</p>
         <p class="mt-1 text-lg font-medium"><%= Site::AUDIENCES.fetch(@site.audience) %></p>
         <p class="hint mt-1">
-          <%= { off: "Nobody can add #{@site.name}, and Sherlock sends it nothing.",
-                only_me: "Your own key reads your account. Nobody else can add #{@site.name}, except the people you pick.",
-                own_keys: "People you invite add their own #{@site.name} key. #{pluralize @key_count, "key"} saved.",
-                opt_in: "Most trackers don't let members give their key to someone else's server, so your key reads their #{@site.name} profile instead, as other members see it. It only does so once they put their Sherlock link on the profile: that's their opt-in, and removing it stops the tracking. You need no link, since your key reads your own account." }.fetch(@site.audience) %>
-          <% unless @site.off? %><%= pluralize @member_count, "other member" %> on <%= @site.name %>.<% end %>
+          <% if Rails.application.config.x.single_user_mode %>
+            <% if @site.off? %>
+              Nobody can add <%= @site.name %>, and Sherlock sends it nothing.
+            <% else %>
+              Your own key reads your account. This single-user Sherlock does not share tracker access with other members.
+            <% end %>
+          <% else %>
+            <%= { off: "Nobody can add #{@site.name}, and Sherlock sends it nothing.",
+                  only_me: "Your own key reads your account. Nobody else can add #{@site.name}, except the people you pick.",
+                  own_keys: "People you invite add their own #{@site.name} key. #{pluralize @key_count, "key"} saved.",
+                  opt_in: "Most trackers don't let members give their key to someone else's server, so your key reads their #{@site.name} profile instead, as other members see it. It only does so once they put their Sherlock link on the profile: that's their opt-in, and removing it stops the tracking. You need no link, since your key reads your own account." }.fetch(@site.audience) %>
+            <% unless @site.off? %><%= pluralize @member_count, "other member" %> on <%= @site.name %>.<% end %>
+          <% end %>
         </p>
         <% if @site.audience == :only_me && !Rails.application.config.x.single_user_mode %>
           <p class="label mt-4">People you picked</p>
