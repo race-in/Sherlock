@@ -50,8 +50,9 @@ class StatisticsCsvImporterTest < ActiveSupport::TestCase
     missing = CSV.generate { |writer| writer << %w[time uploaded]; writer << [ 1.day.ago.iso8601, "1" ] }
     unknown = CSV.generate { |writer| writer << %w[time uploaded downloaded shell]; writer << [ 1.day.ago.iso8601, "1", "1", "x" ] }
     future = CSV.generate { |writer| writer << %w[time uploaded downloaded]; writer << [ 1.day.from_now.iso8601, "1", "1" ] }
+    no_offset = CSV.generate { |writer| writer << %w[time uploaded downloaded]; writer << [ Time.current.strftime("%Y-%m-%dT%H:%M:%S"), "1", "1" ] }
 
-    [ missing, unknown, future ].each do |csv|
+    [ missing, unknown, future, no_offset ].each do |csv|
       assert_no_difference -> { connection.snapshots.count } do
         assert_raises(ArgumentError) { StatisticsCsvImporter.import!(connection:, user:, csv_text: csv) }
       end
