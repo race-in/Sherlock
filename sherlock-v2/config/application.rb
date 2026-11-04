@@ -25,7 +25,7 @@ module Sherlock
   class FeralRelativeUrlRoot
     def initialize(app)
       @app = app
-      @prefix = ENV.fetch("RAILS_RELATIVE_URL_ROOT", "").to_s.sub(%r{/\\z}, "")
+      @prefix = ENV.fetch("RAILS_RELATIVE_URL_ROOT", "").to_s.sub(/\/$/, "")
     end
 
     def call(env)
