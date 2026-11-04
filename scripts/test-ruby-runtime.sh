@@ -11,6 +11,8 @@ RUBY_BUILD_TAG=v20261023
 RUBY_BUILD_COMMIT=b6a92c15f0df872047c74f7dfa0b92dfd4de8a92
 APP_SOURCE_URL=${APP_SOURCE_URL:-https://codeberg.org/whatstatus/sherlock-v2.git}
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
@@ -46,6 +48,9 @@ groupadd --system sherlock-runtime-test
 useradd --system --gid sherlock-runtime-test --home-dir "$APP_HOME" --create-home --shell /usr/sbin/nologin sherlock-runtime-test
 install -d -o sherlock-runtime-test -g sherlock-runtime-test -m 0750 "$APP_DIR" "$BUNDLE_PATH" "$APP_HOME"
 git clone --depth 1 --no-tags "$APP_SOURCE_URL" "$APP_DIR"
+# Exercise the exact local deployment patcher against the live upstream source,
+# not only the synthetic fixtures in test-native-patches.sh.
+bash "$SCRIPT_DIR/patch-native-app.sh" "$APP_DIR"
 chown -R sherlock-runtime-test:sherlock-runtime-test "$APP_DIR"
 
 APP_RUBY_VERSION=$(tr -d '\r\n' < "$APP_DIR/.ruby-version")
