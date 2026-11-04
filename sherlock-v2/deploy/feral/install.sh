@@ -163,6 +163,10 @@ bundle config set --local path "$HOME/.local/share/sherlock-feral/bundle"
 bundle config set --local build.pg "--with-pg-config=$PG_CONFIG --with-pg-include=$PG_INCLUDE --with-pg-lib=$PG_LIB"
 # bindgen reads BINDGEN_EXTRA_CLANG_ARGS to add GCC's internal headers.
 bundle install
+# Fail here, before Rails asset tasks, if a precompiled/incompatible Nokogiri
+# extension was selected or its source build did not complete correctly.
+bundle exec ruby -rnokogiri -e 'puts "Nokogiri #{Nokogiri::VERSION} loaded successfully"' ||
+  die "Nokogiri is not loadable on this host. Check the source-build output and compiler toolchain."
 
 info "Preparing application directory"
 mkdir -p "$APP_DIR"
