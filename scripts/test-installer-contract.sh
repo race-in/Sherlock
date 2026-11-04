@@ -34,6 +34,14 @@ grep -Fq '[[ "$BRANCH" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ && "$BRANCH" != *..* ]]'
   echo "ERROR: installer does not validate branch names before writing the environment file." >&2
   exit 1
 }
+grep -Fq 'chmod 0755 "$APP_DIR"/bin/*' "$INSTALLER" || {
+  echo "ERROR: installer must restore executable permissions on Rails binstubs." >&2
+  exit 1
+}
+grep -Fq 'chmod 0755 bin/*' "$ROOT/.github/workflows/ci.yml" || {
+  echo "ERROR: CI must restore executable permissions before running Rails binstubs." >&2
+  exit 1
+}
 grep -Fq 'ACTUAL_RUBY_VERSION=' "$INSTALLER" || {
   echo "ERROR: installer does not verify the existing Ruby runtime version." >&2
   exit 1
