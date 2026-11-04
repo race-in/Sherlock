@@ -74,7 +74,7 @@ jobs:
   debian-compatibility:
     name: Debian ${{ matrix.version }} compatibility
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -102,4 +102,5 @@ jobs:
               bash scripts/compatibility-check.sh
               bash scripts/test-apt-dependencies.sh
               bash scripts/test-node-runtime.sh
+              bash scripts/test-ruby-runtime.sh
             '
