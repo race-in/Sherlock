@@ -28,7 +28,7 @@ This roadmap records the agreed target configuration. Items below are planned un
 - [x] Upstream first-run setup creates the initial administrator account.
 - [x] Preserve upstream invite-based registration and administrator user management in the native installation.
 - [x] Keep first-run setup protected by a private token without disabling subsequent user registration.
-- [ ] Add regression tests for invitation creation, joining, permissions, and multi-user tracker isolation.
+- [x] Add regression tests for invitation creation, joining, permissions, single-user mode, and multi-user tracker isolation.
 
 ## Phase 2 — Unified statistics model
 
