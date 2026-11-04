@@ -57,14 +57,14 @@ grep -q 'ENCRYPTION_KEYS=.*bundle exec rails db:encryption:init' "$INSTALL"
 grep -q 'nohup' "$CONTROL"
 grep -q 'deploy/feral/puma.rb' "$CONTROL"
 grep -q '127.0.0.1' "$CONTROL"
-grep -q 'JSON.generate(\\[ENV.fetch("DB_PASSWORD")\\]\\)\\[1\\.\\.\\.-1\\]' "$DATABASE"
+grep -Fq 'JSON.generate([ENV.fetch("DB_PASSWORD")])[1...-1]' "$DATABASE"
 
 ruby -rjson -rerb -ryaml -e '
   ENV["DB_HOST"] = "db.example.invalid"
   ENV["DB_PORT"] = "5432"
   ENV["DB_NAME"] = "postgres"
   ENV["DB_USER"] = "postgres.example"
-  ENV["DB_PASSWORD"] = %q{p@ss: # [special] !tag &value "quoted" \\ slash}
+  ENV["DB_PASSWORD"] = %q{p@ss: # [special] !tag &value "quoted" \ slash}
   source = ERB.new(File.read(ARGV.fetch(0))).result
   load_parameters = YAML.method(:load).parameters
   supports_aliases_option = load_parameters.any? do |kind, name|
