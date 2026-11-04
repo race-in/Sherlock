@@ -743,6 +743,24 @@ setup_nginx() {
   step "Setting up nginx"
   apt_install nginx
   local conf=/etc/nginx/sites-available/$SERVICE
+  local conflict_checker="$SRC_DIR/../scripts/check-nginx-host-conflict.sh"
+  [[ -f "$conflict_checker" ]] || die "Missing Nginx hostname conflict checker: $conflict_checker"
+  local -a nginx_scan_paths=()
+  local candidate
+  for candidate in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*; do
+    [[ -e "$candidate" || -L "$candidate" ]] || continue
+    [[ "$candidate" == "/etc/nginx/sites-enabled/$SERVICE" || "$candidate" == /etc/nginx/conf.d/sherlock-upgrade.conf ]] && continue
+    nginx_scan_paths+=("$candidate")
+  done
+  if (( ${#nginx_scan_paths[@]} > 0 )) && bash "$conflict_checker" "${APP_HOST%%:*}" "${nginx_scan_paths[@]}"; then
+    die "An existing Nginx virtual host already declares ${APP_HOST%%:*}; refusing a duplicate server_name."
+  fi
+  if [[ -e "$conf" ]] && ! grep -qE '^# Written by deploy/install\.sh|managed by Certbot' "$conf"; then
+    die "$conf already exists and is not managed by this installer; refusing to overwrite it."
+  fi
+  if [[ -e /etc/nginx/conf.d/sherlock-upgrade.conf ]] && ! grep -q 'Lets WebSocket connections' /etc/nginx/conf.d/sherlock-upgrade.conf; then
+    die "/etc/nginx/conf.d/sherlock-upgrade.conf already exists and is not managed by this installer."
+  fi
   if [[ -f "$conf" ]] && grep -q "managed by Certbot" "$conf"; then
     ok "The nginx site was extended by Certbot; leaving it alone."
   else
