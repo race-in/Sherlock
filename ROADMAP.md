@@ -14,19 +14,20 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Phase 0 — Rights and source baseline
 
-- [ ] Obtain written permission or a clear licence that allows modifying and redistributing the upstream Sherlock source.
+- [ ] Keep the maintainer's written permission or a clear licence record with the project governance materials; the source tree itself has no standalone LICENSE file.
 - [ ] Confirm the exact upstream commit to use as the base.
 - [ ] Keep upstream attribution, notices, and any required licence terms.
-- [ ] Import the authorized upstream source into this repository without losing its history where practical.
-- [ ] Run the untouched upstream test suite and record a clean baseline.
+- [x] Bundle the imported Sherlock v2 application baseline under `sherlock-v2/`, preserving upstream attribution and notices.
+- [x] Record the upstream source inventory and schema/import/export contract in `docs/UPSTREAM_AUDIT.md`.
+- [ ] Complete a clean full Rails test baseline on the bundled source in the Debian CI matrix.
 
-**Gate:** do not publish a modified upstream application until the source licence/permission is confirmed. The supplied archive did not contain a standalone LICENSE file.
+**Gate:** retain evidence of the maintainer permission already obtained for this project and preserve all upstream attribution. The audited upstream tree has no standalone LICENSE file; do not imply an OSI/open-source licence that is not present.
 
 ## Phase 1 — Single-user mode
 
-- [ ] First-run setup creates the only local account.
-- [ ] Disable public registration and invitations.
-- [ ] Prevent creation of a second account through UI, routes, jobs, and direct model/API paths.
+- [x] Upstream first-run setup creates the initial administrator account.
+- [ ] Make the installation permanently single-user: disable invite joins and every user-creation path after first-run.
+- [ ] Enforce the one-account invariant in both Rails model/controller paths and PostgreSQL, including concurrent requests.
 - [ ] Preserve existing connection ownership and historical data migrations.
 - [ ] Add regression tests proving a second account cannot be created.
 
@@ -51,19 +52,19 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Phase 4 — CSV and JSON import/export
 
-- [ ] CSV template with preview and column mapping.
-- [ ] Strict CSV size, row-count, encoding, and field validation.
-- [ ] Transactional import with duplicate detection and downloadable error report.
-- [ ] Native Sherlock JSON import/export compatibility.
-- [ ] Versioned Custom Edition JSON format with schema validation.
+- [x] Upstream already provides JSON account-data export/import and per-connection CSV history export; preserve and test both.
+- [ ] CSV statistics template with preview and column mapping (distinct from existing history CSV export).
+- [ ] Strict CSV size, row-count, encoding, timestamp, tracker and field validation.
+- [ ] Transactional statistics import with duplicate detection and downloadable error report.
+- [ ] Versioned Custom Edition JSON format for statistics with schema validation, without changing upstream account-backup JSON semantics.
 - [ ] Never export tracker API keys, passkeys, Rails secrets, or database credentials.
 - [ ] Test rollback on partial failures and repeated imports.
 
 ## Phase 5 — Tracker integrations
 
-- [ ] Keep existing verified upstream tracker engines working.
+- [x] Preserve existing upstream tracker engines: Gazelle, HDBits, BTN, GazelleGames, UNIT3D, Anthelion and AnimeBytes.
 - [ ] Add a safe tracker-definition registry for documented/read-only API fields.
-- [ ] Add DesiGaane and SuperBits only after checking their permitted API/authentication methods.
+- [ ] Add DesiGaane and SuperBits only after verifying their live API endpoints, authentication scopes, and tracker rules.
 - [ ] Add UNIT3D/Gazelle/custom adapters with server-side schema validation.
 - [ ] Do not execute arbitrary tracker-provided scripts or scrape where prohibited.
 - [ ] Add per-tracker rate limits, timeouts, pause-on-429 handling, and adapter contract tests.
@@ -86,7 +87,7 @@ This roadmap records the agreed target configuration. Items below are planned un
 
 ## Current status
 
-- [x] Native deployment scaffold and CI checks for shell scripts, helper tests, and Debian release detection.
+- [x] Native deployment scaffold, shell regression tests, source audit, and Debian release compatibility jobs.
 - [x] Single-user + hybrid manual/automatic + CSV/JSON target architecture documented.
 - [ ] Full Sherlock Custom Edition application features.
 - [ ] Full fresh-install verification on real Debian VPS hosts.
