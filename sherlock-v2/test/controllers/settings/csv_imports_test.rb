@@ -1,4 +1,5 @@
 require "csv"
+require "tempfile"
 require "test_helper"
 
 class Settings::CsvImportsControllerTest < ActionDispatch::IntegrationTest
@@ -10,10 +11,14 @@ class Settings::CsvImportsControllerTest < ActionDispatch::IntegrationTest
       writer << %w[time uploaded downloaded]
       writer << [ observed_at.iso8601, "987654321", "123456789" ]
     end
-    upload = Rack::Test::UploadedFile.new(StringIO.new(csv), "text/csv", original_filename: "history.csv")
+    Tempfile.create(["history", ".csv"]) do |tempfile|
+      tempfile.write(csv)
+      tempfile.rewind
+      upload = Rack::Test::UploadedFile.new(tempfile.path, "text/csv", original_filename: "history.csv")
 
-    assert_difference -> { connection.snapshots.count }, 1 do
-      post settings_csv_import_path, params: { connection_id: connection.id, file: upload }
+      assert_difference -> { connection.snapshots.count }, 1 do
+        post settings_csv_import_path, params: { connection_id: connection.id, file: upload }
+      end
     end
 
     snapshot = connection.snapshots.find_by!(created_at: observed_at)
@@ -29,10 +34,14 @@ class Settings::CsvImportsControllerTest < ActionDispatch::IntegrationTest
       writer << %w[time uploaded downloaded]
       writer << [ 5.days.ago.iso8601, "1", "1" ]
     end
-    upload = Rack::Test::UploadedFile.new(StringIO.new(csv), "text/csv", original_filename: "history.csv")
+    Tempfile.create(["history", ".csv"]) do |tempfile|
+      tempfile.write(csv)
+      tempfile.rewind
+      upload = Rack::Test::UploadedFile.new(tempfile.path, "text/csv", original_filename: "history.csv")
 
-    assert_no_difference -> { connection.snapshots.count } do
-      post settings_csv_import_path, params: { connection_id: connection.id, file: upload }
+      assert_no_difference -> { connection.snapshots.count } do
+        post settings_csv_import_path, params: { connection_id: connection.id, file: upload }
+      end
     end
     assert_redirected_to settings_data_path(anchor: "csv-import")
   end
