@@ -23,16 +23,17 @@ validate_environment_file() {
   local key value
   declare -A seen=()
   while IFS='=' read -r key value || [[ -n ${key:-} ]]; do
-    [[ -n "$key" && "$key" =~ ^[A-Z_]+$ ]] || die "Invalid setting in archived environment file."
+    [[ -z "$key" || "$key" == \#* ]] && continue
+    [[ "$key" =~ ^[A-Z_]+$ ]] || die "Invalid setting in archived environment file."
     [[ "$value" =~ ^[A-Za-z0-9_./:@+-]+$ ]] || die "Unsafe value in archived environment setting: $key"
     case "$key" in
-      RAILS_ENV|APP_HOST|RAILS_MASTER_KEY|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|BUNDLE_PATH|RAILS_MAX_THREADS|DB_POOL|APP_GIT_BRANCH|PORT|FORCE_SSL|SOLID_QUEUE_IN_PUMA|METRICS_BIND|RAILS_LOG_LEVEL) ;;
+      RAILS_ENV|APP_HOST|RAILS_MASTER_KEY|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|BUNDLE_PATH|RAILS_MAX_THREADS|DB_POOL|APP_GIT_BRANCH|PORT|FORCE_SSL|SOLID_QUEUE_IN_PUMA|METRICS_BIND|RAILS_LOG_LEVEL|SINGLE_USER_MODE|FIRST_RUN_TOKEN|BIND_ADDRESS|JOB_CONCURRENCY|METRICS_PORT) ;;
       *) die "Unexpected environment setting in archive: $key" ;;
     esac
     [[ -z ${seen[$key]+x} ]] || die "Duplicate environment setting: $key"
     seen[$key]=1
   done < "$file"
-  for key in RAILS_ENV APP_HOST RAILS_MASTER_KEY DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD; do
+  for key in RAILS_ENV APP_HOST DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD; do
     [[ -n ${seen[$key]+x} ]] || die "Required environment setting is missing: $key"
   done
 }
@@ -118,7 +119,7 @@ fi
 [[ -d "$APP_DIR" && -d "$APP_DIR/config/credentials" ]] || die "Sherlock application is not installed at $APP_DIR."
 id "$APP_USER" >/dev/null 2>&1 || die "Service user $APP_USER does not exist."
 getent group "$APP_GROUP" >/dev/null || die "Service group $APP_GROUP does not exist."
-[[ -x "$PG_BINDIR/pg_restore" && -x "$PG_BINDIR/pg_dump" ]] || die "PostgreSQL 18 client tools are missing."
+[[ -x "$PG_BINDIR/pg_restore" && -x "$PG_BINDIR/pg_dump" ]] || die "Detected PostgreSQL client tools are missing."
 
 DB_DUMP=$(realpath -- "$1")
 SECRETS_ARCHIVE=$(realpath -- "$2")
@@ -139,8 +140,10 @@ done
 
 RESTORED_KEY=$(tr -d '\r\n' < "$RESTORE_TMP/config/credentials/production.key")
 ENV_KEY=$(sed -n 's/^RAILS_MASTER_KEY=//p' "$RESTORE_TMP/sherlock.env" | head -n 1)
-[[ -n "$RESTORED_KEY" && "$RESTORED_KEY" == "$ENV_KEY" ]] \
-  || die "Rails master key in the environment archive does not match production.key."
+[[ -n "$RESTORED_KEY" ]] || die "The archived Rails production key is empty."
+if [[ -n "$ENV_KEY" && "$RESTORED_KEY" != "$ENV_KEY" ]]; then
+  die "Rails master key in the environment archive does not match production.key."
+fi
 
 set -a
 . "$RESTORE_TMP/sherlock.env"
@@ -176,7 +179,7 @@ PGPASSWORD="$DB_PASSWORD" "$PG_BINDIR/pg_restore" \
 
 systemctl start sherlock
 for attempt in $(seq 1 60); do
-  if curl -fsS http://127.0.0.1:3000/up >/dev/null; then
+  if curl -fsS "http://127.0.0.1:${PORT:-3000}/up" >/dev/null; then
     echo "Restore complete; health check passed: https://$APP_HOST"
     exit 0
   fi
