@@ -9,7 +9,10 @@ APP_ROOT=${1:-}
 
 python3 - "$APP_ROOT" <<'PY'
 from pathlib import Path
+import os
+import stat
 import sys
+import tempfile
 
 root = Path(sys.argv[1])
 patches = {
@@ -27,13 +30,18 @@ patches = {
     ),
 }
 
-failed = False
+# Validate every expected source before changing any file. This prevents a
+# source-layout mismatch late in the patch list from leaving a half-patched app.
+updates: dict[Path, tuple[str, int]] = {}
+errors = False
+
 for relative, (upstream, patched) in patches.items():
     path = root / relative
-    if not path.is_file():
-        print(f"ERROR: expected application file missing: {path}", file=sys.stderr)
-        failed = True
+    if not path.is_file() or path.is_symlink():
+        print(f"ERROR: expected regular application file missing: {path}", file=sys.stderr)
+        errors = True
         continue
+
     content = path.read_text(encoding="utf-8")
     upstream_count = content.count(upstream)
     patched_count = content.count(patched)
@@ -42,8 +50,7 @@ for relative, (upstream, patched) in patches.items():
         print(f"OK: already patched {relative}")
         continue
     if upstream_count == 1 and patched_count == 0:
-        path.write_text(content.replace(upstream, patched, 1), encoding="utf-8")
-        print(f"PATCHED: {relative}")
+        updates[relative] = (content.replace(upstream, patched, 1), stat.S_IMODE(path.stat().st_mode))
         continue
 
     print(
@@ -52,8 +59,25 @@ for relative, (upstream, patched) in patches.items():
         f"(found upstream={upstream_count}, patched={patched_count}).",
         file=sys.stderr,
     )
-    failed = True
+    errors = True
 
-if failed:
+if errors:
     sys.exit(1)
+
+# Each file replacement is atomic. All source validation has already passed.
+for relative, (content, mode) in updates.items():
+    path = root / relative
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+    print(f"PATCHED: {relative}")
 PY
