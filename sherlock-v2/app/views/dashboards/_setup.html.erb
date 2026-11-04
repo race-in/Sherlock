@@ -17,7 +17,9 @@
   </div>
   <ol class="divide-y divide-line border-t border-line">
     <% setup.steps.each.with_index(1) do |step, number| %>
-      <% change_path = { contact: admin_settings_path, first_tracker: admin_sites_path, invites: admin_invites_path, updates: admin_settings_path }.fetch(step.key) %>
+      <% change_paths = { contact: admin_settings_path, first_tracker: admin_sites_path, updates: admin_settings_path } %>
+      <% change_paths[:invites] = admin_invites_path unless Rails.application.config.x.single_user_mode %>
+      <% change_path = change_paths.fetch(step.key) %>
       <% open = step == next_step %>
       <% locked = setup.locked?(step) %>
       <li class="flex items-start gap-4 px-6 py-5 sm:px-8 <%= "bg-accent-soft/40" if open %>">
@@ -35,7 +37,7 @@
               <span class="sr-only"><%= step.done? ? "done" : locked ? "after the contact" : "to do" %></span>
             </p>
             <% if step.done? %>
-              <%= link_to "Change", change_path, class: "btn-quiet shrink-0" %>
+              <%= link_to "Change", change_path, class: "btn-quiet shrink-0" if change_path.present? %>
             <% elsif step.optional? && !(open && step.key == :updates) %>
               <%= button_to "Skip", admin_setup_skips_path, params: { step: step.key }, class: "btn-quiet px-4 py-2.5 text-base" %>
             <% end %>
