@@ -162,7 +162,9 @@ EOF
   chmod 600 "$ENV_FILE"
 else
   chmod 600 "$ENV_FILE"
-  if ! grep -q '^PGSSLMODE=' "$ENV_FILE"; then
+  if grep -q '^PGSSLMODE=' "$ENV_FILE"; then
+    sed -i "s/^PGSSLMODE=.*/PGSSLMODE=$PGSSLMODE/" "$ENV_FILE"
+  else
     printf 'PGSSLMODE=%s\n' "$PGSSLMODE" >> "$ENV_FILE"
   fi
   echo "Existing environment file preserved: $ENV_FILE"
