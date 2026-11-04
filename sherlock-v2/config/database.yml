@@ -11,11 +11,11 @@ default: &default
 # Postgres never uses GSS.
 local: &local
   <<: *default
-  host: localhost
-  port: 5448
+  host: <%= ENV.fetch("TEST_DB_HOST") { "localhost" } %>
+  port: <%= ENV.fetch("TEST_DB_PORT") { 5448 } %>
   gssencmode: disable
-  username: sherlockdb_develop_write
-  password: sherlockdb_develop_write
+  username: <%= ENV.fetch("TEST_DB_USER") { "sherlockdb_develop_write" } %>
+  password: <%= ENV.fetch("TEST_DB_PASSWORD") { "sherlockdb_develop_write" } %>
 
 development:
   <<: *local
@@ -23,7 +23,7 @@ development:
 
 test:
   <<: *local
-  database: sherlockdb_test
+  database: <%= ENV.fetch("TEST_DB_NAME") { "sherlockdb_test" } %>
 
 production:
   <<: *default
