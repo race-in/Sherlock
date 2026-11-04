@@ -4,7 +4,7 @@
 
 A native, self-hosted Sherlock deployment for Debian 11, 12 and 13. The Rails application source is bundled in [`sherlock-v2/`](sherlock-v2/), with its own native installer. Docker is not required.
 
-> **Project status:** this repository bundles the Sherlock v2 application baseline and a native single-user deployment mode. The native installer disables registration/invite routes, enforces a one-account invariant in Rails, and protects first-run setup with a random one-time token. Manual statistics entry, custom CSV/JSON statistics import, and additional tracker adapters remain roadmap work.
+> **Project status:** this repository bundles the Sherlock v2 application baseline and the upstream multi-user account model in a native deployment. The native installer keeps invite-based registration and account management enabled, and protects initial admin setup with a random first-run token. Manual statistics entry, custom CSV/JSON statistics import, and additional tracker adapters remain roadmap work.
 
 ## Install on a VPS
 
@@ -20,7 +20,7 @@ cd Sherlock/sherlock-v2
 sudo ./deploy/install.sh --domain stats.example.com --letsencrypt you@example.com
 ```
 
-Replace the example hostname and email. The installer builds the pinned Ruby runtime, downloads and checksum-verifies the Node.js build runtime, installs PostgreSQL, creates encrypted Rails credentials, configures systemd and Nginx, obtains a Let's Encrypt certificate, and checks the local Rails health endpoint. It enables single-user mode and prints a 64-character one-time setup token only while the database has no account; enter that token on the first-run page. Keep the token private. Existing databases with more than one account are rejected without deleting data.
+Replace the example hostname and email. The installer builds the pinned Ruby runtime, downloads and checksum-verifies the Node.js build runtime, installs PostgreSQL, creates encrypted Rails credentials, configures systemd and Nginx, obtains a Let's Encrypt certificate, and checks the local Rails health endpoint. It keeps the upstream multi-user mode enabled and prints a 64-character first-run setup token when the database has no account; enter that token when creating the initial admin. After setup, invite-based registration and admin user management work as in upstream Sherlock. Existing multi-user databases are supported.
 
 The canonical application installer is **[`sherlock-v2/deploy/install.sh`](sherlock-v2/deploy/install.sh)**. The root-level `install.sh` and the root `scripts/` directory are retained for the older separate-source deployment scaffold; do not use that legacy entry point for the bundled application.
 
@@ -69,11 +69,11 @@ The installer preserves the existing environment file, database and encrypted cr
 
 ## Application features
 
-The bundled application currently provides tracker dashboards and history, tracker API connections, snapshot charts, comparison views, Prometheus metrics, and qui integration. The upstream invite/account code remains in the source for attribution and compatibility, but the native installer disables user-creation routes and enforces one account. See [the bundled application README](sherlock-v2/README.md) for upstream behavior and configuration details.
+The bundled application currently provides tracker dashboards and history, tracker API connections, snapshot charts, comparison views, Prometheus metrics, and qui integration. The upstream invite/account code remains enabled: users can join through invitations and admins can manage accounts. See [the bundled application README](sherlock-v2/README.md) for upstream behavior and configuration details.
 
 ## Custom Edition roadmap
 
-The target is a private single-user instance with automatic and manual statistics, timestamped history, CSV/JSON import/export, and additional permitted tracker integrations. Single-user installation controls are implemented in the native deployment path; manual statistics, custom statistics import/export and additional adapters remain planned work, not completed features.
+The target is a self-hosted multi-user instance with automatic and manual statistics, timestamped history, CSV/JSON import/export, and additional permitted tracker integrations. Manual statistics, custom statistics import/export and additional adapters remain planned work, not completed features.
 
 See [ROADMAP.md](ROADMAP.md) for phases, acceptance criteria and release gates. The root legacy installer is a separate deployment scaffold; use only `sherlock-v2/deploy/install.sh` for the bundled native app.
 
