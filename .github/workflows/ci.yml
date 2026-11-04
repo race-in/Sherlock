@@ -26,7 +26,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Clone and audit upstream Sherlock source
         run: |
-          git clone --depth 1 --no-tags https://codeberg.org/whatstatus/sherlock-v2.git "$RUNNER_TEMP/sherlock-upstream"
+          git clone --depth 1 --no-tags \
+            https://codeberg.org/whatstatus/sherlock-v2.git \
+            "$RUNNER_TEMP/sherlock-upstream"
           bash scripts/audit-upstream-source.sh "$RUNNER_TEMP/sherlock-upstream"
 
   lint:
