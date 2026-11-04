@@ -89,7 +89,7 @@ rm -rf node_modules
 MIGRATE
 
 systemctl start sherlock
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:3000/up >/dev/null; then
     trap - EXIT
     echo 'Update complete; health check passed.'

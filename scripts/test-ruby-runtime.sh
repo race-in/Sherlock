@@ -19,7 +19,7 @@ case "$(dpkg --print-architecture)" in
   *) echo "Unsupported architecture: $(dpkg --print-architecture)." >&2; exit 1 ;;
 esac
 
-SCRIPT_DIR=$(cd -- "$(dirname -- "$BASH_SOURCE")" && pwd)
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 APP_SOURCE_DIR="$SCRIPT_DIR/../sherlock-v2"
 
 export DEBIAN_FRONTEND=noninteractive

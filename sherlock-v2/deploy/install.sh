@@ -357,7 +357,7 @@ install_base_packages() {
   apt_install ca-certificates curl gnupg git openssl rsync xz-utils tar patch file \
     build-essential autoconf bison pkg-config \
     libssl-dev zlib1g-dev libyaml-dev libffi-dev libreadline-dev libncurses-dev libgmp-dev libdb-dev libpq-dev libgdbm-dev uuid-dev \
-    libjemalloc2 libatomic1
+    libjemalloc2 libatomic1 tzdata sudo
 }
 
 # ---------------------------------------------------------------------------------------------

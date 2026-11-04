@@ -191,7 +191,7 @@ PGPASSWORD="$DB_PASSWORD" "$PG_BINDIR/pg_restore" \
   -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$DB_DUMP"
 
 systemctl start sherlock
-for attempt in $(seq 1 60); do
+for _ in $(seq 1 60); do
   if curl -fsS "http://127.0.0.1:${PORT:-3000}/up" >/dev/null; then
     echo "Restore complete; health check passed: https://$APP_HOST"
     exit 0

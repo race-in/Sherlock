@@ -34,7 +34,7 @@ apt-get install --simulate --no-install-recommends \
   ca-certificates curl git build-essential autoconf bison \
   libssl-dev libyaml-dev libreadline-dev zlib1g-dev libffi-dev libgdbm-dev \
   libncurses-dev libgmp-dev libdb-dev libpq-dev pkg-config python3 make gcc g++ \
-  libjemalloc2 libatomic1 postgresql-common postgresql-18 postgresql-client-18 \
+  libjemalloc2 libatomic1 tzdata sudo postgresql-common postgresql-18 postgresql-client-18 \
   nginx certbot python3-certbot-nginx ufw openssl xz-utils iproute2
 
 # Install PostgreSQL 18 in the actual Debian container, start its cluster, and
