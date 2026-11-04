@@ -72,7 +72,7 @@ class StatisticsCsvImporterTest < ActiveSupport::TestCase
     connection = connections(:alice_redacted)
     user = users(:alice)
     missing_time = CSV.generate { |writer| writer << %w[time uploaded downloaded]; writer << [ nil, "1", "1" ] }
-    malformed_width = "time,uploaded,downloaded\n#{2.days.ago.iso8601},1,1,extra\n"
+    malformed_width = "time,uploaded,downloaded,note\n#{2.days.ago.iso8601},1,1\n"
 
     [ missing_time, malformed_width ].each do |csv|
       assert_no_difference -> { connection.snapshots.count } do
