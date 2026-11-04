@@ -21,7 +21,7 @@ class Admin::Sites::SetupsController < Admin::Sites::BaseController
 
   private
     def share?
-      params[:share] == "1"
+      !Rails.application.config.x.single_user_mode && params[:share] == "1"
     end
 
     def from_dashboard?
