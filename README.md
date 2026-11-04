@@ -84,7 +84,7 @@ It refuses to overwrite an existing `/opt/sherlock` directory or an existing dat
 - `scripts/patch-native-app.sh`: applies the local-only Puma loopback bind and database-pool patches; fails closed if the expected upstream source lines change.
 - `scripts/prepare-bullseye-archive.sh`: backs up and adapts official Debian 11 APT source entries after EOL consent.
 - `scripts/compatibility-check.sh`: reports supported Debian releases, CPU architecture, and glibc compatibility.
-- `scripts/test-native-patches.sh` and `scripts/test-bullseye-archive.sh`: regression tests run in CI.
+- `scripts/test-native-patches.sh` and `scripts/test-bullseye-archive.sh`: regression tests run in CI, including Ruby/ERB syntax checks for deployment patches.
 - `scripts/test-apt-dependencies.sh`: verifies that the native installer dependency set and PostgreSQL 18 packages resolve from each Debian release's configured APT repositories.
 
 ## Operations
