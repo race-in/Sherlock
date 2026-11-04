@@ -58,6 +58,23 @@ class Connections::ManualSnapshotsControllerTest < ActionDispatch::IntegrationTe
     end
   end
 
+  test "manual observation time is interpreted in the signed-in user's time zone" do
+    user = users(:alice)
+    user.update!(time_zone: "Asia/Kolkata")
+    sign_in_as user
+    connection = connections(:alice_redacted)
+    expected = Time.find_zone!("Asia/Kolkata").parse("2026-10-20T10:30")
+
+    assert_difference -> { connection.snapshots.count }, 1 do
+      post connection_manual_snapshot_path(connection), params: {
+        snapshot: { uploaded: "1", downloaded: "0", created_at: "2026-10-20T10:30" }
+      }
+    end
+
+    snapshot = connection.snapshots.find_by!(created_at: expected)
+    assert_equal expected.utc, snapshot.created_at.utc
+  end
+
   test "zero values remain zero and unreported optional metrics remain nil" do
     sign_in_as users(:alice)
     connection = connections(:alice_redacted)
