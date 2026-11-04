@@ -46,8 +46,8 @@ pg_ctlcluster 18 main start
 pg_isready -h 127.0.0.1 -p "$PG_PORT"
 
 TMP_DIR=$(mktemp -d)
-DB_ROLE="sherlock_ci_$_role"
-DB_NAME="sherlock_ci_$"
+DB_ROLE="sherlock_ci_$(date +%s%N)_role"
+DB_NAME="sherlock_ci_$(date +%s%N)"
 DB_PASSWORD=$(openssl rand -hex 24)
 cleanup() {
   if [[ -n "${DB_NAME:-}" ]]; then
