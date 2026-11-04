@@ -48,6 +48,9 @@ groupadd --system sherlock-runtime-test
 useradd --system --gid sherlock-runtime-test --home-dir "$APP_HOME" --create-home --shell /usr/sbin/nologin sherlock-runtime-test
 install -d -o sherlock-runtime-test -g sherlock-runtime-test -m 0750 "$APP_DIR" "$BUNDLE_PATH" "$APP_HOME"
 git clone --depth 1 --no-tags "$APP_SOURCE_URL" "$APP_DIR"
+if [[ "${DEBIAN_VERSION:-}" == "12" ]]; then
+  bash "$SCRIPT_DIR/audit-upstream-source.sh" "$APP_DIR"
+fi
 # Exercise the exact local deployment patcher against the live upstream source,
 # not only the synthetic fixtures in test-native-patches.sh.
 bash "$SCRIPT_DIR/patch-native-app.sh" "$APP_DIR"
