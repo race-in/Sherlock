@@ -255,7 +255,7 @@ class User < ApplicationRecord
           row["created_by_user_id"] = id
           row["import_batch_id"] = import_batch_id
         end
-        row.except("created_at", "user_class", "source", "note", "import_batch_id").each_value { Float(_1) unless _1.nil? }
+        row.except("created_at", "user_class", "source", "note", "created_by_user_id", "import_batch_id").each_value { Float(_1) unless _1.nil? }
         row.merge("updated_at" => row["created_at"]) if known.add?(row["created_at"].to_i)
       end
       relation.insert_all!(rows) if rows.any?
