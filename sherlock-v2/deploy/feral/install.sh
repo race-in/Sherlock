@@ -80,19 +80,17 @@ command -v cargo >/dev/null || die "Private Rust/Cargo runtime missing. Re-run b
 LIBCLANG_PATH="$(ruby -rlibclang -e 'puts File.dirname(Libclang.path)' 2>/dev/null)" || die "Private libclang gem missing. Re-run bootstrap-runtime.sh."
 export LIBCLANG_PATH
 
-# Debian 9's GCC headers are outside Clang's default search path. bindgen,
-# used by rb-sys/prometheus-client-mmap, must be told where stdarg.h lives.
+# Debian 9's GCC internal headers are outside Clang's default search path.
+# rb-sys 0.9.x builds Ruby bindings with an explicit Builder::clang_args list;
+# inject the GCC include path through rb-sys' RBCONFIG_CPPFLAGS override so it
+# is part of that list (rather than relying on Cargo's target-specific env).
 GCC_INCLUDE="$(gcc -print-file-name=include 2>/dev/null || true)"
-[[ -n "$GCC_INCLUDE" && -r "$GCC_INCLUDE/stdarg.h" ]] ||
-  die "GCC internal headers (stdarg.h) were not found; install/enable the GCC development toolchain."
-# rb-sys uses target-specific bindgen variables when generating Ruby bindings.
-# Set both spellings so the GCC 6 internal stdarg.h is visible to libclang.
-BINDGEN_GCC_ARGS="-I$GCC_INCLUDE"
-export BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS:+$BINDGEN_EXTRA_CLANG_ARGS }$BINDGEN_GCC_ARGS"
-# rb-sys reads the exact Cargo target triple, including hyphens. Bash cannot
-# export that name with normal assignment syntax, so pass it through env when
-# invoking Bundler below. Keep the underscore spelling for tools that normalize it.
-export BINDGEN_EXTRA_CLANG_ARGS_x86_64_unknown_linux_gnu="$BINDGEN_GCC_ARGS"
+[[ -n "$GCC_INCLUDE" && -r "$GCC_INCLUDE/stdarg.h" && -r "$GCC_INCLUDE/limits.h" ]] ||
+  die "GCC internal headers (stdarg.h/limits.h) were not found; install/enable the GCC development toolchain."
+RUBY_DEFAULT_CPPFLAGS="$(ruby -rrbconfig -e 'print RbConfig::CONFIG.fetch("CPPFLAGS", "")')"
+RBCONFIG_CPPFLAGS="${RBCONFIG_CPPFLAGS:-$RUBY_DEFAULT_CPPFLAGS}"
+RBCONFIG_CPPFLAGS="$RBCONFIG_CPPFLAGS -isystem $GCC_INCLUDE -I$RUNTIME_PREFIX/include"
+export RBCONFIG_CPPFLAGS
 
 # Pass libpq paths explicitly to the pg gem instead of relying on pg_config's
 # autodetection (which can fail on non-standard, rootless prefixes).
@@ -105,7 +103,7 @@ PG_LIB="$RUNTIME_PREFIX/lib"
 [[ -r "$PG_LIB/libpq.so" || -r "$PG_LIB/libpq.a" ]] ||
   die "Private PostgreSQL client library libpq is missing under $PG_LIB."
 export PG_CONFIG="$RUNTIME_PREFIX/bin/pg_config"
-export CPPFLAGS="-I$PG_INCLUDE ${CPPFLAGS:-}"
+export CPPFLAGS="-I$PG_INCLUDE -isystem $GCC_INCLUDE ${CPPFLAGS:-}"
 export BUNDLE_APP_CONFIG="$CONF_DIR/bundle"
 command -v ruby >/dev/null || die "Ruby >= 3.2 is required. Debian 9 system Ruby is too old; install a private runtime first."
 ruby -e 'require "rubygems"; abort "Ruby >= 3.2 required" if Gem::Version.new(RUBY_VERSION) < Gem::Version.new("3.2.0")' ||
