@@ -23,6 +23,8 @@ load_env() {
   export PATH="$RUNTIME_PREFIX/bin:$NODE_BIN:$PATH"
   export LD_LIBRARY_PATH="$RUNTIME_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   export BUNDLE_APP_CONFIG="$HOME/.config/sherlock-feral/bundle"
+  # Match the installer: development and test gems are not installed on the slot.
+  export BUNDLE_WITHOUT="development:test"
   set -a
   # shellcheck disable=SC1090
   . "$ENV_FILE"
