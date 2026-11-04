@@ -58,7 +58,16 @@ ruby -rjson -rerb -ryaml -e '
   ENV["DB_NAME"] = "postgres"
   ENV["DB_USER"] = "postgres.example"
   ENV["DB_PASSWORD"] = %q{p@ss: # [special] !tag &value "quoted" \ slash}
-  parsed = YAML.load(ERB.new(File.read(ARGV.fetch(0))).result)
+  source = ERB.new(File.read(ARGV.fetch(0))).result
+  load_parameters = YAML.method(:load).parameters
+  supports_aliases_option = load_parameters.any? do |kind, name|
+    kind == :keyrest || name == :aliases
+  end
+  parsed = if supports_aliases_option
+    YAML.load(source, aliases: true)
+  else
+    YAML.load(source)
+  end
   production = parsed.fetch("production")
   abort "database YAML password escaping failed" unless production.fetch("password") == ENV.fetch("DB_PASSWORD")
   abort "database YAML host interpolation failed" unless production.fetch("host") == ENV.fetch("DB_HOST")
