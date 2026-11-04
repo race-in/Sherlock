@@ -43,6 +43,9 @@ module Sherlock
     config.mission_control.jobs.base_controller_class = "Admin::BaseController"
     config.mission_control.jobs.http_basic_auth_enabled = false
 
+    # The native deployment defaults to a private, single-user installation.
+    config.x.single_user_mode = ENV["SINGLE_USER_MODE"] == "true"
+
     # The latest release tag, for the footer. Images get APP_VERSION at build time.
     config.x.version = ENV.fetch("APP_VERSION") { `git describe --tags --abbrev=0 2>/dev/null`.strip.presence || "unknown" }
 
