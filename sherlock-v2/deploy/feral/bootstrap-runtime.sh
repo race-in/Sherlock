@@ -45,7 +45,7 @@ fi
 
 step "Build OpenSSL 3.5.9 LTS"
 if [[ ! -x "$PREFIX/bin/openssl" ]] || ! "$PREFIX/bin/openssl" version | grep -Fq 'OpenSSL 3.5.9'; then
- fetch https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz "$WORK/src/openssl-3.5.9.tar.gz" f482705825eb43b47ce08d5cf4287ae062cdbada1a142d728a8d89c387300bf0
+ fetch https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz "$WORK/src/openssl-3.5.9.tar.gz" 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
  rm -rf "$WORK/build/openssl-3.5.9"; tar -xf "$WORK/src/openssl-3.5.9.tar.gz" -C "$WORK/build"
  (cd "$WORK/build/openssl-3.5.9" && ./Configure linux-x86_64 --prefix="$PREFIX" --libdir=lib --openssldir="$PREFIX/ssl" shared zlib -I"$PREFIX/include" -L"$PREFIX/lib" && make -j"$JOBS" && make install_sw) >"$LOG_DIR/openssl-build.log" 2>&1 || { tail -n 60 "$LOG_DIR/openssl-build.log" >&2; die "OpenSSL build failed; see $LOG_DIR/openssl-build.log"; }
 fi
