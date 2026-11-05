@@ -15,7 +15,12 @@ SITES = [
   },
   { slug: "avistaz", name: "AvistaZ", short_name: "AvZ", tier: "unsupported", unsupported_reason: "Needs your login, not an API key." },
   { slug: "torrentleech", name: "TorrentLeech", short_name: "TL", tier: "unsupported", unsupported_reason: "Needs your login, not an API key." },
-  { slug: "iptorrents", name: "IPTorrents", short_name: "IPT", tier: "unsupported", unsupported_reason: "Needs your login, not an API key." },
+  {
+    slug: "iptorrents", name: "IPTorrents", short_name: "IPT", engine: "iptorrents", tier: "beta",
+    credential_kind: "cookies", base_url: "https://www.iptorrents.com",
+    tracker_hosts: [ "iptorrents.com" ], api_key_url: "https://www.iptorrents.com/",
+    key_instructions: "Sign in to IPTorrents in your browser. Copy the uid and pass cookies from that signed-in session (and cf_clearance if your browser has it). Paste them below as uid=...; pass=...; cf_clearance=.... Never share your IPTorrents password."
+  },
   {
     slug: "hdbits", name: "HDBits", short_name: "HDB", engine: "hdbits", tier: "supported", credential_kind: "passkey",
     base_url: "https://hdbits.org", tracker_hosts: [ "hdbits.org" ], api_key_url: "https://hdbits.org/",
