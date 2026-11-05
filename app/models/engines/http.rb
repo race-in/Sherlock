@@ -68,7 +68,7 @@ class Engines::Http
   end
 
   def get(headers)
-    perform(Net::HTTP::Get.new(@uri, headers.merge(identity, "Accept" => "application/json")))
+    perform(Net::HTTP::Get.new(@uri, identity.merge("Accept" => "application/json").merge(headers)))
   end
 
   def post(body, headers)
