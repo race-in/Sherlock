@@ -264,12 +264,12 @@ archive_apt() {
 
 prepare_apt() {
   export DEBIAN_FRONTEND=noninteractive
-  if ! apt-get update -qq >/dev/null 2>&1; then
-    case "$CODENAME" in
-      stretch|buster|bullseye) archive_apt ;;
-    esac
-    apt-get update -qq || die "apt-get update failed; fix your package sources and run this script again."
-  fi
+  # deb.debian.org may still list these releases while the package files are already gone (404), so don't
+  # wait for apt to fail: the archive has everything, including the last security updates.
+  case "$CODENAME" in
+    stretch|buster|bullseye) archive_apt ;;
+  esac
+  apt-get update -qq || die "apt-get update failed; fix your package sources and run this script again."
   # A fresh minimal image has no curl or CA certificates yet; old releases need the updated CA list for today's HTTPS sites.
   apt-get install -y -qq --no-install-recommends ca-certificates curl >/dev/null
 }

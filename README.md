@@ -186,7 +186,7 @@ these releases ended:
 
 | Problem on an old release | What the script does |
 |---|---|
-| Package mirrors left `deb.debian.org` | Points apt at `archive.debian.org` and accepts its expired Release files (only when the normal mirror fails). |
+| Package files left `deb.debian.org` and `security.debian.org` | Points apt at `archive.debian.org` (Debian.org addresses only; other mirrors are left alone) and accepts its expired Release files. |
 | Old OpenSSL (Debian 9) | The Ruby build compiles its own OpenSSL 3 (ruby-build does this on its own). |
 | apt has only PostgreSQL 9.6 (Debian 9) or 11 (Debian 10); Sherlock needs 12+ | Builds PostgreSQL 16 from the official source tarball (checksum verified) and runs it as its own service (`sherlock-postgres`, port 54329, `127.0.0.1` only). Where apt has PostgreSQL 12 or newer (for example 13 on Debian 11) it uses that. |
 | libpq 9.6 can't do SCRAM logins (Debian 9) | The private cluster uses md5 passwords there. |
