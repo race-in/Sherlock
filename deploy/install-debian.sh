@@ -236,12 +236,18 @@ settings() {
 apt_has() { apt-cache policy "$1" 2>/dev/null | grep -q 'Candidate: [0-9]'; }
 
 # Package names differ a little between releases (ncurses, jemalloc), so the list is built per system.
+# Precompiled gems in Gemfile.lock (pg, nokogiri, prometheus-client-mmap) need glibc 2.29/2.30. Debian 9 and 10 are
+# older, so there those gems are compiled from source (this needs Rust for prometheus-client-mmap).
+glibc_minor() { ldd --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+$' | cut -d. -f2; }
+old_glibc() { local m; m="$(glibc_minor)"; [[ -n $m ]] && (( m < 30 )); }
+
 build_packages() {
   local -a p=(ca-certificates curl gnupg git openssl perl rsync xz-utils tar patch file sudo tzdata
     build-essential autoconf bison flex pkg-config
     libssl-dev zlib1g-dev libyaml-dev libffi-dev libreadline-dev libgmp-dev libgdbm-dev libdb-dev uuid-dev
     libpq-dev libatomic1)
   if apt_has libncurses-dev; then p+=(libncurses-dev); else p+=(libncurses5-dev); fi
+  if old_glibc; then p+=(clang); if apt_has libclang-dev; then p+=(libclang-dev); fi; fi
   if apt_has libjemalloc2; then p+=(libjemalloc2); elif apt_has libjemalloc1; then p+=(libjemalloc1); fi
   printf '%s\n' "${p[@]}"
 }
@@ -566,8 +572,32 @@ sync_app() {
   find "$INSTALL_DIR/bin" -maxdepth 1 -type f -exec chmod 0755 {} +
   install -d "$INSTALL_DIR"/{tmp/pids,tmp/cache,log,app/assets/builds,.bundle}
   ln -sfn "$CRED_DIR" "$INSTALL_DIR/config/credentials"     # keys live outside the app folder
-  printf -- '---\nBUNDLE_DEPLOYMENT: "true"\nBUNDLE_PATH: "vendor/bundle"\nBUNDLE_WITHOUT: "development:test"\n' > "$INSTALL_DIR/.bundle/config"
+  # Old glibc: the Gemfile is changed below (gems built from source), so the lockfile can't be frozen.
+  local deploy=true; old_glibc && deploy=false
+  printf -- '---\nBUNDLE_DEPLOYMENT: "%s"\nBUNDLE_PATH: "vendor/bundle"\nBUNDLE_WITHOUT: "development:test"\n' "$deploy" > "$INSTALL_DIR/.bundle/config"
   if [[ $MODE == root ]]; then chown -R "$APP_USER:$APP_USER" "$INSTALL_DIR"; fi
+}
+
+# Debian 9/10: build the gems whose precompiled versions need a newer glibc from source.
+source_gems() {
+  old_glibc || return 0
+  say "glibc $(ldd --version | head -n1 | grep -oE '[0-9]+\.[0-9]+$') is older than the precompiled gems need: building pg, nokogiri and prometheus-client-mmap from source"
+  local triple; case "$(uname -m)" in x86_64) triple=x86_64-unknown-linux-gnu ;; aarch64) triple=aarch64-unknown-linux-gnu ;; *) die "No Rust toolchain for $(uname -m)." ;; esac
+  local rup="$APP_HOME/.rustup" cargo="$APP_HOME/.cargo"
+  if [[ ! -x $cargo/bin/cargo ]]; then
+    info "Installing Rust (needed for prometheus-client-mmap)"
+    local init; init="$(mktemp "${TMPDIR:-/var/tmp}/rustup-init.XXXXXX")"
+    curl -fsSL "https://static.rust-lang.org/rustup/dist/$triple/rustup-init" -o "$init" || die "Couldn't download rustup (static.rust-lang.org)."
+    chmod 755 "$init"
+    app_run env RUSTUP_HOME="$rup" CARGO_HOME="$cargo" "$init" -y --profile minimal --no-modify-path --default-toolchain stable >/dev/null 2>&1 \
+      || { rm -f "$init"; die "Installing Rust failed."; }
+    rm -f "$init"
+  fi
+  local g="$INSTALL_DIR/Gemfile"
+  sed -i 's/^gem "pg".*/gem "pg", "~> 1.1", force_ruby_platform: true/' "$g"
+  grep -q 'force_ruby_platform' "$g" || die "Couldn't adjust the Gemfile for pg."
+  printf '\ngem "nokogiri", force_ruby_platform: true\ngem "prometheus-client-mmap", force_ruby_platform: true\n' >> "$g"
+  SOURCE_ENV=(RUSTUP_HOME="$rup" CARGO_HOME="$cargo" "PATH=$cargo/bin:$RUBY_DIR/bin:/usr/local/bin:/usr/bin:/bin")
 }
 
 build_app() {
@@ -575,7 +605,8 @@ build_app() {
   node_for_build
   local bv; bv="$(awk '/^BUNDLED WITH/ {getline; gsub(/ /, ""); print; exit}' "$INSTALL_DIR/Gemfile.lock")"
   [[ -z $bv ]] || "$RUBY_DIR/bin/gem" install bundler -v "$bv" --no-document >/dev/null
-  app_run -b bundle install --jobs "$(nproc)" || die "bundle install failed (usually a missing system library; read the error above)."
+  SOURCE_ENV=(); source_gems
+  app_run -b env ${SOURCE_ENV[@]+"${SOURCE_ENV[@]}"} bundle install --jobs "$(nproc)" || die "bundle install failed (usually a missing system library; read the error above)."
   app_run -b npm ci --no-audit --no-fund --loglevel=error
   app_run -b env SECRET_KEY_BASE_DUMMY=1 APP_HOST=build.invalid ./bin/rails assets:precompile
   app_run -b bundle exec bootsnap precompile --gemfile app/ lib/ >/dev/null 2>&1 || warn "bootsnap precompile skipped."
