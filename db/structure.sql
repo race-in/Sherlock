@@ -100,7 +100,8 @@ CREATE TYPE sherlockdb.connection_status AS ENUM (
 
 CREATE TYPE sherlockdb.site_credential_kind AS ENUM (
     'api_key',
-    'passkey'
+    'passkey',
+    'cookies'
 );
 
 
@@ -115,7 +116,8 @@ CREATE TYPE sherlockdb.site_engine AS ENUM (
     'gazellegames',
     'unit3d',
     'anthelion',
-    'animebytes'
+    'animebytes',
+    'iptorrents'
 );
 
 
@@ -2387,6 +2389,8 @@ ALTER TABLE ONLY sherlockdb.site_grants
 SET search_path TO sherlockdb;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105090100'),
+('20261105090000'),
 ('20261028144152'),
 ('20261028105602'),
 ('20261027213858'),
