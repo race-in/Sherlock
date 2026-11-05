@@ -1,3 +1,4 @@
+require "nokogiri"
 # IPTorrents has no public stats API. It uses the member's authenticated browser
 # session, so Sherlock stores only the explicitly supplied session cookies.
 class Engines::Iptorrents
@@ -63,22 +64,20 @@ class Engines::Iptorrents
     end
 
     def parse_stats(html)
-      cards = html.scan(/<[^>]+class=["'][^"']*\\bipx-stat\\b[^"']*["'][^>]*>.*?<\\/[^>]+>/im).join("\\n")
-      cards = html if cards.blank?
+      document = Nokogiri::HTML(html)
       values = {}
       { uploaded: "up", downloaded: "down", ratio: "ratio" }.each do |key, suffix|
-        card = cards[/<[^>]+class=["'][^"']*upf-stat--#{suffix}[^"']*["'][^>]*>(.*?)<\\/[^>]+>/im, 1]
+        card = document.at_css(".ipx-stat.upf-stat--#{suffix}")
         next unless card
-        raw = card[/class=["'][^"']*ipx-stat__sub[^"']*["'][^>]*>(.*?)<\\/[^>]+>/im, 1]
-        raw ||= card[/class=["'][^"']*ipx-stat__value[^"']*["'][^>]*>(.*?)<\\/[^>]+>/im, 1]
-        value = strip_html(raw)
-        values[key] = key == :ratio ? BigDecimal(value.delete(",")) : Integer(value.delete(",").sub(/\\s+[A-Z]+\\z/i, ""))
+        node = key == :ratio ? card.at_css(".ipx-stat__value") : card.at_css(".ipx-stat__sub")
+        raw = node&.text&.strip
+        next if raw.blank?
+        values[key] = key == :ratio ? BigDecimal(raw.delete(",")) : Integer(raw.delete(",").sub(/\s+[A-Z]+\z/i, ""))
       end
       raise Engines::Error, "IPTorrents profile is missing uploaded or downloaded totals." unless values[:uploaded] && values[:downloaded]
       values[:ratio] ||= (BigDecimal(values[:uploaded]).div(values[:downloaded], 6) if values[:downloaded].positive?)
       values
     end
-
     def strip_html(value)
       CGI.unescapeHTML(value.to_s.gsub(/<[^>]*>/, " ").squish)
     end
