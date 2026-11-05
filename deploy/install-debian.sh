@@ -305,7 +305,7 @@ packages_user() {
     local h
     for h in "openssl/ssl.h:libssl-dev" "zlib.h:zlib1g-dev" "yaml.h:libyaml-dev" "ffi.h:libffi-dev" \
              "readline/readline.h:libreadline-dev" "ncurses.h:$nc" "gmp.h:libgmp-dev" \
-             "gdbm.h:libgdbm-dev" "db.h:libdb-dev" "uuid/uuid.h:uuid-dev" "libpq-fe.h:libpq-dev"; do
+             "gdbm.h:libgdbm-dev" "db.h:libdb-dev" "uuid/uuid.h:uuid-dev" "postgresql/libpq-fe.h:libpq-dev"; do
       have_header "${h%%:*}" || missing+=("${h##*:}")
     done
   fi
