@@ -24,9 +24,14 @@
     </div>
   <% end %>
   <div>
-    <%= form.label :api_key, site.hdbits? ? "Passkey" : "API key", class: "label" %>
-    <%= render "shared/secret_field", form:, class: "mt-1", required: true, autofocus: !site.needs_username? %>
-    <p class="hint mt-1">Your key is encrypted. The person running Sherlock can decrypt it if needed. It's never shown again.</p>
+    <%= form.label(site.cookies_credential? ? :cookies : :api_key, site.iptorrents? ? "Browser cookies (uid=...; pass=...)" : (site.hdbits? ? "Passkey" : "API key"), class: "label") %>
+    <% if site.cookies_credential? %>
+      <%= form.text_area :cookies, required: true, rows: 3, autocomplete: "off", spellcheck: false, autocapitalize: "none", class: "input input-secret mt-1 font-mono" %>
+      <p class="hint mt-1">Paste only uid=...; pass=... and optionally cf_clearance=... from your signed-in browser. Never enter your IPTorrents password. Cookies are encrypted and never shown again.</p>
+    <% else %>
+      <%= render "shared/secret_field", form:, class: "mt-1", required: true, autofocus: !site.needs_username? %>
+      <p class="hint mt-1">Your key is encrypted. The person running Sherlock can decrypt it if needed. It's never shown again.</p>
+    <% end %>
   </div>
   <%= form.button class: "btn-primary", data: { submitting_target: "button" } do %>
     <i class="bi bi-arrow-repeat inline-block animate-spin" data-submitting-target="spinner" hidden aria-hidden="true"></i>
