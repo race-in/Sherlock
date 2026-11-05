@@ -265,6 +265,7 @@ class Site < ApplicationRecord
     "broadcasthenet" => "#2a9bc9",
     "gazellegames" => "#49718e",
     "phoenixproject" => "#f0844f",
+    "desigaane" => "#e0803a",
     "anthelion" => "#5faed9",
     "animebytes" => "#e0699b",
     "aither" => "#8b8d93",

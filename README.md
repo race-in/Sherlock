@@ -17,7 +17,7 @@ The screenshots use made-up demo data.
 
 - A dashboard with all your trackers, and a history page for each one.
 - Charts for upload, download, ratio and bonus points, plus a comparison across trackers.
-- Supports Redacted, Orpheus, BroadcasTheNet, GazelleGames and HDBits. To ask for another, see
+- Supports Redacted, Orpheus, BroadcasTheNet, GazelleGames, DesiGaane and HDBits. To ask for another, see
   [Requesting a tracker](#requesting-a-tracker).
 - It can read your torrents from [qui](https://getqui.com) and show
   how many of them are cross-seeded: seeding the same files on more than one tracker.
@@ -428,7 +428,7 @@ or set the tracker to Granted only. You're responsible for what your instance as
 
 The admin adds a tracker in Admin → Sites with their own key, as on any Sherlock, and ticks whether
 people they invite can track their stats there too. On trackers whose API can read other members'
-profiles (Redacted, Orpheus, PhoenixProject and GazelleGames) that uses the admin's key for everyone. Sherlock then reads each member's profile with that key, as other
+profiles (Redacted, Orpheus, PhoenixProject, DesiGaane and GazelleGames) that uses the admin's key for everyone. Sherlock then reads each member's profile with that key, as other
 members of the tracker see it. A member opts in by putting a Sherlock link on their profile; Sherlock
 checks for it on every read and stops when it's gone. Paranoia applies, and bonus points aren't on
 profiles. The key needs the User permission to read profiles, and Sherlock only sends it GET requests.
