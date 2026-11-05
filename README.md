@@ -191,6 +191,7 @@ these releases ended:
 | apt has only PostgreSQL 9.6 (Debian 9) or 11 (Debian 10); Sherlock needs 12+ | Builds PostgreSQL 16 from the official source tarball (checksum verified) and runs it as its own service (`sherlock-postgres`, port 54329, `127.0.0.1` only). Where apt has PostgreSQL 12 or newer (for example 13 on Debian 11) it uses that. |
 | libpq 9.6 can't do SCRAM logins (Debian 9) | The private cluster uses md5 passwords there. |
 | New Node.js needs a newer libc | Tries the current Node.js, then older ones, then the "glibc-217" builds that run even on Debian 9. The first that starts is used, only for the build. |
+| Precompiled gems (`pg`, `nokogiri`, `prometheus-client-mmap`) need glibc 2.29 or newer (Debian 9 and 10) | Builds these three from source. For `prometheus-client-mmap` it installs Rust into the app user's home folder (`~/.cargo`, `~/.rustup`); on Debian 9 it also uses the libpq of the PostgreSQL it built and fetches a newer `libclang.so` from PyPI. The first install takes longer. |
 | Old certbot (Debian 9) | `--letsencrypt` is refused on Debian 9; use `--no-ssl`, or your own HTTPS proxy with `--proxy none`. |
 
 Debian 9 supports x86_64 only. These releases get no security updates any more: plan an upgrade.
