@@ -47,11 +47,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: The installer's apt packages exist on this release
         run: |
-          apt-get install --simulate --no-install-recommends \
-            ca-certificates curl gnupg git openssl rsync xz-utils tar patch file sudo tzdata \
-            build-essential autoconf bison pkg-config \
-            libssl-dev zlib1g-dev libyaml-dev libffi-dev libreadline-dev libncurses-dev libgmp-dev libgdbm-dev libdb-dev uuid-dev \
-            libpq-dev libjemalloc2 libatomic1 postgresql-common nginx certbot python3-certbot-nginx
+          # shellcheck disable=SC2046
+          apt-get install --simulate --no-install-recommends $(bash deploy/install-debian.sh --print-packages) \
+            postgresql-common nginx certbot python3-certbot-nginx
       - name: db/structure.sql loads on Debian's own PostgreSQL (without the PostgreSQL 17+ line on old servers)
         run: |
           apt-get install -y --no-install-recommends postgresql postgresql-client sudo
@@ -95,3 +93,29 @@ jobs:
       - run: bin/rails tailwindcss:build
       - run: bin/rails db:test:prepare
       - run: bin/rails test
+
+  # A full rootless install (Ruby build, gems, assets, database, start, health check) on every supported release.
+  # About 20 to 40 minutes each, so it runs on demand: put [e2e] in a commit message, or start it by hand.
+  e2e:
+    name: Full install on Debian ${{ matrix.version }}
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[e2e]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["9", "10", "11", "12", "13"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Sherlock as a normal user inside debian:${{ matrix.version }}
+        run: |
+          docker run --rm -v "$PWD:/src:ro" debian:${{ matrix.version }} bash -eu -c '
+            bash /src/deploy/install-debian.sh --prepare-system
+            useradd -m tester
+            cp -a /src /home/tester/Sherlock && chown -R tester:tester /home/tester/Sherlock
+            runuser -u tester -- bash -eu -c "
+              cd ~/Sherlock
+              bash deploy/install-debian.sh --domain localhost:3000 -y
+              curl -fsS http://127.0.0.1:3000/up; echo
+              ~/.local/bin/sherlock-ctl stop"
+          '

@@ -32,8 +32,8 @@ The screenshots use made-up demo data.
 ## Install on Debian (without Docker)
 
 This is the complete guide to running Sherlock on your own Debian server, from an empty machine to a working
-site. Docker is not needed. One script, `deploy/install-debian.sh`, does all the work, and you run the same
-script again later to update.
+site. Docker is not needed. One script, `deploy/install-debian.sh`, does all the work on **Debian 9, 10, 11, 12
+and 13**, and you run the same script again later to update.
 
 **Contents:** [How it works](#how-it-works) · [Choose how to install](#choose-how-to-install) ·
 [Requirements](#requirements) · [Install as root](#install-as-root-system-install) ·
@@ -75,7 +75,8 @@ The script looks at who runs it:
 
 ### Requirements
 
-- **Debian 12 or 13** (Debian 11 and Ubuntu 22.04+ may work), on x86_64 or aarch64.
+- **Debian 9, 10, 11, 12 or 13** (Ubuntu 22.04+ may work), on x86_64 or aarch64 (Debian 9: x86_64 only). Debian 9 to 11
+  no longer get security updates; see [Older Debian releases](#older-debian-releases-9-10-11).
 - At least **1.5 GB of RAM plus swap** (compiling Ruby is the hungry part) and about **3 GB of free disk**.
 - Internet access during the install (apt, GitHub for ruby-build, nodejs.org, rubygems.org, npm).
 - **Public site:** a domain name whose DNS `A` (and `AAAA`) record points at the server, and ports 80 and 443
@@ -129,20 +130,25 @@ reason; fix it and run the same command again. Finished steps are skipped, so re
 
 For when you have no root or sudo. Everything stays in your home folder and runs as your user.
 
-**1. Install the system packages once (needs an administrator).** Run the script first; it checks and prints
-exactly what is missing, for example:
+**1. Prepare the system once (needs an administrator).** An administrator runs one command that fixes the package
+sources of old releases and installs every library the build needs:
 
-```text
-Missing packages: libgmp-dev libpq-dev postgresql rsync
-Ask an administrator to run (or run it with sudo yourself):
-
-  sudo apt-get install -y libgmp-dev libpq-dev postgresql rsync
+```sh
+sudo bash deploy/install-debian.sh --prepare-system
 ```
 
-Have that command run, then start the script again. (`postgresql` also starts a system database you don't
-need; an administrator can stop it with `sudo systemctl disable --now postgresql`. Sherlock uses only the
-program files and runs its own private cluster.) If you already have a PostgreSQL server, skip the package and
-use `--db-host` instead, see below.
+If you skip it, the script checks what is missing and prints exactly that, for example:
+
+```text
+Missing packages: libgmp-dev libpq-dev rsync
+
+Ask an administrator to run this once ...:   sudo bash .../deploy/install-debian.sh --prepare-system
+or, on a current release, just:               sudo apt-get install -y libgmp-dev libpq-dev rsync
+```
+
+No PostgreSQL package is needed: if the machine has no PostgreSQL 12 or newer, the script builds PostgreSQL 16
+from source into your home folder (about 5 minutes) and runs its own private cluster. If you already have a
+PostgreSQL server, use `--db-host` instead, see below.
 
 **2. Get the code and run it.**
 
@@ -173,6 +179,22 @@ Rootless extras:
 - Ports below 1024 are not allowed; the default is 3000.
 - Add `~/.local/bin` to your `PATH` to type `sherlock-ctl` directly, or call `~/.local/bin/sherlock-ctl`.
 
+### Older Debian releases (9, 10, 11)
+
+The same script works on Debian 9 (stretch), 10 (buster) and 11 (bullseye), and takes care of what changed since
+these releases ended:
+
+| Problem on an old release | What the script does |
+|---|---|
+| Package mirrors left `deb.debian.org` | Points apt at `archive.debian.org` and accepts its expired Release files (only when the normal mirror fails). |
+| Old OpenSSL (Debian 9) | The Ruby build compiles its own OpenSSL 3 (ruby-build does this on its own). |
+| apt has only PostgreSQL 9.6 (Debian 9) or 11 (Debian 10); Sherlock needs 12+ | Builds PostgreSQL 16 from the official source tarball (checksum verified) and runs it as its own service (`sherlock-postgres`, port 54329, `127.0.0.1` only). Where apt has PostgreSQL 12 or newer (for example 13 on Debian 11) it uses that. |
+| libpq 9.6 can't do SCRAM logins (Debian 9) | The private cluster uses md5 passwords there. |
+| New Node.js needs a newer libc | Tries the current Node.js, then older ones, then the "glibc-217" builds that run even on Debian 9. The first that starts is used, only for the build. |
+| Old certbot (Debian 9) | `--letsencrypt` is refused on Debian 9; use `--no-ssl`, or your own HTTPS proxy with `--proxy none`. |
+
+Debian 9 supports x86_64 only. These releases get no security updates any more: plan an upgrade.
+
 ### First login and setup
 
 1. Open the address the installer printed. **Create the first account: it becomes the admin.** Do this
@@ -199,6 +221,8 @@ The first stats appear within the hour, when the hourly job has run. To change a
 | `--port N` | Port of the Sherlock web server. Default `3000`. |
 | `--bind ADDR` | Address Sherlock listens on. Default `127.0.0.1` (`0.0.0.0` with `--proxy none`). |
 | `--db-host HOST` | Use an existing PostgreSQL instead of installing one. Also `--db-port`, `--db-name`, `--db-user`. |
+| `--prepare-system` (root only) | Fix the package sources of old releases, install every system package the build needs, then stop. Run it once before a rootless install. |
+| `--print-packages` | Print the apt packages this system needs, then stop. |
 | `--db-password PW` | Database password. Default: random, saved in the settings file. |
 | `-y`, `--yes` | Ask no questions. |
 

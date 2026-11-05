@@ -2,8 +2,8 @@
 
 The step-by-step guide is in the [README](README.md#install-on-debian-without-docker). This page is the short reference.
 
-`deploy/install-debian.sh` installs everything natively on Debian 12 or 13 (Debian 11 and Ubuntu 22.04+
-are best effort), on x86_64 or aarch64. It does what the Dockerfile and `bin/docker-entrypoint` do, with
+`deploy/install-debian.sh` installs everything natively on Debian 9, 10, 11, 12 and 13 (Ubuntu 22.04+
+is best effort), on x86_64 or aarch64 (Debian 9: x86_64 only). It does what the Dockerfile and `bin/docker-entrypoint` do, with
 systemd instead of a container.
 
 ```sh
