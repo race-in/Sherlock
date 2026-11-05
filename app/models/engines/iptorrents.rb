@@ -35,7 +35,7 @@ class Engines::Iptorrents
     def parse_cookies(value)
       pairs = value.to_s.split(";").filter_map do |part|
         name, content = part.strip.split("=", 2)
-        [name, content] if COOKIE_NAMES.include?(name) && content.present? && content.match?(/\\A[\\w%+\\/=.-]+\\z/)
+        [name, content] if COOKIE_NAMES.include?(name) && content.present? && content.match?(/\A[\w%+\/=.-]+\z/)
       end
       cookies = pairs.to_h
       raise Engines::AccessDenied, "Enter the IPTorrents uid and pass cookies copied from your signed-in browser." unless %w[uid pass].all? { cookies[_1].present? }
