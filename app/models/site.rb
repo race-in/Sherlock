@@ -1,7 +1,7 @@
 class Site < ApplicationRecord
   enum :engine, { gazelle: "gazelle", hdbits: "hdbits", btn: "btn", gazellegames: "gazellegames", unit3d: "unit3d",
-                  anthelion: "anthelion", animebytes: "animebytes" }
-  enum :credential_kind, { api_key: "api_key", passkey: "passkey" }, suffix: :credential
+                  anthelion: "anthelion", animebytes: "animebytes", iptorrents: "iptorrents" }
+  enum :credential_kind, { api_key: "api_key", passkey: "passkey", cookies: "cookies" }, suffix: :credential
   enum :tier, { supported: "supported", beta: "beta", unsupported: "unsupported" }
   # Who may add and poll the tracker: everyone, only admins and the people granted it in /admin, or
   # nobody. Trackers with a credential_warning start as granted.
@@ -230,6 +230,8 @@ class Site < ApplicationRecord
 
   # What a connection stores from the key form: the bare key, or with a username, both as JSON.
   def credential_from(params)
+    return params[:cookies].to_s.strip if cookies_credential?
+
     key = params[:api_key].to_s.strip
     return key unless needs_username?
 
