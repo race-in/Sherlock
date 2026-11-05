@@ -12,7 +12,7 @@ class Sites::ConnectionsController < ApplicationController
   end
 
   def create
-    connection = @site.instance_key? ? connect_profile : Connection.connect!(user: Current.user, site: @site, api_key: @site.credential_from(params.expect(connection: [ :api_key, :username ])))
+    connection = @site.instance_key? ? connect_profile : Connection.connect!(user: Current.user, site: @site, api_key: @site.credential_from(params.expect(connection: [ :api_key, :username, :cookies ])))
     dequeue_tracker(@site.slug)
     redirect_to next_tracker_path, notice: "Connected to #{@site.display_name} as #{connection.external_username}."
   rescue Engines::Error => error
