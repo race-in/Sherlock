@@ -5,7 +5,7 @@ class Settings::Connections::KeysController < Settings::Connections::BaseControl
   end
 
   def update
-    @connection.replace_key!(@connection.site.credential_from(params.expect(connection: [ :api_key, :username ])))
+    @connection.replace_key!(@connection.site.credential_from(params.expect(connection: [ :api_key, :username, :cookies ])))
     redirect_to settings_connection_path(@connection), notice: "Key replaced. #{@connection.site.display_name} accepted it."
   rescue Engines::Error => error
     @error = error
