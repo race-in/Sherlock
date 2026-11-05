@@ -1,37 +1,31 @@
 #!/usr/bin/env bash
-# Sherlock: native Debian installer (no Docker).  Debian 12 and 13 are the target; 11 and
-# Ubuntu 22.04+ are best effort.
+# Sherlock: native installer for Debian 12 and 13 (Debian 11 and Ubuntu 22.04+ best effort). No Docker.
+# It works in two modes, chosen by who runs it:
 #
-#   sudo bash deploy/install-debian.sh --domain sherlock.example.com --letsencrypt you@example.com
-#   sudo bash deploy/install-debian.sh --domain 192.168.1.10 --no-ssl      # private network, plain HTTP
+#   ROOT      sudo bash deploy/install-debian.sh --domain sherlock.example.com --letsencrypt you@example.com
+#             A system install: apt packages, PostgreSQL service, systemd unit, nginx and HTTPS.
+#
+#   ROOTLESS  bash deploy/install-debian.sh --domain localhost
+#             Run as a normal user, no sudo. Everything lives in your home folder, Sherlock runs as you
+#             (systemd --user service, or plain background processes), with its own PostgreSQL cluster
+#             or one you point it at. Missing system packages are listed instead of installed.
 #
 # Safe to run again: re-running updates the app from the current checkout and keeps the database,
 # the credentials and your settings.
-#
-# What it sets up
-#   * apt packages, PostgreSQL (18 from the PGDG repository, else what Debian ships)
-#   * Ruby (the version in .ruby-version) compiled with ruby-build under /opt/rubies
-#   * the app in /opt/sherlock, run by the system user "sherlock" (systemd unit "sherlock")
-#   * /etc/sherlock/sherlock.env (settings) and /etc/sherlock/credentials (BACK THIS UP)
-#   * optionally nginx as reverse proxy, with a Let's Encrypt certificate
+# Run with --help for all options.
 
 set -Eeuo pipefail
 
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_USER=sherlock
-APP_HOME=/var/lib/sherlock
-INSTALL_DIR=/opt/sherlock
-CONF_DIR=/etc/sherlock
-ENV_FILE=$CONF_DIR/sherlock.env
-CRED_DIR=$CONF_DIR/credentials
-RUBIES_DIR=/opt/rubies
 SERVICE=sherlock
 # ruby-build release pinned by commit, so a moved tag can't change what gets built.
 RUBY_BUILD_TAG=v20261023
 RUBY_BUILD_COMMIT=b6a92c15f0df872047c74f7dfa0b92dfd4de8a92
 
-OPT_DOMAIN="" OPT_SSL="" OPT_PROXY="" OPT_EMAIL="" OPT_PORT="" OPT_DB_PASSWORD=""
+OPT_DOMAIN="" OPT_SSL="" OPT_PROXY="" OPT_EMAIL="" OPT_PORT="" OPT_BIND=""
+OPT_DB_HOST="" OPT_DB_PORT="" OPT_DB_NAME="" OPT_DB_USER="" OPT_DB_PASSWORD=""
 ASSUME_YES=0
+MODE=root
 
 say()  { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
@@ -41,27 +35,47 @@ trap 'printf "\033[31mInstall stopped at line %s. Fix the problem and run the sc
 
 usage() {
   cat <<'EOF'
-Usage: sudo bash deploy/install-debian.sh --domain HOST [options]
+Usage:
+  sudo bash deploy/install-debian.sh --domain HOST [options]     system install (root)
+       bash deploy/install-debian.sh --domain HOST [options]     rootless install (normal user)
 
   --domain HOST        Host name (or IP) Sherlock is reached at. Required on the first run.
-  --no-ssl             Plain HTTP (FORCE_SSL=false). Only for a private network.
-  --proxy nginx|none   nginx (default): install nginx in front, Sherlock listens on 127.0.0.1 only.
-                       none: Sherlock listens on 0.0.0.0:PORT, bring your own proxy.
-  --letsencrypt EMAIL  With nginx: get a free HTTPS certificate (domain must point here, port 80 open).
+  --ssl | --no-ssl     FORCE_SSL on/off. Root default: on (needs --letsencrypt with nginx).
+                       Rootless default: off, because there is no proxy; use --ssl if your own
+                       HTTPS proxy sits in front.
   --port N             Port of the Rails server (default 3000).
-  --db-password PW     Database password (default: random, kept in /etc/sherlock/sherlock.env).
+  --bind ADDR          Address Rails listens on. Default: 127.0.0.1, except 0.0.0.0 with --proxy none.
+  --db-host HOST       Use an existing PostgreSQL instead of installing one (also --db-port,
+                       --db-name, --db-user, --db-password). The user must be able to create
+                       the "sherlockdb" schema in the database.
+  --db-password PW     Database password (default: random, kept in the settings file).
   -y, --yes            No questions.
   -h, --help           This text.
+
+Root only:
+  --proxy nginx|none   nginx (default): install nginx in front, Rails listens on 127.0.0.1 only.
+                       none: Rails listens on 0.0.0.0:PORT, bring your own proxy.
+  --letsencrypt EMAIL  With nginx: get a free HTTPS certificate (domain must point here, port 80 open).
+
+Where things go
+  root      app /opt/sherlock, settings /etc/sherlock, service "sherlock", command /usr/local/bin/sherlock-ctl
+  rootless  app ~/.local/share/sherlock/app, settings ~/.config/sherlock, command ~/.local/bin/sherlock-ctl
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --domain)      OPT_DOMAIN="${2:?--domain needs a value}"; shift 2 ;;
+    --ssl)         OPT_SSL=true; shift ;;
     --no-ssl)      OPT_SSL=false; shift ;;
     --proxy)       OPT_PROXY="${2:?--proxy needs nginx or none}"; shift 2 ;;
     --letsencrypt) OPT_EMAIL="${2:?--letsencrypt needs an email}"; shift 2 ;;
     --port)        OPT_PORT="${2:?--port needs a value}"; shift 2 ;;
+    --bind)        OPT_BIND="${2:?--bind needs an address}"; shift 2 ;;
+    --db-host)     OPT_DB_HOST="${2:?--db-host needs a value}"; shift 2 ;;
+    --db-port)     OPT_DB_PORT="${2:?--db-port needs a value}"; shift 2 ;;
+    --db-name)     OPT_DB_NAME="${2:?--db-name needs a value}"; shift 2 ;;
+    --db-user)     OPT_DB_USER="${2:?--db-user needs a value}"; shift 2 ;;
     --db-password) OPT_DB_PASSWORD="${2:?--db-password needs a value}"; shift 2 ;;
     -y|--yes)      ASSUME_YES=1; shift ;;
     -h|--help)     usage; exit 0 ;;
@@ -69,7 +83,31 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Value of KEY from an existing env file (so a re-run keeps earlier choices).
+# ------------------------------------------------------------------------------------------------
+# Paths for the two modes
+# ------------------------------------------------------------------------------------------------
+init_paths() {
+  if [[ $EUID -eq 0 ]]; then
+    MODE=root
+    APP_USER=sherlock; APP_HOME=/var/lib/sherlock
+    INSTALL_DIR=/opt/sherlock; CONF_DIR=/etc/sherlock
+    RUBIES_DIR=/opt/rubies; RUBY_BUILD_DIR=/opt/ruby-build
+    CTL=/usr/local/bin/sherlock-ctl
+    LOG_DIR=/var/log/sherlock
+  else
+    MODE=user
+    APP_USER="$(id -un)"; APP_HOME="$HOME"
+    local data="${XDG_DATA_HOME:-$HOME/.local/share}/sherlock"
+    INSTALL_DIR="$data/app"; CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/sherlock"
+    RUBIES_DIR="$data/rubies"; RUBY_BUILD_DIR="$data/ruby-build"
+    PGDATA="$data/pgdata"; RUN_DIR="$data/run"; LOG_DIR="$data/log"
+    CTL="$HOME/.local/bin/sherlock-ctl"
+  fi
+  ENV_FILE="$CONF_DIR/sherlock.env"
+  CRED_DIR="$CONF_DIR/credentials"
+}
+
+# Value of KEY from an existing settings file (so a re-run keeps earlier choices).
 env_get() { [[ -f $ENV_FILE ]] && sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1 || true; }
 
 # Run a command as the app user, in the app folder, with the service's settings loaded.
@@ -78,17 +116,15 @@ NODE_BIN=""
 app_run() {
   local path="$RUBY_DIR/bin:/usr/local/bin:/usr/bin:/bin"
   if [[ ${1:-} == -b ]]; then path="$NODE_BIN:$path"; shift; fi
-  runuser -u "$APP_USER" -- env -C "$INSTALL_DIR" HOME="$APP_HOME" LANG=C.UTF-8 LC_ALL=C.UTF-8 PATH="$path" \
-    bash -c 'set -a; . "$0"; set +a; exec "$@"' "$ENV_FILE" "$@"
+  local -a cmd=(env -C "$INSTALL_DIR" HOME="$APP_HOME" LANG=C.UTF-8 LC_ALL=C.UTF-8 PATH="$path"
+    bash -c 'set -a; . "$0"; set +a; exec "$@"' "$ENV_FILE" "$@")
+  if [[ $MODE == root ]]; then runuser -u "$APP_USER" -- "${cmd[@]}"; else "${cmd[@]}"; fi
 }
 
 # ------------------------------------------------------------------------------------------------
 preflight() {
-  say "Checking the system"
-  [[ $EUID -eq 0 ]] || die "Run as root: sudo bash $0 ..."
+  say "Checking the system ($MODE mode: $([[ $MODE == root ]] && echo "system install" || echo "installing for $APP_USER, no root needed"))"
   [[ -f $SRC_DIR/Gemfile && -f $SRC_DIR/config/application.rb ]] || die "Run this from the Sherlock checkout (can't find the app next to $0)."
-  command -v apt-get >/dev/null || die "This installer needs apt (Debian or Ubuntu)."
-  [[ -d /run/systemd/system ]] || die "systemd isn't running here (container?). This installer needs systemd."
   # shellcheck disable=SC1091
   . /etc/os-release
   CODENAME="${VERSION_CODENAME:-}"
@@ -103,6 +139,13 @@ preflight() {
     aarch64) NODE_ARCH=arm64 ;;
     *) die "Unsupported CPU $(uname -m) (x86_64 and aarch64 only)." ;;
   esac
+  if [[ $MODE == root ]]; then
+    command -v apt-get >/dev/null || die "A root install needs apt (Debian or Ubuntu)."
+    [[ -d /run/systemd/system ]] || die "systemd isn't running here (container?). Run as a normal user for a rootless install."
+  else
+    [[ -n ${OPT_EMAIL} ]] && die "--letsencrypt needs a root install (it sets up nginx). For HTTPS rootless, put your own proxy in front and use --ssl."
+    [[ -z ${OPT_PROXY} || $OPT_PROXY == none ]] || die "--proxy nginx needs a root install."
+  fi
   local kb; kb=$(awk '/^(MemTotal|SwapTotal):/ {s+=$2} END {print s}' /proc/meminfo)
   (( kb > 1500000 )) || warn "Under 1.5 GB of RAM plus swap: compiling Ruby may run out of memory. Add swap if it does."
 }
@@ -120,24 +163,52 @@ settings() {
   APP_HOST="${APP_HOST,,}"
   [[ $APP_HOST =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]+)?$ ]] || die "Invalid host name: $APP_HOST"
 
-  FORCE_SSL="${OPT_SSL:-$(env_get FORCE_SSL)}"; FORCE_SSL="${FORCE_SSL:-true}"
+  local ssl_default=true; [[ $MODE == user ]] && ssl_default=false
+  FORCE_SSL="${OPT_SSL:-$(env_get FORCE_SSL)}"; FORCE_SSL="${FORCE_SSL:-$ssl_default}"
   PORT="${OPT_PORT:-$(env_get PORT)}"; PORT="${PORT:-3000}"
-  [[ $PORT =~ ^[0-9]+$ ]] || die "--port must be a number."
-  local was; was="$(env_get BIND_ADDRESS)"
-  PROXY="${OPT_PROXY:-$([[ $was == 0.0.0.0 ]] && echo none || echo nginx)}"
-  [[ $PROXY == nginx || $PROXY == none ]] || die "--proxy must be nginx or none."
-  BIND_ADDRESS=$([[ $PROXY == nginx ]] && echo 127.0.0.1 || echo 0.0.0.0)
-  if [[ $PROXY == nginx && $FORCE_SSL == true && -z $OPT_EMAIL ]] && ! grep -qs "managed by Certbot" /etc/nginx/sites-available/$SERVICE; then
-    die "HTTPS needs a certificate: add --letsencrypt you@example.com, or use --no-ssl on a private network, or --proxy none with your own HTTPS proxy."
+  [[ $PORT =~ ^[0-9]+$ ]] && (( PORT >= 1 && PORT <= 65535 )) || die "--port must be a number from 1 to 65535."
+  (( PORT >= 1024 )) || [[ $MODE == root ]] || die "A rootless install can't listen on port $PORT. Use 1024 or higher."
+
+  if [[ $MODE == root ]]; then
+    local was; was="$(env_get BIND_ADDRESS)"
+    PROXY="${OPT_PROXY:-$([[ $was == 0.0.0.0 ]] && echo none || echo nginx)}"
+    [[ $PROXY == nginx || $PROXY == none ]] || die "--proxy must be nginx or none."
+    if [[ $PROXY == nginx && $FORCE_SSL == true && -z $OPT_EMAIL ]] && ! grep -qs "managed by Certbot" /etc/nginx/sites-available/$SERVICE; then
+      die "HTTPS needs a certificate: add --letsencrypt you@example.com, or use --no-ssl on a private network, or --proxy none with your own HTTPS proxy."
+    fi
+  else
+    PROXY=none
+  fi
+  BIND_ADDRESS="${OPT_BIND:-}"
+  if [[ -z $BIND_ADDRESS ]]; then
+    BIND_ADDRESS="$(env_get BIND_ADDRESS)"
+    [[ -n $BIND_ADDRESS ]] || BIND_ADDRESS=$([[ $MODE == root && $PROXY == nginx || $MODE == user ]] && echo 127.0.0.1 || echo 0.0.0.0)
   fi
 
-  DB_NAME=sherlockdb_prod DB_USER=sherlockdb_prod_write DB_HOST=127.0.0.1
-  DB_PASSWORD="${OPT_DB_PASSWORD:-$(env_get DB_PASSWORD)}"; DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 24)}"
+  # Database: an existing server, or a local one this script manages.
+  EXTERNAL_DB=0
+  local old_host; old_host="$(env_get DB_HOST)"
+  if [[ -n $OPT_DB_HOST || ( -n $old_host && $old_host != 127.0.0.1 ) ]]; then EXTERNAL_DB=1; fi
+  DB_HOST="${OPT_DB_HOST:-$(env_get DB_HOST)}"; DB_HOST="${DB_HOST:-127.0.0.1}"
+  DB_NAME="${OPT_DB_NAME:-$(env_get DB_NAME)}"; DB_NAME="${DB_NAME:-sherlockdb_prod}"
+  DB_USER="${OPT_DB_USER:-$(env_get DB_USER)}"; DB_USER="${DB_USER:-sherlockdb_prod_write}"
+  local port_default=5432; [[ $MODE == user ]] && port_default=54329   # a rootless cluster stays clear of a system one
+  DB_PORT="${OPT_DB_PORT:-$(env_get DB_PORT)}"; DB_PORT="${DB_PORT:-$port_default}"
+  [[ $DB_PORT =~ ^[0-9]+$ ]] || die "--db-port must be a number."
+  [[ $DB_HOST =~ ^[A-Za-z0-9._:%-]+$ ]] || die "--db-host contains unsupported characters."
+  [[ $DB_NAME =~ ^[a-z_][a-z0-9_]*$ && $DB_USER =~ ^[a-z_][a-z0-9_]*$ ]] || die "Database and user names may only use lowercase letters, digits and underscores."
+  DB_PASSWORD="${OPT_DB_PASSWORD:-$(env_get DB_PASSWORD)}"
+  if [[ $EXTERNAL_DB -eq 1 && -z $DB_PASSWORD ]]; then
+    [[ -t 0 && $ASSUME_YES -eq 0 ]] || die "Give the database password with --db-password."
+    read -r -s -p "Password of $DB_USER on $DB_HOST: " DB_PASSWORD; echo
+  fi
+  DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 24)}"
   [[ $DB_PASSWORD =~ ^[A-Za-z0-9._~-]+$ ]] || die "The database password may only use letters, digits and . _ ~ -"
   APP_VERSION="$(git -C "$SRC_DIR" describe --tags --abbrev=0 2>/dev/null || true)"; APP_VERSION="${APP_VERSION:-$(env_get APP_VERSION)}"; APP_VERSION="${APP_VERSION:-unknown}"
 
-  info "Host $APP_HOST (FORCE_SSL=$FORCE_SSL), Rails on $BIND_ADDRESS:$PORT, proxy: $PROXY"
+  info "Host $APP_HOST (FORCE_SSL=$FORCE_SSL), Rails on $BIND_ADDRESS:$PORT$([[ $MODE == root ]] && echo ", proxy: $PROXY")"
   info "Ruby $RUBY_VERSION, Node $NODE_VERSION (build only)"
+  if (( EXTERNAL_DB )); then info "Database: $DB_USER@$DB_HOST:$DB_PORT/$DB_NAME (existing server)"; else info "Database: PostgreSQL on this machine, port $DB_PORT"; fi
   if [[ -t 0 && $ASSUME_YES -eq 0 ]]; then
     local a; read -r -p "Continue? [Y/n] " a || true
     [[ -z $a || $a =~ ^[Yy] ]] || die "Stopped."
@@ -145,18 +216,71 @@ settings() {
 }
 
 # ------------------------------------------------------------------------------------------------
-packages() {
+# System packages
+# ------------------------------------------------------------------------------------------------
+BUILD_PACKAGES=(ca-certificates curl gnupg git openssl rsync xz-utils tar patch file sudo tzdata
+  build-essential autoconf bison pkg-config
+  libssl-dev zlib1g-dev libyaml-dev libffi-dev libreadline-dev libncurses-dev libgmp-dev libgdbm-dev libdb-dev uuid-dev
+  libpq-dev libjemalloc2 libatomic1)
+
+packages_root() {
   say "Installing system packages"
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
-  apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg git openssl rsync xz-utils tar patch file sudo tzdata \
-    build-essential autoconf bison pkg-config \
-    libssl-dev zlib1g-dev libyaml-dev libffi-dev libreadline-dev libncurses-dev libgmp-dev libgdbm-dev libdb-dev uuid-dev \
-    libpq-dev libjemalloc2 libatomic1 postgresql-common
+  apt-get install -y --no-install-recommends "${BUILD_PACKAGES[@]}" postgresql-common
 }
 
-postgres() {
+have_cmd()    { command -v "$1" >/dev/null 2>&1; }
+have_header() { printf '#include <%s>\n' "$1" | cc -E -x c - >/dev/null 2>&1; }
+
+# Rootless: nothing can be installed, so check what Ruby and the gems need and say what is missing.
+packages_user() {
+  say "Checking the build tools and libraries"
+  local -a missing=()
+  local c
+  for c in cc make git curl openssl rsync tar xz patch bison autoconf pkg-config; do
+    have_cmd "$c" || case "$c" in
+      cc|make) missing+=(build-essential) ;;
+      xz) missing+=(xz-utils) ;;
+      pkg-config) missing+=(pkg-config) ;;
+      *) missing+=("$c") ;;
+    esac
+  done
+  if have_cmd cc; then
+    local h
+    for h in "openssl/ssl.h:libssl-dev" "zlib.h:zlib1g-dev" "yaml.h:libyaml-dev" "ffi.h:libffi-dev" \
+             "readline/readline.h:libreadline-dev" "ncurses.h:libncurses-dev" "gmp.h:libgmp-dev" \
+             "gdbm.h:libgdbm-dev" "db.h:libdb-dev" "uuid/uuid.h:uuid-dev" "libpq-fe.h:libpq-dev"; do
+      have_header "${h%%:*}" || missing+=("${h##*:}")
+    done
+  fi
+  if (( ! EXTERNAL_DB )); then
+    PG_BIN="$(find_pg_bin)"
+    [[ -n $PG_BIN ]] || missing+=(postgresql)
+  fi
+  if (( ${#missing[@]} )); then
+    mapfile -t missing < <(printf '%s\n' "${missing[@]}" | sort -u)
+    printf '\nMissing packages: %s\nAsk an administrator to run (or run it with sudo yourself):\n\n  sudo apt-get install -y %s\n' "${missing[*]}" "${missing[*]}" >&2
+    if [[ " ${missing[*]} " == *" postgresql "* ]]; then
+      printf '\nThat starts a system PostgreSQL service you do not need; stop it with\n  sudo systemctl disable --now postgresql\nSherlock runs its own cluster in your home folder. Or skip PostgreSQL entirely by pointing at one you\nalready have: --db-host HOST --db-user USER --db-password PW\n' >&2
+    fi
+    die "Install the packages above, then run this script again."
+  fi
+  info "Everything needed is installed."
+}
+
+# Newest PostgreSQL server binaries (initdb, pg_ctl, postgres) on this machine, or nothing.
+find_pg_bin() {
+  local d
+  for d in $(compgen -G '/usr/lib/postgresql/*/bin' | sort -V -r); do
+    [[ -x $d/initdb && -x $d/pg_ctl && -x $d/postgres ]] && { echo "$d"; return; }
+  done
+}
+
+# ------------------------------------------------------------------------------------------------
+# PostgreSQL
+# ------------------------------------------------------------------------------------------------
+postgres_root() {
   say "PostgreSQL"
   # Sherlock is developed on PostgreSQL 18. Use the PGDG repository when it has it.
   if ! apt-cache policy postgresql-18 | grep -q 'Candidate: [0-9]'; then
@@ -193,12 +317,51 @@ SQL
   info "Database $DB_NAME, user $DB_USER"
 }
 
+# Rootless: a private cluster in the home folder. Its superuser is the database user Sherlock logs in as,
+# it listens on 127.0.0.1 only (password required) and keeps its socket in the run folder.
+pg_user_opts() { printf -- '-p %s -k %s -c listen_addresses=127.0.0.1 -c unix_socket_directories=%s' "$DB_PORT" "$RUN_DIR" "$RUN_DIR"; }
+
+postgres_user() {
+  say "PostgreSQL (private cluster in $PGDATA)"
+  PG_BIN="${PG_BIN:-$(find_pg_bin)}"
+  [[ -n $PG_BIN ]] || die "No PostgreSQL server binaries found under /usr/lib/postgresql. Install postgresql, or use --db-host."
+  PG_MAJOR="$(basename "$(dirname "$PG_BIN")")"
+  install -d -m 0700 "$RUN_DIR" "$LOG_DIR"
+  if [[ ! -f $PGDATA/PG_VERSION ]]; then
+    info "Creating the cluster (PostgreSQL $PG_MAJOR)"
+    local pwf; pwf="$(mktemp)"; printf '%s\n' "$DB_PASSWORD" > "$pwf"
+    "$PG_BIN/initdb" -D "$PGDATA" -U "$DB_USER" --pwfile="$pwf" -E UTF8 --locale=C.UTF-8 \
+      --auth-local=trust --auth-host=scram-sha-256 >/dev/null || { rm -f "$pwf"; die "initdb failed."; }
+    rm -f "$pwf"
+  elif [[ "$(cat "$PGDATA/PG_VERSION")" != "$PG_MAJOR" ]]; then
+    # Keep using the version that made the data; its binaries sit next to the newer ones.
+    local ver; ver="$(cat "$PGDATA/PG_VERSION")"
+    PG_BIN="$(dirname "$(dirname "$PG_BIN")")/$ver/bin"
+    [[ -x $PG_BIN/pg_ctl ]] || die "The cluster in $PGDATA is PostgreSQL $ver but its binaries ($PG_BIN) are gone."
+    PG_MAJOR="$ver"
+  fi
+  if ! "$PG_BIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1; then
+    "$PG_BIN/pg_ctl" -D "$PGDATA" -l "$LOG_DIR/postgres.log" -o "$(pg_user_opts)" -w start >/dev/null \
+      || { tail -n 20 "$LOG_DIR/postgres.log" >&2; die "PostgreSQL didn't start. Log: $LOG_DIR/postgres.log"; }
+  fi
+  PG_STARTED_BY_INSTALLER=1
+  # The password is already set by initdb. Create the application database over the private socket.
+  if ! "$PG_BIN/psql" -X -Atq -h "$RUN_DIR" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+    "$PG_BIN/psql" -X -q -h "$RUN_DIR" -p "$DB_PORT" -U "$DB_USER" -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $DB_NAME ENCODING 'UTF8'" >/dev/null
+  fi
+  # A re-run with another --db-password must still work.
+  "$PG_BIN/psql" -X -q -h "$RUN_DIR" -p "$DB_PORT" -U "$DB_USER" -d postgres -v ON_ERROR_STOP=1 -v pw="$DB_PASSWORD" -v u="$DB_USER" \
+    <<<"ALTER ROLE :\"u\" PASSWORD :'pw';" >/dev/null
+  info "Running on port $DB_PORT, database $DB_NAME"
+}
+
 # ------------------------------------------------------------------------------------------------
 build_ruby() {
   say "Ruby $RUBY_VERSION"
   RUBY_DIR="$RUBIES_DIR/$RUBY_VERSION"
   if [[ -x $RUBY_DIR/bin/ruby ]]; then info "Already built in $RUBY_DIR"; return; fi
-  local rb=/opt/ruby-build
+  local rb=$RUBY_BUILD_DIR log="$LOG_DIR/ruby-build.log"
+  install -d "$LOG_DIR" "$RUBIES_DIR"
   if [[ -d $rb/.git ]]; then
     git -C "$rb" fetch -q --depth 1 origin "refs/tags/$RUBY_BUILD_TAG:refs/tags/$RUBY_BUILD_TAG"
     git -C "$rb" checkout -q --detach "$RUBY_BUILD_TAG"
@@ -207,15 +370,14 @@ build_ruby() {
   fi
   [[ "$(git -C "$rb" rev-parse HEAD)" == "$RUBY_BUILD_COMMIT" ]] || die "ruby-build $RUBY_BUILD_TAG isn't the expected commit; refusing to build with it."
   "$rb/bin/ruby-build" --definitions | grep -qx "$RUBY_VERSION" || die "ruby-build doesn't know Ruby $RUBY_VERSION."
-  info "Compiling Ruby (5 to 15 minutes). Log: /var/log/sherlock-ruby-build.log"
-  install -d "$RUBIES_DIR"
-  RUBY_CONFIGURE_OPTS=--disable-install-doc "$rb/bin/ruby-build" "$RUBY_VERSION" "$RUBY_DIR" >/var/log/sherlock-ruby-build.log 2>&1 \
-    || { tail -n 30 /var/log/sherlock-ruby-build.log >&2; die "Building Ruby failed."; }
+  info "Compiling Ruby (5 to 15 minutes). Log: $log"
+  RUBY_CONFIGURE_OPTS=--disable-install-doc "$rb/bin/ruby-build" "$RUBY_VERSION" "$RUBY_DIR" >"$log" 2>&1 \
+    || { tail -n 30 "$log" >&2; die "Building Ruby failed."; }
 }
 
 NODE_TMP=""
 node_for_build() {
-  NODE_TMP="$(mktemp -d /var/tmp/sherlock-node.XXXXXX)"; chmod 755 "$NODE_TMP"
+  NODE_TMP="$(mktemp -d "${TMPDIR:-/var/tmp}/sherlock-node.XXXXXX")"; chmod 755 "$NODE_TMP"
   trap '[[ -z $NODE_TMP ]] || rm -rf "$NODE_TMP"' EXIT
   local name="node-v$NODE_VERSION-linux-$NODE_ARCH" base="https://nodejs.org/dist/v$NODE_VERSION"
   info "Downloading Node.js $NODE_VERSION (only used for the build)"
@@ -229,16 +391,21 @@ node_for_build() {
 
 # ------------------------------------------------------------------------------------------------
 user_and_files() {
-  say "User, folders and settings"
-  getent group "$APP_USER" >/dev/null || groupadd --system "$APP_USER"
-  id -u "$APP_USER" >/dev/null 2>&1 || useradd --system --gid "$APP_USER" --home-dir "$APP_HOME" --create-home --shell /usr/sbin/nologin "$APP_USER"
-  install -d -o "$APP_USER" -g "$APP_USER" -m 0750 "$APP_HOME"
-  install -d -m 0755 "$CONF_DIR"
-  install -d -o "$APP_USER" -g "$APP_USER" -m 0700 "$CRED_DIR"
+  say "Folders and settings"
+  if [[ $MODE == root ]]; then
+    getent group "$APP_USER" >/dev/null || groupadd --system "$APP_USER"
+    id -u "$APP_USER" >/dev/null 2>&1 || useradd --system --gid "$APP_USER" --home-dir "$APP_HOME" --create-home --shell /usr/sbin/nologin "$APP_USER"
+    install -d -o "$APP_USER" -g "$APP_USER" -m 0750 "$APP_HOME"
+    install -d -m 0755 "$CONF_DIR"
+    install -d -o "$APP_USER" -g "$APP_USER" -m 0700 "$CRED_DIR"
+    install -d -o "$APP_USER" -g "$APP_USER" -m 0750 "$LOG_DIR"
+  else
+    install -d -m 0700 "$CONF_DIR" "$CRED_DIR" "$LOG_DIR" "$(dirname "$INSTALL_DIR")"
+  fi
 
   local tmp; tmp="$(mktemp)"
   {
-    echo "# Written by deploy/install-debian.sh. Edit, then: sudo systemctl restart $SERVICE"
+    echo "# Written by deploy/install-debian.sh. Edit, then restart: sherlock-ctl restart"
     echo "RAILS_ENV=production"
     echo "APP_HOST=$APP_HOST"
     echo "FORCE_SSL=$FORCE_SSL"
@@ -255,7 +422,8 @@ user_and_files() {
     echo "# --- your own settings (RAILS_LOG_LEVEL, JOB_CONCURRENCY, METRICS_PORT, ...) are kept below ---"
     [[ -f $ENV_FILE ]] && grep -vE '^(# Written by|# Edit|# --- your own|$|(RAILS_ENV|APP_HOST|FORCE_SSL|PORT|BIND_ADDRESS|DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|APP_VERSION|SOLID_QUEUE_IN_PUMA|METRICS_BIND)=)' "$ENV_FILE" || true
   } > "$tmp"
-  install -o root -g "$APP_USER" -m 0640 "$tmp" "$ENV_FILE"; rm -f "$tmp"
+  if [[ $MODE == root ]]; then install -o root -g "$APP_USER" -m 0640 "$tmp" "$ENV_FILE"; else install -m 0600 "$tmp" "$ENV_FILE"; fi
+  rm -f "$tmp"
 }
 
 sync_app() {
@@ -272,7 +440,7 @@ sync_app() {
   install -d "$INSTALL_DIR"/{tmp/pids,tmp/cache,log,app/assets/builds,.bundle}
   ln -sfn "$CRED_DIR" "$INSTALL_DIR/config/credentials"     # keys live outside the app folder
   printf -- '---\nBUNDLE_DEPLOYMENT: "true"\nBUNDLE_PATH: "vendor/bundle"\nBUNDLE_WITHOUT: "development:test"\n' > "$INSTALL_DIR/.bundle/config"
-  chown -R "$APP_USER:$APP_USER" "$INSTALL_DIR"
+  if [[ $MODE == root ]]; then chown -R "$APP_USER:$APP_USER" "$INSTALL_DIR"; fi
 }
 
 build_app() {
@@ -291,7 +459,8 @@ credentials() {
   say "Credentials"
   if [[ -f $CRED_DIR/production.yml.enc && -f $CRED_DIR/production.key ]]; then info "Kept the existing ones in $CRED_DIR"; return; fi
   [[ ! -f $CRED_DIR/production.yml.enc ]] || die "$CRED_DIR/production.yml.enc exists but production.key is missing. Restore the key from your backup."
-  local tmp; tmp="$(mktemp -p "$CRED_DIR" .new.XXXXXX)"; chown "$APP_USER:$APP_USER" "$tmp"; chmod 600 "$tmp"
+  local tmp; tmp="$(mktemp -p "$CRED_DIR" .new.XXXXXX)"; chmod 600 "$tmp"
+  [[ $MODE == user ]] || chown "$APP_USER:$APP_USER" "$tmp"
   { echo "secret_key_base: $(app_run ./bin/rails secret)"; app_run ./bin/rails db:encryption:init | tail -n 4; } > "$tmp"
   app_run env APP_HOST=setup EDITOR="cp $tmp" ./bin/rails credentials:edit --environment production >/dev/null
   rm -f "$tmp"
@@ -304,7 +473,10 @@ database() {
   say "Preparing the database"
   export PGPASSWORD="$DB_PASSWORD"
   psql -X -q -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT 1" >/dev/null \
-    || die "Can't log in to $DB_NAME as $DB_USER on port $DB_PORT."
+    || die "Can't log in to $DB_NAME as $DB_USER on $DB_HOST:$DB_PORT."
+  if (( EXTERNAL_DB )); then
+    PG_MAJOR=$(( $(psql -X -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Atc "SHOW server_version_num") / 10000 ))
+  fi
   # db/structure.sql comes from PostgreSQL 18 and starts with "SET transaction_timeout", which PostgreSQL 16
   # and older reject. On such servers load it once without that line; db:prepare then just migrates.
   if (( PG_MAJOR < 17 )) && [[ "$(psql -X -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT to_regclass('sherlockdb.schema_migrations') IS NOT NULL")" != t ]]; then
@@ -316,10 +488,14 @@ database() {
   app_run ./bin/rails db:prepare db:seed
 }
 
-install_service() {
+# ------------------------------------------------------------------------------------------------
+# Services and the sherlock-ctl helper
+# ------------------------------------------------------------------------------------------------
+jemalloc_path() { local p; p="/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2"; if [[ -e $p ]]; then echo "$p"; fi; }
+
+install_service_root() {
   say "systemd service"
-  local preload=""
-  [[ -e /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 ]] && preload="Environment=LD_PRELOAD=/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2"
+  local jem; jem="$(jemalloc_path)"
   cat > /etc/systemd/system/$SERVICE.service <<EOF
 [Unit]
 Description=Sherlock (private tracker stats)
@@ -333,7 +509,7 @@ WorkingDirectory=$INSTALL_DIR
 EnvironmentFile=$ENV_FILE
 Environment=LANG=C.UTF-8
 Environment=PATH=$RUBY_DIR/bin:/usr/local/bin:/usr/bin:/bin
-$preload
+${jem:+Environment=LD_PRELOAD=$jem}
 # Same as the Docker entrypoint: create/migrate the database and refresh the tracker list.
 ExecStartPre=$INSTALL_DIR/bin/rails db:prepare db:seed
 ExecStart=$INSTALL_DIR/bin/rails server -b \${BIND_ADDRESS} -p \${PORT}
@@ -349,7 +525,7 @@ ProtectHome=true
 [Install]
 WantedBy=multi-user.target
 EOF
-  cat > /usr/local/bin/sherlock-ctl <<EOF
+  cat > "$CTL" <<EOF
 #!/usr/bin/env bash
 # sherlock-ctl status|start|stop|restart|logs|rails ARGS   (e.g. rails 'users:reset_password[alice]')
 set -euo pipefail
@@ -364,13 +540,124 @@ case "\$cmd" in
   *) sed -n '2p' "\$0"; exit 1 ;;
 esac
 EOF
-  chmod 755 /usr/local/bin/sherlock-ctl
+  chmod 755 "$CTL"
   systemctl daemon-reload
   systemctl enable "$SERVICE" >/dev/null 2>&1
 }
 
+# Rootless: systemd --user units when a user manager is running, otherwise plain background processes.
+install_service_user() {
+  say "Service (rootless)"
+  local jem; jem="$(jemalloc_path)"
+  SYSTEMD_USER=0
+  if have_cmd systemctl && [[ -n ${XDG_RUNTIME_DIR:-} ]] && systemctl --user show-environment >/dev/null 2>&1; then SYSTEMD_USER=1; fi
+  local pgstart=""
+  if (( ! EXTERNAL_DB )); then
+    pgstart="$PG_BIN/postgres -D $PGDATA $(pg_user_opts)"
+  fi
+  if (( SYSTEMD_USER )); then
+    local ud="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+    install -d "$ud"
+    local after="" requires=""
+    if [[ -n $pgstart ]]; then
+      cat > "$ud/$SERVICE-postgres.service" <<EOF
+[Unit]
+Description=Sherlock's private PostgreSQL
+
+[Service]
+ExecStart=$pgstart
+ExecStop=$PG_BIN/pg_ctl -D $PGDATA -m fast stop
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+      after="After=$SERVICE-postgres.service"; requires="Requires=$SERVICE-postgres.service"
+    fi
+    cat > "$ud/$SERVICE.service" <<EOF
+[Unit]
+Description=Sherlock (private tracker stats)
+$after
+$requires
+
+[Service]
+WorkingDirectory=$INSTALL_DIR
+EnvironmentFile=$ENV_FILE
+Environment=LANG=C.UTF-8
+Environment=PATH=$RUBY_DIR/bin:/usr/local/bin:/usr/bin:/bin
+${jem:+Environment=LD_PRELOAD=$jem}
+ExecStartPre=$INSTALL_DIR/bin/rails db:prepare db:seed
+ExecStart=$INSTALL_DIR/bin/rails server -b \${BIND_ADDRESS} -p \${PORT}
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=600
+
+[Install]
+WantedBy=default.target
+EOF
+    # The installer started PostgreSQL by hand to prepare the database; hand it over to systemd.
+    if [[ -n ${PG_STARTED_BY_INSTALLER:-} ]]; then "$PG_BIN/pg_ctl" -D "$PGDATA" -m fast stop >/dev/null 2>&1 || true; fi
+    systemctl --user daemon-reload
+    systemctl --user enable "$SERVICE.service" ${pgstart:+"$SERVICE-postgres.service"} >/dev/null 2>&1
+  fi
+
+  install -d "$(dirname "$CTL")"
+  cat > "$CTL" <<EOF
+#!/usr/bin/env bash
+# sherlock-ctl status|start|stop|restart|logs|rails ARGS   (e.g. rails 'users:reset_password[alice]')
+set -euo pipefail
+SYSTEMD_USER=$SYSTEMD_USER
+INSTALL_DIR='$INSTALL_DIR'; ENV_FILE='$ENV_FILE'; RUBY_BIN='$RUBY_DIR/bin'; LOG_DIR='$LOG_DIR'
+PGDATA='$PGDATA'; PG_BIN='${PG_BIN:-}'; PG_OPTS='$([[ -n $pgstart ]] && pg_user_opts)'; RUN_DIR='$RUN_DIR'
+PIDFILE="\$RUN_DIR/sherlock.pid"
+JEM='$jem'
+mkdir -p "\$RUN_DIR" "\$LOG_DIR"
+alive() { [[ -f \$PIDFILE ]] && kill -0 "\$(cat "\$PIDFILE")" 2>/dev/null; }
+pg_up()   { [[ -z \$PG_BIN ]] || "\$PG_BIN/pg_ctl" -D "\$PGDATA" status >/dev/null 2>&1 || "\$PG_BIN/pg_ctl" -D "\$PGDATA" -l "\$LOG_DIR/postgres.log" -o "\$PG_OPTS" -w start >/dev/null; }
+pg_down() { [[ -z \$PG_BIN ]] || "\$PG_BIN/pg_ctl" -D "\$PGDATA" -m fast stop >/dev/null 2>&1 || true; }
+run_app() {
+  cd "\$INSTALL_DIR"; set -a; . "\$ENV_FILE"; set +a
+  export LANG=C.UTF-8 PATH="\$RUBY_BIN:\$PATH"; [[ -z \$JEM ]] || export LD_PRELOAD="\$JEM"
+  exec "\$@"
+}
+start_plain() {
+  alive && { echo "Sherlock is already running (pid \$(cat "\$PIDFILE"))."; return; }
+  pg_up
+  ( run_app bash -c './bin/rails db:prepare db:seed && exec ./bin/rails server -b "\$BIND_ADDRESS" -p "\$PORT"' ) >>"\$LOG_DIR/sherlock.log" 2>&1 &
+  echo \$! > "\$PIDFILE"
+  echo "Started (pid \$!). Logs: sherlock-ctl logs"
+}
+stop_plain() {
+  if alive; then kill "\$(cat "\$PIDFILE")" 2>/dev/null || true; for _ in \$(seq 1 30); do alive || break; sleep 1; done; fi
+  rm -f "\$PIDFILE"; pg_down; echo "Stopped."
+}
+cmd="\${1:-help}"; shift || true
+case "\$cmd" in
+  start|stop|restart|status)
+    if (( SYSTEMD_USER )); then
+      units=(sherlock.service); [[ -z \$PG_BIN ]] || units=(sherlock-postgres.service sherlock.service)
+      case "\$cmd" in
+        stop) systemctl --user stop sherlock.service ;;
+        *)    systemctl --user "\$cmd" "\${units[@]}" ;;
+      esac
+    else
+      case "\$cmd" in
+        start) start_plain ;;
+        stop) stop_plain ;;
+        restart) stop_plain; start_plain ;;
+        status) if alive; then echo "Sherlock is running (pid \$(cat "\$PIDFILE"))."; else echo "Sherlock is not running."; exit 3; fi ;;
+      esac
+    fi ;;
+  logs) if (( SYSTEMD_USER )); then exec journalctl --user -u sherlock.service -n 200 -f "\$@"; else exec tail -n 200 -f "\$LOG_DIR/sherlock.log" "\$@"; fi ;;
+  rails) run_app ./bin/rails "\$@" ;;
+  *) sed -n '2p' "\$0"; exit 1 ;;
+esac
+EOF
+  chmod 755 "$CTL"
+}
+
 nginx_proxy() {
-  [[ $PROXY == nginx ]] || return 0
+  [[ $MODE == root && $PROXY == nginx ]] || return 0
   say "nginx"
   apt-get install -y --no-install-recommends nginx
   local conf=/etc/nginx/sites-available/$SERVICE host=${APP_HOST%%:*}
@@ -415,45 +702,66 @@ EOF
 
 start() {
   say "Starting Sherlock"
-  systemctl restart "$SERVICE"
+  if [[ $MODE == root ]]; then
+    systemctl restart "$SERVICE"
+  else
+    "$CTL" stop >/dev/null 2>&1 || true
+    "$CTL" start
+  fi
   for _ in $(seq 1 90); do
     if curl -fs -o /dev/null -m 3 "http://127.0.0.1:$PORT/up"; then info "Up: http://127.0.0.1:$PORT/up"; return; fi
-    systemctl is-active --quiet "$SERVICE" || break
+    if [[ $MODE == root ]]; then systemctl is-active --quiet "$SERVICE" || break; fi
     sleep 2
   done
-  journalctl -u "$SERVICE" -n 40 --no-pager >&2 || true
-  die "Sherlock didn't come up. Logs: journalctl -u $SERVICE -e"
+  if [[ $MODE == root ]]; then journalctl -u "$SERVICE" -n 40 --no-pager >&2 || true; else tail -n 40 "$LOG_DIR/sherlock.log" >&2 || true; fi
+  die "Sherlock didn't come up. Check the logs: sherlock-ctl logs"
 }
 
 summary() {
   local url="http://${APP_HOST}"
   [[ $FORCE_SSL == true ]] && url="https://${APP_HOST}"
   [[ $PROXY == none ]] && url="http://${APP_HOST%%:*}:$PORT"
+  [[ $PROXY == none && $FORCE_SSL == true ]] && url="https://${APP_HOST%%:*}  (via your HTTPS proxy to port $PORT)"
   cat <<EOF
 
 Sherlock is installed.  Open $url and create the first account: it becomes the admin.
-  Settings  $ENV_FILE   (then: sudo systemctl restart $SERVICE)
-  Status    sudo sherlock-ctl status | logs | restart
-  Reset     sudo sherlock-ctl rails 'users:reset_password[username]'
+  Settings  $ENV_FILE   (then: sherlock-ctl restart)
+  Control   $([[ $MODE == root ]] && echo "sudo ")sherlock-ctl status | start | stop | restart | logs
+  Reset     $([[ $MODE == root ]] && echo "sudo ")sherlock-ctl rails 'users:reset_password[username]'
   Update    git pull, then run this script again (no options needed)
-  BACK UP   $CRED_DIR/production.key  (and dump the database: sudo -u postgres pg_dump -Fc $DB_NAME)
+  BACK UP   $CRED_DIR/production.key, and the database ($([[ $MODE == root ]] && echo "sudo -u postgres pg_dump -Fc $DB_NAME" || echo "pg_dump -Fc -h ${PGDATA:+$RUN_DIR}${PGDATA:-$DB_HOST} -p $DB_PORT -U $DB_USER $DB_NAME"))
 EOF
-  [[ $PROXY == none ]] && echo "  Rails listens on 0.0.0.0:$PORT: put an HTTPS reverse proxy in front or firewall the port."
+  if [[ $MODE == root && $PROXY == none ]]; then echo "  Rails listens on 0.0.0.0:$PORT: put an HTTPS reverse proxy in front or firewall the port."; fi
+  if [[ $MODE == user ]]; then
+    case ":$PATH:" in *":$(dirname "$CTL"):"*) ;; *) echo "  Add ~/.local/bin to your PATH to use sherlock-ctl, or call $CTL." ;; esac
+    if (( SYSTEMD_USER )); then
+      echo "  It starts at login. To keep it running after you log out (needs an administrator): sudo loginctl enable-linger $APP_USER"
+    else
+      echo "  No systemd user session here, so Sherlock runs as a background process: start it again after a reboot with 'sherlock-ctl start'."
+    fi
+    [[ $BIND_ADDRESS != 127.0.0.1 ]] || echo "  It listens on 127.0.0.1 only. Use --bind 0.0.0.0 (and a firewall) to reach it from other machines."
+  fi
   return 0
 }
 
 main() {
+  init_paths
   preflight
   settings
-  packages
-  postgres
+  if [[ $MODE == root ]]; then
+    packages_root
+    (( EXTERNAL_DB )) || postgres_root
+  else
+    packages_user
+    (( EXTERNAL_DB )) || postgres_user
+  fi
   user_and_files
   build_ruby
   sync_app
   build_app
   credentials
   database
-  install_service
+  if [[ $MODE == root ]]; then install_service_root; else install_service_user; fi
   nginx_proxy
   start
   summary

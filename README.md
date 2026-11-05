@@ -32,8 +32,13 @@ The screenshots use made-up demo data.
 ## Install on Debian (without Docker)
 
 `deploy/install-debian.sh` installs Sherlock natively on **Debian 12 or 13** (Debian 11 and Ubuntu 22.04+
-are best effort), on x86_64 or aarch64. It runs Sherlock as a systemd service behind nginx. Docker is not
-needed. One command does everything, and you can run it again later to update.
+are best effort), on x86_64 or aarch64. Docker is not needed. One command does everything, and you can run
+it again later to update. It works two ways, depending on who runs it:
+
+- **As root (`sudo`)**: a system install. Sherlock runs as its own `sherlock` user under systemd, behind nginx,
+  with a PostgreSQL service and optional HTTPS.
+- **As a normal user (rootless, no sudo)**: everything lives in your home folder and runs as you, with its own
+  PostgreSQL cluster. Good for shared hosts, home servers and trying it out.
 
 ### What you need
 
@@ -65,23 +70,55 @@ sudo bash deploy/install-debian.sh --domain 192.168.1.10 --no-ssl
 The first run takes 10 to 25 minutes, mostly compiling Ruby. When it ends, open the address it prints and
 create the first account: **it becomes the admin**. Everyone else joins with invites.
 
+### Install without root (rootless)
+
+Run the same script as a normal user, without `sudo`:
+
+```sh
+git clone https://github.com/race-in/Sherlock.git
+cd Sherlock
+bash deploy/install-debian.sh --domain localhost
+```
+
+Nothing is installed system-wide, so the script can't install packages. It checks that the build tools and
+libraries Ruby needs are present and, if not, prints one `sudo apt-get install -y ...` line for an administrator
+to run, then you run the script again. You need `postgresql` installed too (only its programs are used: Sherlock
+starts its own private cluster in your home folder, on port 54329, listening on `127.0.0.1` only), or you can
+point to a database you already have: `--db-host HOST --db-user USER --db-password PW`.
+
+| | Root install | Rootless install |
+|---|---|---|
+| App | `/opt/sherlock` | `~/.local/share/sherlock/app` |
+| Settings and credentials | `/etc/sherlock` | `~/.config/sherlock` |
+| Runs as | system user `sherlock` (systemd) | you (`systemd --user`, or background processes if there is no user session) |
+| Web server | nginx on ports 80/443, optional Let's Encrypt | none: Sherlock listens on `127.0.0.1:3000`. Use `--bind 0.0.0.0` to open it to the network, or put your own HTTPS proxy in front and add `--ssl` |
+| Control | `sudo sherlock-ctl ...` | `~/.local/bin/sherlock-ctl ...` |
+
+Rootless runs can only use ports 1024 and up. To keep it running after you log out, an administrator runs
+`sudo loginctl enable-linger YOUR_USER`. Without a systemd user session, start it again after a reboot with
+`sherlock-ctl start`.
+
 ### Options
 
 | Option | What it does |
 |---|---|
 | `--domain HOST` | Host name or IP Sherlock is reached at. Required on the first run. |
-| `--letsencrypt EMAIL` | With nginx: get a free HTTPS certificate for the domain. |
-| `--no-ssl` | Plain HTTP, no redirect to HTTPS, no secure cookies. Only for a private network. |
-| `--proxy nginx\|none` | `nginx` (default) installs nginx and keeps Sherlock on `127.0.0.1`. `none` makes Sherlock listen on `0.0.0.0:PORT` so you can put your own proxy in front. |
+| `--letsencrypt EMAIL` (root only) | With nginx: get a free HTTPS certificate for the domain. |
+| `--no-ssl` / `--ssl` | `--no-ssl`: plain HTTP, no redirect to HTTPS, no secure cookies (private network only). `--ssl`: force HTTPS. Root default is on, rootless default is off. |
+| `--bind ADDR` | Address Rails listens on. Default `127.0.0.1` (`0.0.0.0` with `--proxy none`). |
+| `--db-host HOST` | Use an existing PostgreSQL instead of installing one. Also `--db-port`, `--db-name`, `--db-user`. |
+| `--proxy nginx\|none` (root only) | `nginx` (default) installs nginx and keeps Sherlock on `127.0.0.1`. `none` makes Sherlock listen on `0.0.0.0:PORT` so you can put your own proxy in front. |
 | `--port N` | Port of the Rails server. Default `3000`. |
 | `--db-password PW` | Database password. Default: random, saved in `/etc/sherlock/sherlock.env`. |
 | `-y`, `--yes` | Ask no questions. |
 
+All options: `bash deploy/install-debian.sh --help`.
+
 ### What the installer does
 
-1. Installs the packages it needs with apt.
+1. Installs the packages it needs with apt (rootless: checks them and lists what is missing).
 2. Installs PostgreSQL 18 from the official PostgreSQL repository (or the version Debian ships if 18 isn't
-   offered), and creates the database and user.
+   offered), and creates the database and user (rootless: a private cluster in your home folder).
 3. Builds the Ruby version in `.ruby-version` under `/opt/rubies`, with a ruby-build release pinned by commit.
 4. Downloads the Node.js version in `.node-version` into a temporary folder, checks its checksum, uses it only
    to build the JavaScript and CSS, and deletes it.
@@ -91,7 +128,7 @@ create the first account: **it becomes the admin**. Everyone else joins with inv
 
 | What | Where |
 |---|---|
-| App | `/opt/sherlock`, run by the system user `sherlock` |
+| App | `/opt/sherlock`, run by the system user `sherlock` (rootless: see the table above) |
 | Settings | `/etc/sherlock/sherlock.env` (then `sudo systemctl restart sherlock`) |
 | Credentials | `/etc/sherlock/credentials/`: **back up `production.key`**, without it saved API keys can't be decrypted |
 | Service | `sherlock.service` (web server and tracker polling run together) |
@@ -100,7 +137,7 @@ create the first account: **it becomes the admin**. Everyone else joins with inv
 ### Everyday use
 
 ```sh
-sudo sherlock-ctl status
+sudo sherlock-ctl status      # rootless: sherlock-ctl status (no sudo)
 sudo sherlock-ctl logs
 sudo sherlock-ctl restart
 curl -fsS http://127.0.0.1:3000/up        # health check

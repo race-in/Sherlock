@@ -19,9 +19,19 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
           bash -n deploy/install-debian.sh
-          shellcheck --shell=bash --severity=warning deploy/install-debian.sh
+          shellcheck --shell=bash --severity=warning deploy/install-debian.sh deploy/test-rootless.sh
       - name: --help works
         run: bash deploy/install-debian.sh --help
+
+  rootless:
+    name: Rootless install (normal user)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL server programs (the runner user is not root)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql libpq-dev
+      - name: Private cluster, schema load and sherlock-ctl as a normal user
+        run: bash deploy/test-rootless.sh
 
   debian-packages:
     name: Debian ${{ matrix.version }} packages and PostgreSQL schema
