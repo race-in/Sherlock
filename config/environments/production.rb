@@ -42,7 +42,8 @@ Rails.application.configure do
 
   # The app, plus the apex for the old WhatStatus page. The www names are redirected by
   # dokku-redirect before they reach Rails.
-  config.hosts = [ ENV.fetch("APP_HOST"), "whatstatus.info" ]
+  # APP_HOST may carry a port (sherlock.example.com:3000) when people reach Sherlock directly; hosts match without it.
+  config.hosts = [ ENV.fetch("APP_HOST").split(":").first, "whatstatus.info" ]
   config.host_authorization = { exclude: ->(request) { request.path.in?(%w[/up /metrics]) } }
   config.action_controller.default_url_options = { host: ENV.fetch("APP_HOST"), protocol: https ? "https" : "http" }
 

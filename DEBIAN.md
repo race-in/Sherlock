@@ -14,7 +14,7 @@ sudo bash deploy/install-debian.sh --domain sherlock.example.com --letsencrypt y
 sudo bash deploy/install-debian.sh --domain 192.168.1.10 --no-ssl
 ```
 
-Without root (no sudo) run the same script as a normal user: `bash deploy/install-debian.sh --domain localhost`. It then installs into
+Without root (no sudo) run the same script as a normal user: `bash deploy/install-debian.sh --domain localhost:3000`. It then installs into
 `~/.local/share/sherlock` and `~/.config/sherlock`, runs as you with its own PostgreSQL cluster, and lists any missing
 system packages for an administrator to install. Details: [README](README.md#install-without-root-rootless).
 

@@ -149,11 +149,13 @@ use `--db-host` instead, see below.
 ```sh
 git clone https://github.com/race-in/Sherlock.git
 cd Sherlock
-bash deploy/install-debian.sh --domain localhost
+bash deploy/install-debian.sh --domain localhost:3000
 ```
 
-Use the name or address people will type in the browser as `--domain` (`localhost`, `192.168.1.10`,
-`sherlock.example.com`). It must match, or Sherlock refuses the request.
+Use the name or address people will type in the browser as `--domain` (`localhost:3000`, `192.168.1.10:3000`,
+`sherlock.example.com`). It must match, or Sherlock refuses the request. When you reach Sherlock directly on a port
+(no proxy in front), include the port, so the links Sherlock makes work too. Behind your own proxy on 80/443, give
+the host name only.
 
 **3. Open it.** Sherlock listens on `127.0.0.1:3000` (this machine only). To reach it from other computers use
 `--bind 0.0.0.0` and a firewall, or put your own HTTPS proxy in front, see
@@ -166,7 +168,7 @@ processes: start it again after a reboot with `sherlock-ctl start`.
 Rootless extras:
 
 - Use an existing PostgreSQL instead of the private one:
-  `bash deploy/install-debian.sh --domain localhost --db-host db.example.com --db-user sherlock --db-name sherlock --db-password PW`.
+  `bash deploy/install-debian.sh --domain localhost:3000 --db-host db.example.com --db-user sherlock --db-name sherlock --db-password PW`.
   The user must be able to create the `sherlockdb` schema in that database.
 - Ports below 1024 are not allowed; the default is 3000.
 - Add `~/.local/bin` to your `PATH` to type `sherlock-ctl` directly, or call `~/.local/bin/sherlock-ctl`.

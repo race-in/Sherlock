@@ -5,7 +5,7 @@
 #   ROOT      sudo bash deploy/install-debian.sh --domain sherlock.example.com --letsencrypt you@example.com
 #             A system install: apt packages, PostgreSQL service, systemd unit, nginx and HTTPS.
 #
-#   ROOTLESS  bash deploy/install-debian.sh --domain localhost
+#   ROOTLESS  bash deploy/install-debian.sh --domain localhost:3000
 #             Run as a normal user, no sudo. Everything lives in your home folder, Sherlock runs as you
 #             (systemd --user service, or plain background processes), with its own PostgreSQL cluster
 #             or one you point it at. Missing system packages are listed instead of installed.
@@ -206,6 +206,9 @@ settings() {
   [[ $DB_PASSWORD =~ ^[A-Za-z0-9._~-]+$ ]] || die "The database password may only use letters, digits and . _ ~ -"
   APP_VERSION="$(git -C "$SRC_DIR" describe --tags --abbrev=0 2>/dev/null || true)"; APP_VERSION="${APP_VERSION:-$(env_get APP_VERSION)}"; APP_VERSION="${APP_VERSION:-unknown}"
 
+  if [[ $PROXY == none && $FORCE_SSL == false && $APP_HOST != *:* && $PORT != 80 ]]; then
+    info "Note: you will reach Sherlock on port $PORT. Links it makes (invites, ...) use the host exactly as given, so use --domain $APP_HOST:$PORT to have them include the port."
+  fi
   info "Host $APP_HOST (FORCE_SSL=$FORCE_SSL), Rails on $BIND_ADDRESS:$PORT$([[ $MODE == root ]] && echo ", proxy: $PROXY")"
   info "Ruby $RUBY_VERSION, Node $NODE_VERSION (build only)"
   if (( EXTERNAL_DB )); then info "Database: $DB_USER@$DB_HOST:$DB_PORT/$DB_NAME (existing server)"; else info "Database: PostgreSQL on this machine, port $DB_PORT"; fi
