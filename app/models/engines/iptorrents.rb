@@ -12,13 +12,12 @@ class Engines::Iptorrents
   def fetch(cookie_string)
     cookies = parse_cookies(cookie_string)
     home = request("/", cookies)
-    user_id = home[/href=["']\\/u\\/(\\d+)["']/, 1]
+    user_id = Nokogiri::HTML(home).at_css('a[href^="/u/"]')&.[]("href")&.match(%r{\A/u/(\d+)\z})&.captures&.first
     raise Engines::AccessDenied, "IPTorrents couldn't find a signed-in account. Check that the uid and pass cookies are current." unless user_id
 
     profile = request("#{PROFILE_PATH}?u=#{user_id}", cookies)
     stats = parse_stats(profile)
-    username = profile[/<title[^>]*>\\s*([^<]+?)\\s*-\\s*IPTorrents/i, 1]&.strip
-    username ||= profile[/class=["'][^"']*uname[^"']*["'][^>]*>(.*?)<\\/a>/im, 1]&.then { strip_html(_1) }
+    username = Nokogiri::HTML(profile).at_css("title")&.text&.sub(/\s*-\s*IPTorrents.*\z/i, "")&.strip
     raise Engines::Error, "IPTorrents did not return a recognizable profile." if username.blank?
 
     Engines::Stats.new(
