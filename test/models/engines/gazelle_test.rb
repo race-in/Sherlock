@@ -1,6 +1,19 @@
 require "test_helper"
 
 class Engines::GazelleTest < ActiveSupport::TestCase
+  test "an infinite ratio reported as -1 counts as unknown" do
+    index = { status: "success", response: { id: 359, username: "SaTya",
+      userstats: { uploaded: 210_116_443_500, downloaded: 0, ratio: -1, requiredratio: 0, bonusPoints: 32_512, class: "Elite" } } }.to_json
+    stub_tracker({ "index" => [ 200, index ], "community_stats" => [ 200, { status: "failure", error: "no" }.to_json ],
+                   "user" => [ 200, { status: "failure", error: "no" }.to_json ] }) do
+      stats = sites(:redacted).adapter.fetch("abc123")
+
+      assert_nil stats.ratio
+      assert_equal 0, stats.downloaded
+      assert_equal BigDecimal("32512"), stats.bonus_points
+    end
+  end
+
   test "redacted stats come from index, community_stats and user with the bare key" do
     stub_redacted_success do |requests|
       stats = sites(:redacted).adapter.fetch("abc123")

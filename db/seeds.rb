@@ -35,7 +35,7 @@ SITES = [
   },
   {
     slug: "desigaane", name: "DesiGaane", short_name: "DG", engine: "gazelle", tier: "beta",
-    base_url: "https://desigaane.rocks", api_key_url: "https://desigaane.rocks/user.php?action=edit",
+    base_url: "https://desigaane.rocks", tracker_hosts: [ "desigaane.rocks" ], api_key_url: "https://desigaane.rocks/user.php?action=edit",
     privacy_settings_url: "https://desigaane.rocks/user.php?action=edit", privacy_hint: "Under Paranoia, tick the stats you want Sherlock to see, and save.",
     key_instructions: "Open your settings, go to Access Settings and create an API key with as few permissions as it allows."
   },

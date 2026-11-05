@@ -37,7 +37,7 @@ class Engines::Gazelle
       external_username: index.fetch("username"),
       uploaded: Integer(userstats.fetch("uploaded")),
       downloaded: Integer(userstats.fetch("downloaded")),
-      ratio: decimal(userstats["ratio"]),
+      ratio: ratio(userstats["ratio"]),
       required_ratio: decimal(userstats["requiredratio"]),
       bonus_points: decimal(userstats["bonusPoints"]),
       seeding: count(community.fetch("seeding") { profile["seeding"] }),
@@ -75,7 +75,7 @@ class Engines::Gazelle
       external_username: profile.fetch("username"),
       uploaded: lenient_count(stats["uploaded"]),
       downloaded: lenient_count(stats["downloaded"]),
-      ratio: decimal(stats["ratio"]),
+      ratio: ratio(stats["ratio"]),
       required_ratio: decimal(stats["requiredRatio"]),
       bonus_points: nil,
       seeding: lenient_count(community["seeding"]),
@@ -148,6 +148,11 @@ class Engines::Gazelle
     # make sure the key can't come back in one.
     def message(text, api_key)
       text.to_s.scrub("").gsub(api_key, "[key]").squish.truncate(MESSAGE_LIMIT)
+    end
+
+    # DesiGaane answers -1 for an infinite ratio (nothing downloaded); that isn't a ratio, so it counts as unknown.
+    def ratio(value)
+      decimal(value).then { _1 if _1.nil? || !_1.negative? }
     end
 
     def decimal(value)
