@@ -247,7 +247,7 @@ build_packages() {
     libssl-dev zlib1g-dev libyaml-dev libffi-dev libreadline-dev libgmp-dev libgdbm-dev libdb-dev uuid-dev
     libpq-dev libatomic1)
   if apt_has libncurses-dev; then p+=(libncurses-dev); else p+=(libncurses5-dev); fi
-  if old_glibc; then p+=(clang); if apt_has libclang-dev; then p+=(libclang-dev); fi; fi
+  if old_glibc; then p+=(clang python3); if apt_has libclang-dev; then p+=(libclang-dev); fi; fi
   if apt_has libjemalloc2; then p+=(libjemalloc2); elif apt_has libjemalloc1; then p+=(libjemalloc1); fi
   printf '%s\n' "${p[@]}"
 }
@@ -598,6 +598,35 @@ source_gems() {
   grep -q 'force_ruby_platform' "$g" || die "Couldn't adjust the Gemfile for pg."
   printf '\ngem "nokogiri", force_ruby_platform: true\ngem "prometheus-client-mmap", force_ruby_platform: true\n' >> "$g"
   SOURCE_ENV=(RUSTUP_HOME="$rup" CARGO_HOME="$cargo" "PATH=$cargo/bin:$RUBY_DIR/bin:/usr/local/bin:/usr/bin:/bin")
+  if [[ $CODENAME == stretch ]]; then stretch_gems "$cargo"; fi
+}
+
+# Debian 9 only. Its libpq (9.6) is too old for the pg gem and its libclang (3.8) is too old for Rust's bindgen.
+stretch_gems() {
+  local dir="$APP_HOME/.libclang" url lib
+  # pg: use the libpq of the PostgreSQL we build from source (also when the database itself is external)
+  [[ -n $PG_BIN ]] || build_postgres_from_source
+  local libdir; libdir="$("$PG_BIN/pg_config" --libdir)"
+  printf 'BUNDLE_BUILD__PG: "--with-pg-config=%s/pg_config --with-ldflags=-Wl,-rpath,%s"\n' "$PG_BIN" "$libdir" >> "$INSTALL_DIR/.bundle/config"
+  # bindgen: a recent libclang.so, taken from the "libclang" wheel on PyPI (no other dependencies)
+  if [[ ! -f $dir/libclang.so ]]; then
+    info "Fetching a newer libclang for bindgen"
+    install -d "$dir"; [[ $MODE == user ]] || chown "$APP_USER:$APP_USER" "$dir"
+    url="$("$RUBY_DIR/bin/ruby" -rjson -rnet/http -e '
+      tag = ARGV[0]
+      d = JSON.parse(Net::HTTP.get(URI("https://pypi.org/pypi/libclang/json")))
+      f = d["urls"].find { |u| u["filename"].include?("manylinux") && u["filename"].include?(tag) && u["packagetype"] == "bdist_wheel" }
+      puts f["url"] if f' "$(uname -m)")" || true
+    [[ -n $url ]] || die "Couldn't find the libclang wheel on pypi.org."
+    curl -fsSL "$url" -o "$dir/libclang.whl" || die "Couldn't download libclang."
+    python3 -c 'import sys,zipfile,shutil
+z=zipfile.ZipFile(sys.argv[1]); n=[x for x in z.namelist() if x.endswith("/libclang.so")][0]
+shutil.copyfileobj(z.open(n), open(sys.argv[2],"wb"))' "$dir/libclang.whl" "$dir/libclang.so" \
+      || die "Couldn't unpack libclang."
+    rm -f "$dir/libclang.whl"; [[ $MODE == user ]] || chown -R "$APP_USER:$APP_USER" "$dir"
+  fi
+  lib="$(gcc -print-file-name=include)"
+  SOURCE_ENV+=("LIBCLANG_PATH=$dir" "BINDGEN_EXTRA_CLANG_ARGS=-I$lib")
 }
 
 build_app() {
