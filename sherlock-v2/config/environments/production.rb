@@ -42,8 +42,20 @@ Rails.application.configure do
 
   # The app, plus the apex for the old WhatStatus page. The www names are redirected by
   # dokku-redirect before they reach Rails.
-  config.hosts = [ ENV.fetch("APP_HOST"), "whatstatus.info" ]
+  host_aliases = ENV.fetch("APP_HOST_ALIASES", "").split(",").map(&:strip).reject(&:blank?)
+  config.hosts = [ ENV.fetch("APP_HOST"), *host_aliases, "whatstatus.info" ]
   config.host_authorization = { exclude: ->(request) { request.path.in?(%w[/up /metrics]) } }
+  # Use the encrypted production credentials created by the Feral installer.
+  # Environment variables remain supported for existing deployments that already
+  # provisioned these values outside Rails credentials.
+  encryption = Rails.application.credentials.dig(:active_record_encryption) || {}
+  config.active_record.encryption.primary_key =
+    encryption[:primary_key] || ENV.fetch("ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY")
+  config.active_record.encryption.deterministic_key =
+    encryption[:deterministic_key] || ENV.fetch("ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY")
+  config.active_record.encryption.key_derivation_salt =
+    encryption[:key_derivation_salt] || ENV.fetch("ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT")
+
   config.action_controller.default_url_options = { host: ENV.fetch("APP_HOST"), protocol: https ? "https" : "http" }
 
   # Don't log any deprecations.

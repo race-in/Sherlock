@@ -14,7 +14,7 @@ SET row_security = off;
 -- Name: sherlockdb; Type: SCHEMA; Schema: -; Owner: -
 --
 
-CREATE SCHEMA sherlockdb;
+CREATE SCHEMA IF NOT EXISTS sherlockdb;
 
 
 --

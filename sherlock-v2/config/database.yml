@@ -31,4 +31,5 @@ production:
   port: <%= ENV.fetch("DB_PORT") { 5432 } %>
   database: <%= ENV.fetch("DB_NAME") { "sherlockdb_prod" } %>
   username: <%= ENV.fetch("DB_USER") { "sherlockdb_prod_write" } %>
-  password: <%= ENV["DB_PASSWORD"] %>
+  # JSON quoting keeps special characters in external DB passwords valid YAML.
+  password: <%= require "json"; JSON.generate([ENV.fetch("DB_PASSWORD")])[1...-1] %>
