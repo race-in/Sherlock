@@ -1,0 +1,1027 @@
+[
+  {
+    "name": "3ChangTrai",
+    "short": "3CT",
+    "source": "official"
+  },
+  {
+    "name": "Abnormal",
+    "short": "ABN",
+    "source": "official"
+  },
+  {
+    "name": "ABTorrents",
+    "short": "ABT",
+    "source": "official"
+  },
+  {
+    "name": "Aidoru!Online",
+    "short": "AIO",
+    "source": "generated"
+  },
+  {
+    "name": "Aither",
+    "short": "ATH",
+    "source": "official"
+  },
+  {
+    "name": "AlphaRatio",
+    "short": "AR",
+    "source": "official"
+  },
+  {
+    "name": "Anime Datenbank Tracker",
+    "short": "ADBT",
+    "source": "official"
+  },
+  {
+    "name": "AnimeBytes",
+    "short": "AB",
+    "source": "official"
+  },
+  {
+    "name": "AnimeTorrents",
+    "short": "AnT",
+    "source": "official"
+  },
+  {
+    "name": "AnimeWorld",
+    "short": "AW",
+    "source": "official"
+  },
+  {
+    "name": "Anthelion",
+    "short": "ANT",
+    "source": "official"
+  },
+  {
+    "name": "AsianCinema",
+    "short": "ACM",
+    "source": "official"
+  },
+  {
+    "name": "AstraTorrent",
+    "short": "ASTR",
+    "source": "generated"
+  },
+  {
+    "name": "Audionews",
+    "short": "AN",
+    "source": "official"
+  },
+  {
+    "name": "AvistaZ",
+    "short": "AZ",
+    "source": "official"
+  },
+  {
+    "name": "BakaBT",
+    "short": "BBT",
+    "source": "official"
+  },
+  {
+    "name": "Bemaniso",
+    "short": "SOWS",
+    "source": "official"
+  },
+  {
+    "name": "BeyondHD",
+    "short": "BHD",
+    "source": "official"
+  },
+  {
+    "name": "Bibliotik",
+    "short": "BiB",
+    "source": "official"
+  },
+  {
+    "name": "BitBr",
+    "short": "BTBR",
+    "source": "official"
+  },
+  {
+    "name": "BitPorn",
+    "short": "BITP",
+    "source": "generated"
+  },
+  {
+    "name": "BitTorrentFiles",
+    "short": "BTF",
+    "source": "official"
+  },
+  {
+    "name": "Blutopia",
+    "short": "BLU",
+    "source": "official"
+  },
+  {
+    "name": "Borgzelle",
+    "short": "Borg",
+    "source": "official"
+  },
+  {
+    "name": "BrSociety",
+    "short": "BRS",
+    "source": "official"
+  },
+  {
+    "name": "BrasilTracker",
+    "short": "BT",
+    "source": "official"
+  },
+  {
+    "name": "BroadcasTheNet",
+    "short": "BTN",
+    "source": "official"
+  },
+  {
+    "name": "BrokenStones",
+    "short": "BRKs",
+    "source": "official"
+  },
+  {
+    "name": "BTSCHOOL",
+    "short": "BTS",
+    "source": "official"
+  },
+  {
+    "name": "BwTorrents",
+    "short": "BwT",
+    "source": "official"
+  },
+  {
+    "name": "C411",
+    "short": "C411",
+    "source": "generated"
+  },
+  {
+    "name": "Canal Street",
+    "short": "CAST",
+    "source": "official"
+  },
+  {
+    "name": "CapybaraBR",
+    "short": "CBR",
+    "source": "official"
+  },
+  {
+    "name": "CarPT",
+    "short": "CPT",
+    "source": "generated"
+  },
+  {
+    "name": "Cathode-Ray.Tube",
+    "short": "CRT",
+    "source": "official"
+  },
+  {
+    "name": "CGPeers",
+    "short": "CGP",
+    "source": "official"
+  },
+  {
+    "name": "Cinematik",
+    "short": "TiK",
+    "source": "official"
+  },
+  {
+    "name": "CinemaZ",
+    "short": "CZ",
+    "source": "official"
+  },
+  {
+    "name": "ClearJAV (API)",
+    "short": "CJ",
+    "source": "official"
+  },
+  {
+    "name": "Coastal Music Crew",
+    "short": "CMC",
+    "source": "official"
+  },
+  {
+    "name": "Concertos",
+    "short": "CONC",
+    "source": "generated"
+  },
+  {
+    "name": "CynicalGen",
+    "short": "CG",
+    "source": "official"
+  },
+  {
+    "name": "DanishBytes",
+    "short": "DBy",
+    "source": "official"
+  },
+  {
+    "name": "Dark-Shadow",
+    "short": "DS",
+    "source": "official"
+  },
+  {
+    "name": "DasUnerwartete",
+    "short": "DU",
+    "source": "official"
+  },
+  {
+    "name": "DarkPeers",
+    "short": "DP",
+    "source": "official"
+  },
+  {
+    "name": "DeepBassNine",
+    "short": "DB9",
+    "source": "official"
+  },
+  {
+    "name": "DesiTorrents",
+    "short": "DESI",
+    "source": "generated"
+  },
+  {
+    "name": "DICMusic",
+    "short": "DIC",
+    "source": "official"
+  },
+  {
+    "name": "DigitalCore",
+    "short": "DC",
+    "source": "official"
+  },
+  {
+    "name": "DocsPedia.world",
+    "short": "DPW",
+    "source": "generated"
+  },
+  {
+    "name": "Empornium",
+    "short": "EMP",
+    "source": "official"
+  },
+  {
+    "name": "eShareNet",
+    "short": "ESN",
+    "source": "generated"
+  },
+  {
+    "name": "ExoticaZ",
+    "short": "EZ",
+    "source": "official"
+  },
+  {
+    "name": "ExtremeBits",
+    "short": "XB",
+    "source": "official"
+  },
+  {
+    "name": "F1Carreras",
+    "short": "F1C",
+    "source": "official"
+  },
+  {
+    "name": "F1GP",
+    "short": "F1GP",
+    "source": "official"
+  },
+  {
+    "name": "Fappaizuri",
+    "short": "FAP",
+    "source": "generated"
+  },
+  {
+    "name": "FearNoPeer",
+    "short": "FNP",
+    "source": "official"
+  },
+  {
+    "name": "Femdomcult",
+    "short": "FDC",
+    "source": "official"
+  },
+  {
+    "name": "FileList",
+    "short": "FL",
+    "source": "official"
+  },
+  {
+    "name": "GazelleGames",
+    "short": "GGn",
+    "source": "official"
+  },
+  {
+    "name": "Gemini Tracker",
+    "short": "G3MINI",
+    "source": "official"
+  },
+  {
+    "name": "Generation Free",
+    "short": "GF",
+    "source": "official"
+  },
+  {
+    "name": "GreatPosterWall",
+    "short": "GPW",
+    "source": "official"
+  },
+  {
+    "name": "GGPT",
+    "short": "GGPT",
+    "source": "generated"
+  },
+  {
+    "name": "HappyFappy",
+    "short": "HF",
+    "source": "official"
+  },
+  {
+    "name": "Hawke-UNO",
+    "short": "HUNO",
+    "source": "official"
+  },
+  {
+    "name": "HD-Forever",
+    "short": "HDF",
+    "source": "official"
+  },
+  {
+    "name": "HD-Space",
+    "short": "HDS",
+    "source": "official"
+  },
+  {
+    "name": "HD-Torrents",
+    "short": "HDT",
+    "source": "official"
+  },
+  {
+    "name": "HDArea",
+    "short": "HDA",
+    "source": "official"
+  },
+  {
+    "name": "HDBits",
+    "short": "HDB",
+    "source": "official"
+  },
+  {
+    "name": "HDChina",
+    "short": "HDC",
+    "source": "official"
+  },
+  {
+    "name": "HDFans",
+    "short": "HDFans",
+    "source": "official"
+  },
+  {
+    "name": "HeBits",
+    "short": "HEB",
+    "source": "official"
+  },
+  {
+    "name": "HomieHelpDesk",
+    "short": "HHD",
+    "source": "official"
+  },
+  {
+    "name": "Hon3yHD",
+    "short": "H3HD",
+    "source": "generated"
+  },
+  {
+    "name": "House of Devil",
+    "short": "HoD",
+    "source": "official"
+  },
+  {
+    "name": "HQMusic",
+    "short": "HQM",
+    "source": "official"
+  },
+  {
+    "name": "Immortuos",
+    "short": "IMMO",
+    "source": "generated"
+  },
+  {
+    "name": "IndieTorrents",
+    "short": "IP",
+    "source": "official"
+  },
+  {
+    "name": "Infire",
+    "short": "INF",
+    "source": "official"
+  },
+  {
+    "name": "iNSANE",
+    "short": "INSA",
+    "source": "generated"
+  },
+  {
+    "name": "IPTorrents",
+    "short": "IPT",
+    "source": "official"
+  },
+  {
+    "name": "ItaTorrents",
+    "short": "ITT",
+    "source": "official"
+  },
+  {
+    "name": "JME-REUNIT3D",
+    "short": "JME",
+    "source": "official"
+  },
+  {
+    "name": "JPopsuki",
+    "short": "JPS",
+    "source": "official"
+  },
+  {
+    "name": "JPTVTS",
+    "short": "JPTV",
+    "source": "generated"
+  },
+  {
+    "name": "Karagarga",
+    "short": "KG",
+    "source": "official"
+  },
+  {
+    "name": "Keep Friends",
+    "short": "FRDS",
+    "source": "official"
+  },
+  {
+    "name": "KrayTracker",
+    "short": "KT",
+    "source": "official"
+  },
+  {
+    "name": "Le Saloon",
+    "short": "LS",
+    "source": "generated"
+  },
+  {
+    "name": "Last Digital Underground",
+    "short": "LDU",
+    "source": "official"
+  },
+  {
+    "name": "Lat-Team",
+    "short": "LT",
+    "source": "generated"
+  },
+  {
+    "name": "LearnFlakes",
+    "short": "LF",
+    "source": "official"
+  },
+  {
+    "name": "LegacyHD",
+    "short": "LHD",
+    "source": "official"
+  },
+  {
+    "name": "Libble",
+    "short": "LiB",
+    "source": "official"
+  },
+  {
+    "name": "LinkoManija",
+    "short": "LM",
+    "source": "official"
+  },
+  {
+    "name": "LST",
+    "short": "LST",
+    "source": "generated"
+  },
+  {
+    "name": "LzTr",
+    "short": "LZTR",
+    "source": "generated"
+  },
+  {
+    "name": "M-Team",
+    "short": "MTTP",
+    "source": "official"
+  },
+  {
+    "name": "MaDs Revolution",
+    "short": "MaDs",
+    "source": "official"
+  },
+  {
+    "name": "Malayabits",
+    "short": "MB",
+    "source": "official"
+  },
+  {
+    "name": "Materialize",
+    "short": "MAT",
+    "source": "official"
+  },
+  {
+    "name": "Max New Vision",
+    "short": "MNV",
+    "source": "official"
+  },
+  {
+    "name": "Milkie",
+    "short": "MILK",
+    "source": "generated"
+  },
+  {
+    "name": "MojBlink",
+    "short": "MBJ",
+    "source": "official"
+  },
+  {
+    "name": "MoreThanTV",
+    "short": "MTV",
+    "source": "official"
+  },
+  {
+    "name": "MusicVids",
+    "short": "MV",
+    "source": "official"
+  },
+  {
+    "name": "MyAnonaMouse",
+    "short": "MAM",
+    "source": "official"
+  },
+  {
+    "name": "MySpleen",
+    "short": "MS",
+    "source": "official"
+  },
+  {
+    "name": "nCore",
+    "short": "NCORE",
+    "source": "generated"
+  },
+  {
+    "name": "Nebulance",
+    "short": "NBL",
+    "source": "official"
+  },
+  {
+    "name": "New Propaganda",
+    "short": "NP",
+    "source": "official"
+  },
+  {
+    "name": "New Real World",
+    "short": "NRW",
+    "source": "official"
+  },
+  {
+    "name": "NewHeaven",
+    "short": "NH",
+    "source": "official"
+  },
+  {
+    "name": "Nostradamus",
+    "short": "NOST",
+    "source": "generated"
+  },
+  {
+    "name": "NordicQuality (API)",
+    "short": "NQ",
+    "source": "official"
+  },
+  {
+    "name": "OldToons",
+    "short": "OTW",
+    "source": "official"
+  },
+  {
+    "name": "OnlyEncodes+",
+    "short": "OE",
+    "source": "official"
+  },
+  {
+    "name": "Orpheus",
+    "short": "OPS",
+    "source": "official"
+  },
+  {
+    "name": "OurBits",
+    "short": "OB",
+    "source": "official"
+  },
+  {
+    "name": "PassThePopcorn",
+    "short": "PTP",
+    "source": "official"
+  },
+  {
+    "name": "Phoenix Project",
+    "short": "PHX",
+    "source": "official"
+  },
+  {
+    "name": "PixelCove",
+    "short": "PxC",
+    "source": "official"
+  },
+  {
+    "name": "PolishTracker",
+    "short": "PT",
+    "source": "official"
+  },
+  {
+    "name": "Pornbay",
+    "short": "PB",
+    "source": "official"
+  },
+  {
+    "name": "Portugas",
+    "short": "PTG",
+    "source": "official"
+  },
+  {
+    "name": "PrivateHD",
+    "short": "PHD",
+    "source": "official"
+  },
+  {
+    "name": "PTerClub",
+    "short": "PTer",
+    "source": "official"
+  },
+  {
+    "name": "PTFiles",
+    "short": "PTF",
+    "source": "official"
+  },
+  {
+    "name": "PTFans",
+    "short": "PTFans",
+    "source": "official"
+  },
+  {
+    "name": "punck-tracker",
+    "short": "PNT",
+    "source": "generated"
+  },
+  {
+    "name": "PuroVicio",
+    "short": "PRV",
+    "source": "official"
+  },
+  {
+    "name": "Racing4Everyone",
+    "short": "R4E",
+    "source": "official"
+  },
+  {
+    "name": "RacingForMe",
+    "short": "RFM",
+    "source": "official"
+  },
+  {
+    "name": "Rastastugan",
+    "short": "RAS",
+    "source": "official"
+  },
+  {
+    "name": "Redacted",
+    "short": "RED",
+    "source": "official"
+  },
+  {
+    "name": "Retroflix",
+    "short": "RF",
+    "source": "official"
+  },
+  {
+    "name": "ReelFliX",
+    "short": "RFX",
+    "source": "official"
+  },
+  {
+    "name": "RevolutionTT",
+    "short": "RTT",
+    "source": "official"
+  },
+  {
+    "name": "RocketHD",
+    "short": "RHD",
+    "source": "official"
+  },
+  {
+    "name": "Samaritano",
+    "short": "SAMA",
+    "source": "generated"
+  },
+  {
+    "name": "SceneHD",
+    "short": "SCEN",
+    "source": "generated"
+  },
+  {
+    "name": "SceneLinks",
+    "short": "SL",
+    "source": "official"
+  },
+  {
+    "name": "SceneTime",
+    "short": "ST",
+    "source": "official"
+  },
+  {
+    "name": "SecretCinema",
+    "short": "SC",
+    "source": "official"
+  },
+  {
+    "name": "seedpool",
+    "short": "SP",
+    "source": "official"
+  },
+  {
+    "name": "SeedFile",
+    "short": "SF",
+    "source": "official"
+  },
+  {
+    "name": "Shareisland",
+    "short": "SHR",
+    "source": "official"
+  },
+  {
+    "name": "Share Friends Project",
+    "short": "SFP",
+    "source": "official"
+  },
+  {
+    "name": "Simurg",
+    "short": "SIM",
+    "source": "official"
+  },
+  {
+    "name": "SkipTheCommercials",
+    "short": "STC",
+    "source": "official"
+  },
+  {
+    "name": "SnowPT (Skyeysnow)",
+    "short": "SSPT",
+    "source": "official"
+  },
+  {
+    "name": "SocietyGlitch",
+    "short": "SG",
+    "source": "official"
+  },
+  {
+    "name": "SpeedApp",
+    "short": "SPEE",
+    "source": "generated"
+  },
+  {
+    "name": "Spirit of Revolution",
+    "short": "SoR",
+    "source": "official"
+  },
+  {
+    "name": "SportsCult",
+    "short": "SC",
+    "source": "official"
+  },
+  {
+    "name": "SpringSunday",
+    "short": "SSD",
+    "source": "official"
+  },
+  {
+    "name": "SugoiMusic",
+    "short": "SM",
+    "source": "official"
+  },
+  {
+    "name": "SuperBits",
+    "short": "SBS",
+    "source": "official"
+  },
+  {
+    "name": "Swarmazon",
+    "short": "SMZ",
+    "source": "official"
+  },
+  {
+    "name": "Tasmanit",
+    "short": "TAS",
+    "source": "official"
+  },
+  {
+    "name": "The Falling Angels",
+    "short": "TFA",
+    "source": "official"
+  },
+  {
+    "name": "The Horror Charnel",
+    "short": "THC",
+    "source": "official"
+  },
+  {
+    "name": "The Leach Zone",
+    "short": "TLZ",
+    "source": "official"
+  },
+  {
+    "name": "The New Retro",
+    "short": "TNR",
+    "source": "official"
+  },
+  {
+    "name": "The Old School",
+    "short": "TOS",
+    "source": "official"
+  },
+  {
+    "name": "The Paradiese",
+    "short": "TP",
+    "source": "official"
+  },
+  {
+    "name": "The Shinning",
+    "short": "TSH",
+    "source": "official"
+  },
+  {
+    "name": "The-Crazy-Ones",
+    "short": "TCO",
+    "source": "official"
+  },
+  {
+    "name": "The-New-Fun",
+    "short": "TNF",
+    "source": "official"
+  },
+  {
+    "name": "TheGeeks",
+    "short": "TG",
+    "source": "official"
+  },
+  {
+    "name": "TheMixingBowl",
+    "short": "TMB",
+    "source": "official"
+  },
+  {
+    "name": "ThePlace",
+    "short": "TP",
+    "source": "official"
+  },
+  {
+    "name": "TheScenePlace",
+    "short": "TSP",
+    "source": "official"
+  },
+  {
+    "name": "TheVault",
+    "short": "TV",
+    "source": "official"
+  },
+  {
+    "name": "TNTracker",
+    "short": "TN",
+    "source": "official"
+  },
+  {
+    "name": "Torrent Explosiv",
+    "short": "TE",
+    "source": "official"
+  },
+  {
+    "name": "Torrent Sector Crew",
+    "short": "TSC",
+    "source": "official"
+  },
+  {
+    "name": "Torrent Trader",
+    "short": "TT",
+    "source": "official"
+  },
+  {
+    "name": "Torrent-Syndikat",
+    "short": "TS",
+    "source": "official"
+  },
+  {
+    "name": "TorrentBD",
+    "short": "TBD",
+    "source": "official"
+  },
+  {
+    "name": "TorrentDay",
+    "short": "TD",
+    "source": "official"
+  },
+  {
+    "name": "TorrentLand",
+    "short": "TLND",
+    "source": "generated"
+  },
+  {
+    "name": "TorrentLeech",
+    "short": "TL",
+    "source": "official"
+  },
+  {
+    "name": "Torrentleech.pl",
+    "short": "TL.pl",
+    "source": "official"
+  },
+  {
+    "name": "Torrenteros",
+    "short": "TTR",
+    "source": "official"
+  },
+  {
+    "name": "ToTheGlory",
+    "short": "TTG",
+    "source": "official"
+  },
+  {
+    "name": "TR4KER",
+    "short": "T4",
+    "source": "official"
+  },
+  {
+    "name": "TurkSeed",
+    "short": "TURK",
+    "source": "generated"
+  },
+  {
+    "name": "TV-Vault",
+    "short": "TVV",
+    "source": "official"
+  },
+  {
+    "name": "U2",
+    "short": "U2",
+    "source": "official"
+  },
+  {
+    "name": "Universal-Torrents",
+    "short": "UT",
+    "source": "official"
+  },
+  {
+    "name": "Unwalled",
+    "short": "UNW",
+    "source": "official"
+  },
+  {
+    "name": "upload.cx",
+    "short": "ULCX",
+    "source": "official"
+  },
+  {
+    "name": "Upscale Vault",
+    "short": "UV",
+    "source": "official"
+  },
+  {
+    "name": "Utopia",
+    "short": "UTOP",
+    "source": "generated"
+  },
+  {
+    "name": "V3X",
+    "short": "V3X",
+    "source": "generated"
+  },
+  {
+    "name": "World-of-Tomorrow",
+    "short": "WoT",
+    "source": "official"
+  },
+  {
+    "name": "Xbtmusic",
+    "short": "XBT",
+    "source": "official"
+  },
+  {
+    "name": "XtremeWrestlingTorrents",
+    "short": "XWT",
+    "source": "official"
+  },
+  {
+    "name": "YggReborn",
+    "short": "YGGR",
+    "source": "generated"
+  },
+  {
+    "name": "YUSCENE",
+    "short": "YUSC",
+    "source": "generated"
+  }
+]
